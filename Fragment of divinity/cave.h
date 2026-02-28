@@ -1,0 +1,289 @@
+#ifndef CAVE_H
+#define CAVE_H
+
+#include "Character.h"
+
+// Externs (defined in iMain.cpp)
+extern int caveSceneBg;
+extern int wizardImgs[10];
+extern int wizardX;
+extern int wizardY;
+extern int wizardIndex;
+extern bool isWizardMoving;
+extern int wizardTimer;
+extern bool isCharacterEntering;
+extern int levelChange1;
+extern int levelChange2;
+extern bool isLevelTransitioning;
+extern int transitionTimer;
+extern int transitionPhase;
+
+// Dialogue System
+extern bool isWizardTalking;
+extern int wizardDialogueIndex;
+// 0: None, 1: "Speak the truth...", 2: "Only wisdom...", 3: "Answer or perish"
+extern int wizardDialogueTimer;
+
+extern int imgNextLevel;    // From iMain.cpp
+extern int dialogueBoxImg;  // New dialogue box image
+extern bool iqCorrect;      // Defined in IQ.h
+extern int postAnswerIndex; // Defined in IQ.h
+extern int caveImgL2, caveSceneBgL2, wizardL2Img;
+extern int currentLevel;
+extern int shardImg;
+
+// Forward Declaration
+void updateIQLogic();
+
+// Function Implementations
+inline void loadCaveAssets() {
+  caveSceneBg = iLoadImage((char *)"Wizard\\cave.bmp");
+  char filename[100];
+  for (int i = 0; i < 10; i++) {
+    sprintf_s(filename, sizeof(filename), "Wizard\\wizard%d.png", i + 1);
+    wizardImgs[i] = iLoadImage((char *)filename);
+  }
+  levelChange1 = iLoadImage((char *)"Wizard\\entryCave.png");
+  levelChange2 = iLoadImage((char *)"Wizard\\shardexplain.png");
+  dialogueBoxImg = iLoadImage((char *)"Wizard\\textbox.png");
+  shardImg = iLoadImage((char *)"Wizard\\shard.png");
+}
+
+inline void initCaveState() {
+  wizardX = 1000; // Start off-screen right
+  wizardY = 100;  // Adjust Y position as needed
+
+  // Character setup
+  charX = -200;     // Start off-screen left
+  charY = 100;      // Same Y coordinate as wizard
+  charHeight = 250; // Ensure normal size
+  charWidth = 200;  // Ensure normal size
+  charFrameIndex = 0; // Frame 1 (idle/standing)
+
+  wizardIndex = 0;
+  isWizardMoving = false;     // Wizard waits for character
+  isCharacterEntering = true; // Character starts moving
+  wizardTimer = 0;
+
+  // Transition Logic - Start with entry splash screen (Phase 1) for Level 1
+  if (currentLevel == 2) {
+      isLevelTransitioning = false;
+      transitionPhase = 0;
+  } else {
+      isLevelTransitioning = true;
+      transitionPhase = 1;
+  }
+  transitionTimer = 0;
+
+  // Dialogue Init
+  isWizardTalking = false;
+  wizardDialogueIndex = 0;
+  wizardDialogueTimer = 0;
+}
+
+inline void updateWizardLogic() {
+  if (isLevelTransitioning) {
+    // Manual transition via button click handled in handleCaveTransitionClick
+    // transitionTimer logic removed
+  } else if (isCharacterEntering) {
+    wizardTimer++;
+    // Character Animation
+    if (wizardTimer % 5 == 0) {
+      charFrameIndex++;
+      if (charFrameIndex >= 9) // Loop 1-8
+        charFrameIndex = 1;
+    }
+
+    charX += 5;         // Average speed
+    if (charX >= 150) { // Stop position
+      charX = 150;
+      isCharacterEntering = false;
+      charFrameIndex = 0;    // Frame 1 (Index 0) - leora1.png
+      isWizardMoving = true; // Start wizard
+      wizardTimer = 0;
+    }
+  } else if (isWizardMoving) {
+    wizardTimer++;
+
+    // Animation logic
+    if (wizardTimer % 5 == 0) {
+      wizardIndex++;
+      if (wizardIndex >= 10)
+        wizardIndex = 0;
+    }
+
+    // Movement logic
+    wizardX -= 5;         // Move left
+    if (wizardX <= 650) { // Specific position to create hole/gap
+      wizardX = 650;
+      isWizardMoving = false;
+      wizardIndex = 0; // Set to first frame (standing)
+
+      // Start Dialogue Sequence
+      isWizardTalking = true;
+      wizardDialogueIndex = 1;
+      wizardDialogueTimer = 0;
+    }
+  } else if (isWizardTalking) {
+    wizardDialogueTimer++;
+    // Display each message for 120 frames (approx 4 seconds)
+    if (wizardDialogueTimer >= 120) {
+      wizardDialogueTimer = 0;
+      wizardDialogueIndex++;
+      if (wizardDialogueIndex > 3) {
+        isWizardTalking = false;
+        // IQ question will appear now (checked in IQ.h)
+      }
+    }
+  }
+
+  // IQ Logic Update
+  if (!isLevelTransitioning && !isCharacterEntering && !isWizardMoving &&
+      !isWizardTalking) {
+    // We need to validly call updateIQLogic() here.
+    // Assuming IQ.h is included before cave.h in iMain.cpp and updateIQLogic is
+    // available.
+    updateIQLogic();
+  }
+}
+
+inline void drawCave() {
+  if (isLevelTransitioning) {
+    if (transitionPhase == 1) {
+      iShowImage(0, 0, 1000, 600, levelChange1);
+    } else if (transitionPhase == 2) {
+      // Background: cave
+      if (currentLevel == 2) {
+        iShowImage(0, 0, 1000, 600, caveSceneBgL2);
+      } else {
+        iShowImage(0, 0, 1000, 600, caveSceneBg);
+      }
+      // shardexplain image centered in the middle of the screen
+      int imgW = 700;
+      int imgH = 350;
+      int imgX = (1000 - imgW) / 2; // 250
+      int imgY = (600 - imgH) / 2;  // 125
+      iSetColor(255, 255, 255);
+      iShowImage(imgX, imgY, imgW, imgH, levelChange2);
+    }
+
+    // Draw Next Button at bottom right (Bigger)
+    iShowImage(750, 50, 220, 70, imgNextLevel);
+    return;
+  }
+  if (currentLevel == 2) {
+    iShowImage(0, 0, 1000, 600, caveSceneBgL2);
+  } else {
+    iShowImage(0, 0, 1000, 600, caveSceneBg);
+  }
+
+  // Draw Character
+  // We can use the existing drawCharacter() function from Character.h
+  // However, drawCharacter() handles jumping/bending logic which might be
+  // interfering. But since we are just moving x/y, it should be fine as long as
+  // isJumping/isBending are false. Since we set charY = 100, we need to make
+  // sure drawCharacter uses that charY. drawCharacter() uses global charY.
+  drawCharacter();
+
+  // Draw Shard and Info if correct and Wizard finished sequence
+  if (iqCorrect && postAnswerIndex >= 3) {
+    // Adjustable Parameters - Revised Layout
+    int shardW = 150;
+    int shardH = 150;
+    int shardX = charX - 100; // Keep position
+    // 10 pixels up from character's head
+    int shardY = charY + charHeight + 10;
+
+    int boxW = 350;
+    int boxH = 200; // Match Wizard's height (200)
+    // Position textbox closer to shard (Smaller gap)
+    int boxX = shardX + 120;
+    // Align Y with Shard (Same level)
+    int boxY = shardY;
+
+    // Draw Info Box (Background)
+    iSetColor(255, 255, 255);
+    iShowImage(boxX, boxY, boxW, boxH, dialogueBoxImg);
+
+    // Draw Shard
+    iShowImage(shardX, shardY, shardW, shardH, shardImg);
+
+    // Draw Info Text (Centered Title)
+    iSetColor(0, 0, 0);
+
+    // Title: "Item Claimed" centered
+    iText(boxX + 110, boxY + 95, (char *)"Item Claimed",
+          GLUT_BITMAP_TIMES_ROMAN_24);
+
+    // Draw Next Button at bottom right (Bigger)
+    iShowImage(750, 50, 220, 70, imgNextLevel);
+  }
+
+  // Draw Wizard
+  if (currentLevel == 2) {
+    iShowImage(wizardX, wizardY, 200, 200, wizardL2Img);
+  } else {
+    iShowImage(wizardX, wizardY, 200, 200, wizardImgs[wizardIndex]);
+  }
+
+  // Draw Dialogue Bubble
+  if (isWizardTalking) {
+    // Wizard Center ~750 (wizardX + 100).
+    // Box Width 350. Start X = 750 - 175 = 575 (wizardX - 75).
+    // Box Height 150 (User requested image replacement).
+    // Box Height 200 (Increased to fit).
+    int boxX = wizardX - 100;
+    int boxY = wizardY + 220; // Raised higher (above head)
+    int boxW = 400;
+    int boxH = 200;
+
+    iSetColor(255, 255,
+              255); // Reset color to white so image isn't tinted black
+    iShowImage(boxX, boxY, boxW, boxH, dialogueBoxImg);
+
+    iSetColor(0, 0, 0); // Text Color
+    // Center text vertically
+    int textY = boxY + 90;
+    int textX = boxX + 70; // Increased padding for right shift
+
+    if (wizardDialogueIndex == 1) {
+      iText(textX + 20, textY, (char *)"Speak the truth, traveler",
+            GLUT_BITMAP_TIMES_ROMAN_24);
+    } else if (wizardDialogueIndex == 2) {
+      iText(textX + 10, textY, (char *)"Only wisdom shall unlock it",
+            GLUT_BITMAP_TIMES_ROMAN_24);
+    } else if (wizardDialogueIndex == 3) {
+      iText(textX + 60, textY, (char *)"Answer or perish!",
+            GLUT_BITMAP_TIMES_ROMAN_24);
+    }
+  }
+}
+
+inline int handleCaveTransitionClick(int mx, int my) {
+  // Button Rect: 750, 50, 220, 70
+  if (mx >= 750 && mx <= 970 && my >= 50 && my <= 120) {
+    if (isLevelTransitioning) {
+      if (transitionPhase == 1) {
+        // Exit entry splash screen into cave scene
+        isLevelTransitioning = false;
+        transitionPhase = 0;
+        return 2; // Stay in NEXT_LEVEL_IQ state, but show cave
+      } else if (transitionPhase == 2) {
+        // Finalize transition to Level 2
+        isLevelTransitioning = false;
+        transitionPhase = 0;
+        return 1; // Transitions to LEVEL2_INTRO in iMain.cpp
+      }
+    } else {
+      // In cave scene, check if can start exit transition
+      if (iqCorrect && postAnswerIndex >= 3) {
+        isLevelTransitioning = true;
+        transitionPhase = 2; // Show shardexplain.png
+        return 0;
+      }
+    }
+  }
+  return 0;
+}
+
+#endif
