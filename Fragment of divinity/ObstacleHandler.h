@@ -140,6 +140,7 @@ inline void initObstacles() {
     sharks[i].jumpState = 0;
     sharks[i].isDying = false;
     sharks[i].dyingVel = 0;
+    sharks[i].isRetreating = false;
     bridges[i].active = false;
     bridges[i].isBroken = false;
     bridges[i].leverActivated = false;
@@ -178,20 +179,27 @@ inline void updateObstaclePhysics() {
           continue;
         }
 
+        // Apply movement
         if (sharks[i].isRetreating) {
-          sharks[i].x += (SCROLL_SPD * 4); // Swim back fast
-          if (sharks[i].x > SCREEN_W + 300) {
+          sharks[i].x += (SCROLL_SPD + 1); // Swim back to the right
+          if (sharks[i].x > SCREEN_W + 150) {
             sharks[i].active = false;
             sharks[i].isRetreating = false;
           }
-          continue;
         } else {
-          sharks[i].x -= SCROLL_SPD + 1;
+          sharks[i].x -= (SCROLL_SPD + 1);
         }
 
+        // Skip jumping/swimming logic if it was just deactivated
+        if (!sharks[i].active)
+          continue;
+
+        // Apply Jump/Swimming Logic
         if (sharks[i].jumpState == 0) {
           sharks[i].y = (float)-10.0f;
-          if (sharks[i].x - charX < 200 && sharks[i].x > charX) {
+          // Only trigger jump if NOT retreating
+          if (!sharks[i].isRetreating && sharks[i].x - charX < 200 &&
+              sharks[i].x > charX) {
             sharks[i].jumpState = 1;
             sharks[i].velocityY = (sharks[i].type == 1) ? 10.0f : 13.0f;
           }
@@ -208,7 +216,7 @@ inline void updateObstaclePhysics() {
             sharks[i].velocityY = 0;
           }
         }
-        if (sharks[i].x < -500) {
+        if (sharks[i].x < -500 && !sharks[i].isRetreating) {
           sharks[i].active = false;
         }
       }
@@ -233,30 +241,35 @@ inline void updateObstaclePhysics() {
         }
       }
       if (!bridges[i].leverActivated && !bridges[i].isBroken) {
-        if (charX + charWidth - 85 > bridges[i].x &&
-            charX + 85 < bridges[i].x + 430 && charY <= groundY + 10) {
+        if (charX + charWidth - 65 > bridges[i].x + 25 &&
+            charX + 65 < bridges[i].x + 420 && charY <= groundY + 12) {
           bridges[i].isBroken = true;
           bridges[i].fallenY = bridges[i].y - 40;
-          bridges[i].fallenVel = -1;
+          bridges[i].fallenVel = -3.0f; // Initial sudden drop
 
-          // Start Character Fall Sequence
-          if (!isFallingSequence && !isInvincible) {
+          // Start Character Fall Sequence (Ignore isInvincible for falling
+          // itself)
+          if (!isFallingSequence) {
             isFallingSequence = true;
             isCharFrozen = true;
             fallY = (float)charY;
-            fallVel = -2; // Initial fall velocity
+            fallVel = -3.0f; // Sync with bridge piece
             hitBridgeIndex = i;
-            lives--;
-            isInvincible = true;
-            invincibilityTimer = 120; // Longer invincibility for the sequence
+
+            // Only lose life if not already invincible
+            if (!isInvincible) {
+              lives--;
+              isInvincible = true;
+              invincibilityTimer = 120;
+            }
             bridges[i].damaged = true;
-            startScreenShake(15, 8); // Medium shake for falling
+            startScreenShake(18, 10); // Sudden jolt
           }
         }
       }
       if (bridges[i].isBroken && !bridges[i].leverActivated) {
         bridges[i].fallenY += bridges[i].fallenVel;
-        bridges[i].fallenVel -= 0.5;
+        bridges[i].fallenVel -= 0.8f; // Match character's fall sequence gravity
       }
       if (bridges[i].x < -600)
         bridges[i].active = false;
@@ -288,27 +301,8 @@ inline void updateObstaclePhysics() {
       }
     }
 
-    // ---- BRIDGE COLLISION DAMAGE ----
-    if (!isInvincible && !isFallingSequence) {
-      for (int i = 0; i < 2; i++) {
-        if (!bridges[i].active || bridges[i].damaged ||
-            bridges[i].leverActivated)
-          continue;
-        if (charX + charWidth - 60 > bridges[i].x + 20 &&
-            charX + 60 < bridges[i].x + 430 && charY <= groundY + 5) {
-          lives--;
-          isInvincible = true;
-          invincibilityTimer = 120;
-          bridges[i].damaged = true;
-          isFallingSequence = true;
-          isCharFrozen = true;
-          fallY = (float)charY;
-          fallVel = -2;
-          hitBridgeIndex = i;
-          startScreenShake(15, 8); // Medium shake for falling
-        }
-      }
-    }
+    // Redundant Bridge Collision Damage block removed - consolidated into main
+    // bridge loop
 
     // Spawning Logic
     static int level2SpawnDist = 0;
@@ -419,6 +413,7 @@ inline void drawObstacles() {
     for (int i = 0; i < 2; i++) {
       if (sharks[i].active) {
         int img = 0;
+        int size = (sharks[i].type == 1) ? 70 : 90;
         if (sharks[i].type == 1) {
           if (sharks[i].jumpState == 0)
             img = shark11;
@@ -426,7 +421,6 @@ inline void drawObstacles() {
             img = shark12;
           else
             img = shark13;
-          iShowImage((int)sharks[i].x + shakeOffsetX, (int)sharks[i].y + shakeOffsetY, 70, 70, img);
         } else {
           if (sharks[i].jumpState == 0)
             img = shark21;
@@ -434,7 +428,14 @@ inline void drawObstacles() {
             img = shark22;
           else
             img = shark23;
-          iShowImage((int)sharks[i].x + shakeOffsetX, (int)sharks[i].y + shakeOffsetY, 90, 90, img);
+        }
+
+        if (sharks[i].isRetreating) {
+          iShowImageFlipped((int)sharks[i].x + shakeOffsetX,
+                            (int)sharks[i].y + shakeOffsetY, size, size, img);
+        } else {
+          iShowImage((int)sharks[i].x + shakeOffsetX,
+                     (int)sharks[i].y + shakeOffsetY, size, size, img);
         }
       }
     }
@@ -449,7 +450,8 @@ inline void drawObstacles() {
       float leverY = bridges[i].y - 15;
       int leverW = 60;
       int leverH = bridges[i].isRLL ? 80 : 450;
-      iShowImage((int)leverX + shakeOffsetX, (int)leverY + shakeOffsetY, leverW, leverH, lImg);
+      iShowImage((int)leverX + shakeOffsetX, (int)leverY + shakeOffsetY, leverW,
+                 leverH, lImg);
       if (!bridges[i].leverActivated) {
         int seasonImg = obs221;
         if (selectedWeather == 1)
@@ -458,21 +460,23 @@ inline void drawObstacles() {
           seasonImg = obs223;
 
         // Always show seasonImg (water/hole) when lever is red/inactive
-        iShowImage((int)bridges[i].x + shakeOffsetX, (int)bridges[i].y - 15 + shakeOffsetY, 450, 60,
-                   seasonImg);
+        iShowImage((int)bridges[i].x + shakeOffsetX,
+                   (int)bridges[i].y - 15 + shakeOffsetY, 450, 60, seasonImg);
 
         if (!bridges[i].isBroken) {
-          iShowImage((int)bridges[i].x - 50 + shakeOffsetX, (int)bridges[i].y - 40 + shakeOffsetY, 550, 60,
-                     imgBroken);
+          iShowImage((int)bridges[i].x - 50 + shakeOffsetX,
+                     (int)bridges[i].y - 40 + shakeOffsetY, 550, 60, imgBroken);
         } else {
-          iShowImage((int)bridges[i].x - 50 + shakeOffsetX, (int)bridges[i].fallenY + shakeOffsetY, 550, 60,
+          iShowImage((int)bridges[i].x - 50 + shakeOffsetX,
+                     (int)bridges[i].fallenY + shakeOffsetY, 550, 60,
                      imgBroken);
         }
       }
     }
     for (int i = 0; i < 3; i++) {
       if (bombs[i].active) {
-        iShowImage((int)bombs[i].x + shakeOffsetX, (int)bombs[i].y + shakeOffsetY, 70, 70, bombImg);
+        iShowImage((int)bombs[i].x + shakeOffsetX,
+                   (int)bombs[i].y + shakeOffsetY, 70, 70, bombImg);
       }
     }
     return;
@@ -482,11 +486,14 @@ inline void drawObstacles() {
   for (int i = 0; i < 3; i++) {
     if (obstacles[i].active) {
       if (obstacles[i].type == 1)
-        iShowImage(obstacles[i].x + shakeOffsetX, obstacles[i].y + shakeOffsetY, 120, 120, obs1);
+        iShowImage(obstacles[i].x + shakeOffsetX, obstacles[i].y + shakeOffsetY,
+                   120, 120, obs1);
       else if (obstacles[i].type == 2)
-        iShowImage(obstacles[i].x + shakeOffsetX, obstacles[i].y + shakeOffsetY, 120, 80, obs2);
+        iShowImage(obstacles[i].x + shakeOffsetX, obstacles[i].y + shakeOffsetY,
+                   120, 80, obs2);
       else
-        iShowImage(obstacles[i].x + shakeOffsetX, obstacles[i].y + shakeOffsetY, 120, 120, obs3);
+        iShowImage(obstacles[i].x + shakeOffsetX, obstacles[i].y + shakeOffsetY,
+                   120, 120, obs3);
     }
   }
 }
@@ -496,7 +503,8 @@ inline void drawExplosions() {
     for (int i = 0; i < 3; i++) {
       if (explosions[i].active) {
         // Center the 200x200 explosion on the trigger point (character center)
-        iShowImage((int)explosions[i].x - 100 + shakeOffsetX, (int)explosions[i].y - 100 + shakeOffsetY, 200, 200,
+        iShowImage((int)explosions[i].x - 100 + shakeOffsetX,
+                   (int)explosions[i].y - 100 + shakeOffsetY, 200, 200,
                    explosionImgs[explosions[i].frame]);
       }
     }

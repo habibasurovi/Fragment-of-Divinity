@@ -4,6 +4,7 @@
 #include "CharacterCustomization.h"
 #include "CustomizationMenu.h"
 #include "GameState.h"
+#include "HighScoreHandler.h"
 #include "IQ.h"
 #include "LevelCompleteHandler.h"
 #include "LifeHandler.h"
@@ -15,13 +16,13 @@
 #include "StoryHandler.h"
 #include "WeatherHandler.h"
 #include "cave.h"
-#include "HighScoreHandler.h"
 #include "character 2.h"
 #include "iGraphics.h"
 
 #include <time.h>
 
-// Forward declarations for functions defined in headers to assist IntelliSense/Linking
+// Forward declarations for functions defined in headers to assist
+// IntelliSense/Linking
 void checkMagnetCollision();
 void drawMagnet();
 
@@ -261,9 +262,9 @@ int shakeOffsetX = 0;
 int shakeOffsetY = 0;
 
 struct ScorePopup {
-    float x, y;
-    int timer;
-    bool active;
+  float x, y;
+  int timer;
+  bool active;
 };
 ScorePopup popups[10];
 
@@ -283,7 +284,10 @@ bool isMagnetVisible = false;
 bool isMagnetBuffActive = false;
 int magnetBuffTimer = 0;
 int magnetSpawnTimer = 0;
-int magnetNextSpawnThreshold = 233 + rand() % 201; // 7-13 seconds at 30fps (30ms * 233 = 6.99s, 30ms * 433 = 12.99s)
+int magnetNextSpawnThreshold =
+    233 +
+    rand() %
+        201; // 7-13 seconds at 30fps (30ms * 233 = 6.99s, 30ms * 433 = 12.99s)
 
 // MainMenu.h variables
 int mainMenuBG;
@@ -428,6 +432,18 @@ void updateScorePopups() {
   }
 }
 
+void drawTimerUI() {
+  int uiX = screenWidth / 2 - 50;
+  int uiY = screenHeight - 60;
+
+  iSetColor(255, 255, 255);
+  char timerText[32];
+  int minutes = gameRunTimeSeconds / 60;
+  int seconds = gameRunTimeSeconds % 60;
+  sprintf_s(timerText, "Time: %02d:%02d", minutes, seconds);
+  iText(uiX, uiY + 15, timerText, GLUT_BITMAP_TIMES_ROMAN_24);
+}
+
 /* -------------------- LOGIC FUNCTIONS -------------------- */
 enum MusicTrack {
   TRACK_NONE,
@@ -533,6 +549,10 @@ void updateCavePhysics() {
     } else {
       // Cave is "on sight" on the right side - stop BG and move character
       if (charX < caveX + 50) {
+        isCharFrozen = true; // Prevent player input
+        isLeftArrowPressed = false;
+        specialKeyPressed[GLUT_KEY_LEFT] = 0;
+        isRightArrowPressed = true;
         charX += 5;
         // Basic animation while moving automatically
         charAnimCounter++;
@@ -543,6 +563,7 @@ void updateCavePhysics() {
             charFrameIndex = 1;
         }
       } else {
+        isCharFrozen = false;
         levelOneComplete = true;
         updateHighScore(currentLevel, applesCollected);
         gameState = LEVEL_COMPLETE;
@@ -903,8 +924,7 @@ void checkCollision() {
             if (lives <= 0) {
               updateHighScore(currentLevel, applesCollected);
               gameState = GAME_OVER;
-            }
-            else {
+            } else {
               isInvincible = true;
               invincibilityTimer = 60;
             }
@@ -925,7 +945,7 @@ void checkCollision() {
           freezeTimer = 100; // 3 seconds @ 30ms (approx 100 ticks)
           lives--;
           startScreenShake(20, 15); // Large shake on bomb explosion
-          
+
           if (lives <= 0) {
             updateHighScore(currentLevel, applesCollected);
             gameState = GAME_OVER;
@@ -1130,10 +1150,8 @@ void updateShiftInput() {
         for (int i = 0; i < 2; i++) {
           if (sharks[i].active && !sharks[i].isDying &&
               sharks[i].x < screenWidth) {
-            // RETREAT: Send back to bottom right
+            // RETREAT: Send back to the right
             sharks[i].isRetreating = true;
-            sharks[i].jumpState = 0;
-            sharks[i].velocityY = 0;
           }
         }
       }
@@ -1164,22 +1182,25 @@ void masterGameLoop() {
   updateFallSequence();
   updateScreenShake();
   updateScorePopups();
-  
+
   // Magnet Spawn & Check
-  if (gameState == GAME && !isGamePaused && !isMagnetVisible && !isMagnetBuffActive) {
-      magnetSpawnTimer++;
-      if (magnetSpawnTimer > magnetNextSpawnThreshold) { 
-          magnetSpawnTimer = 0;
-          magnetNextSpawnThreshold = 233 + rand() % 201; 
-          if (rand() % 2 == 0) { // Still keeping 50% chance but can make it 100% if user wants precise delivery
-              isMagnetVisible = true;
-              magnetX = (float)(charX + 200 + rand() % 400);
-              if (magnetX > screenWidth - 50) magnetX = screenWidth - 50;
-              magnetY = screenHeight + 50;
-          }
+  if (gameState == GAME && !isGamePaused && !isMagnetVisible &&
+      !isMagnetBuffActive) {
+    magnetSpawnTimer++;
+    if (magnetSpawnTimer > magnetNextSpawnThreshold) {
+      magnetSpawnTimer = 0;
+      magnetNextSpawnThreshold = 233 + rand() % 201;
+      if (rand() % 2 == 0) { // Still keeping 50% chance but can make it 100% if
+                             // user wants precise delivery
+        isMagnetVisible = true;
+        magnetX = (float)(charX + 200 + rand() % 400);
+        if (magnetX > screenWidth - 50)
+          magnetX = screenWidth - 50;
+        magnetY = screenHeight + 50;
       }
+    }
   }
-  
+
   updateApplesWrapper();
   checkMagnetCollision(); // From AppleHandler.h
   updateWeatherWrapper();
@@ -1257,6 +1278,7 @@ void iDraw() {
     drawWeatherEffects();
     drawLivesUI();
     drawAppleScoreUI();
+    drawTimerUI();
     drawShardElements();
 
     // Draw Score Pop-ups
@@ -1299,16 +1321,19 @@ void iDraw() {
   } else if (gameState == HIGHSCORES) {
     iShowImage(0, 0, screenWidth, screenHeight, mainMenuBG);
     iSetColor(255, 255, 255);
-    iText(screenWidth / 2.0 - 100, screenHeight / 2.0 + 100, (char *)"HIGH SCORES", GLUT_BITMAP_TIMES_ROMAN_24);
-    
+    iText(screenWidth / 2.0 - 100, screenHeight / 2.0 + 100,
+          (char *)"HIGH SCORES", GLUT_BITMAP_TIMES_ROMAN_24);
+
     char scoreBuf[50];
     for (int i = 0; i < 4; i++) {
-        sprintf_s(scoreBuf, "Level %d: %d Food", i + 1, highScores[i]);
-        iText(screenWidth / 2.0 - 80, screenHeight / 2.0 + 50 - (i * 40), scoreBuf, GLUT_BITMAP_HELVETICA_18);
+      sprintf_s(scoreBuf, "Level %d: %d Food", i + 1, highScores[i]);
+      iText(screenWidth / 2.0 - 80, screenHeight / 2.0 + 50 - (i * 40),
+            scoreBuf, GLUT_BITMAP_HELVETICA_18);
     }
 
     iSetColor(200, 200, 200);
-    iText(screenWidth / 2.0 - 130, 50, (char *)"Press 'B' to Return to Menu", GLUT_BITMAP_HELVETICA_18);
+    iText(screenWidth / 2.0 - 130, 50, (char *)"Press 'B' to Return to Menu",
+          GLUT_BITMAP_HELVETICA_18);
   } else if (gameState == LEVEL_NOT_READY) {
     iShowImage(0, 0, screenWidth, screenHeight, levelSelectionBG);
     iSetColor(255, 255, 255);
