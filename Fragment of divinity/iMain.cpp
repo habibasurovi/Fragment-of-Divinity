@@ -1,10 +1,13 @@
+// iGraphics.h variables
+unsigned int keyPressed[512];
+unsigned int specialKeyPressed[512];
+
 #include "AppleHandler.h"
 #include "BackgroundHandler.h"
 #include "Character.h"
 #include "CharacterCustomization.h"
 #include "CustomizationMenu.h"
 #include "GameState.h"
-#include "HighScoreHandler.h"
 #include "IQ.h"
 #include "LevelCompleteHandler.h"
 #include "LifeHandler.h"
@@ -18,17 +21,15 @@
 #include "cave.h"
 #include "character 2.h"
 #include "iGraphics.h"
+#include "dragon.h"
 
+#include <math.h>
+#include <mmsystem.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
-// Forward declarations for functions defined in headers to assist
-// IntelliSense/Linking
-void checkMagnetCollision();
-void drawMagnet();
-
 #pragma comment(lib, "winmm.lib")
-
-int highScores[4] = {0, 0, 0, 0};
 
 /* -------------------- CONSTANTS -------------------- */
 #define screenWidth 1000
@@ -36,13 +37,12 @@ int highScores[4] = {0, 0, 0, 0};
 
 // Forward Declarations
 void drawLevelTwoStory();
+void drawTimer();
 
 /* -------------------- GLOBAL VARIABLES -------------------- */
 // Game States (Moved to GameState.h)
 GameState gameState = INTRO; // Reset to INTRO for production
-#include "dragon.h"
 
-// iGraphics.h variables
 int iScreenHeight, iScreenWidth;
 int iMouseX, iMouseY;
 int ifft = 0;
@@ -50,8 +50,6 @@ void (*iAnimFunction[10])(void) = {0};
 int iAnimCount = 0;
 int iAnimDelays[10];
 int iAnimPause[10];
-unsigned int keyPressed[512];
-unsigned int specialKeyPressed[512];
 
 // Intro Variables
 int introImage;
@@ -70,9 +68,7 @@ LevelButton lvl1Btn, lvl2Btn, lvl3Btn, lvl4Btn, lvlCustomBtn;
 int initialStoryIndex = 0;
 int level1StoryIndex = 0;
 int level2StoryImages[3];
-int level2CaveStoryImages[3];
 int level2StoryIndex = 0;
-int level2CaveStoryIndex = 0;
 int storyTimerCount = 0;
 
 // Level 1 Riddles (6 Questions - Defined here to avoid ODR redefinition)
@@ -119,7 +115,10 @@ bool heart2Queued = false;
 
 // Weather Variables (Task 2)
 int imgIce, imgWater;
+int imgGhost1, imgGhost2;
 WeatherParticle weatherParticles[MAX_PARTICLES];
+struct Ghost ghosts[MAX_GHOSTS];
+int ghostSpawnTimer = 0;
 
 // Game Timer (Task 1 & 3)
 int gameRunTimeSeconds = 0;
@@ -161,8 +160,9 @@ bool isLevelTransitioning = false;
 int transitionTimer = 0;
 int transitionPhase = 0;
 
-// Level 2 Cave & Wizard Assets
+// Level 2 & 3 Cave & Wizard Assets
 int caveImgL2, caveSceneBgL2, wizardL2Img;
+int caveImgL3, wizardL3Img;
 
 // BackgroundHandler.h variables
 int bG1, bG2, bG3, bG4;
@@ -176,9 +176,20 @@ int r2bG1, r2bG2, r2bG3, r2bG4;
 int currentLevel = 1; // Start with level 1
 int bGX = 0;
 
+// Level 3 background assets
+int l3bG1, l3bG2, l3bG2_1, l3bG2_2;
+bool isL3Changed = false;
+
 // IQ State Variables (Declared extern, defined in iMain.cpp)
 bool iqAnswered = false;
 bool iqCorrect = false;
+
+// Level 3 Mini Game Variables
+int miniGameTargetX = 400;
+int miniGameTargetY = 300;
+int miniGameTargetSpeedX = 6;
+int miniGameTargetSpeedY = 6;
+int miniGameClicks = 0;
 Riddle *currentRiddles = NULL;
 int currentRiddlePoolSize = 6;
 int currentRiddleIndex = -1;
@@ -234,6 +245,27 @@ int imgBroken;
 int imgRLL, imgGLL, imgRBL, imgGBL;
 int obstacleSpawnTimer = 0;
 
+// Level 3 Assets
+int worm11, worm12, worm13, worm14;
+int worm21, worm22, worm23, worm24;
+int l3HoleImg;
+int handImgs[4];
+int shortPillerImg, longPillerImg;
+int flameImgs[4];
+int fireImgs[4];
+
+bool isL3HoleRemoved = false;
+bool flamesHitGround[2];
+bool isFlameFalling[2];
+float flameYPos[2];
+float flameVel[2];
+int flameFrame = 0;
+int fireFrame = 0;
+int handFrame = 0;
+float handOffset = 0;
+float handDir = 1;
+int wormFrame = 0;
+
 Obstacle obstacles[3];
 Shark sharks[2];
 BrokenBridge bridges[2];
@@ -241,7 +273,7 @@ int sharksSpawnedInLevel = 0;
 
 // Bomb Mechanic Globals
 int bombImg;
-int explosionImgs[7];
+int explosionImgs[5];
 Bomb bombs[3];
 Explosion explosions[3];
 bool isCharFrozen = false;
@@ -252,21 +284,12 @@ float fallVel = 0;
 int hitBridgeIndex = -1;
 int obsGapMin = 400;
 int obsGapMax = 700;
-int obsHighY = 100;
+int obsHighY = 180;
 int obsLowY = 30;
-
-// Game Juice Globals (Screen Shake & Score Pop-ups)
-int screenShakeTimer = 0;
-int screenShakeMagnitude = 0;
-int shakeOffsetX = 0;
-int shakeOffsetY = 0;
-
-struct ScorePopup {
-  float x, y;
-  int timer;
-  bool active;
-};
-ScorePopup popups[10];
+int level2SpawnDist = 0;
+int bombSpawnTimer = 0;
+int distSinceLast = 0;
+int nextSpawnGap = 300;
 
 // Shard & Halo Globals
 float fallingShardX = 0, fallingShardY = 0;
@@ -276,18 +299,6 @@ bool isHaloActive = false;
 int haloTimer = 0;
 int haloImg;
 bool hasClaimedShard = false;
-
-// Magnet Power-up
-int magnetImg;
-float magnetX = 0, magnetY = 0;
-bool isMagnetVisible = false;
-bool isMagnetBuffActive = false;
-int magnetBuffTimer = 0;
-int magnetSpawnTimer = 0;
-int magnetNextSpawnThreshold =
-    233 +
-    rand() %
-        201; // 7-13 seconds at 30fps (30ms * 233 = 6.99s, 30ms * 433 = 12.99s)
 
 // MainMenu.h variables
 int mainMenuBG;
@@ -391,59 +402,6 @@ int dragon3Imgs[6];
 Dragon dragons[5];
 int dragonSpawnTimeCounter = 0;
 
-// ---- GAME JUICE HELPERS ----
-void startScreenShake(int duration, int magnitude) {
-  screenShakeTimer = duration;
-  screenShakeMagnitude = magnitude;
-}
-
-void updateScreenShake() {
-  if (screenShakeTimer > 0) {
-    shakeOffsetX = (rand() % (screenShakeMagnitude * 2)) - screenShakeMagnitude;
-    shakeOffsetY = (rand() % (screenShakeMagnitude * 2)) - screenShakeMagnitude;
-    screenShakeTimer--;
-  } else {
-    shakeOffsetX = 0;
-    shakeOffsetY = 0;
-  }
-}
-
-void addScorePopup(float x, float y) {
-  for (int i = 0; i < 10; i++) {
-    if (!popups[i].active) {
-      popups[i].x = x;
-      popups[i].y = y;
-      popups[i].timer = 45; // 1.5 seconds at 30fps
-      popups[i].active = true;
-      break;
-    }
-  }
-}
-
-void updateScorePopups() {
-  for (int i = 0; i < 10; i++) {
-    if (popups[i].active) {
-      popups[i].timer--;
-      popups[i].y += 2; // Float upwards
-      if (popups[i].timer <= 0) {
-        popups[i].active = false;
-      }
-    }
-  }
-}
-
-void drawTimerUI() {
-  int uiX = screenWidth / 2 - 50;
-  int uiY = screenHeight - 60;
-
-  iSetColor(255, 255, 255);
-  char timerText[32];
-  int minutes = gameRunTimeSeconds / 60;
-  int seconds = gameRunTimeSeconds % 60;
-  sprintf_s(timerText, "Time: %02d:%02d", minutes, seconds);
-  iText(uiX, uiY + 15, timerText, GLUT_BITMAP_TIMES_ROMAN_24);
-}
-
 /* -------------------- LOGIC FUNCTIONS -------------------- */
 enum MusicTrack {
   TRACK_NONE,
@@ -495,8 +453,8 @@ void playMusicTrack(MusicTrack track) {
 }
 
 void resetGame() {
-  if (currentLevel == 2) {
-    groundY = 83; // 10 less than 93
+  if (currentLevel == 2 || currentLevel == 3) {
+    groundY = 83; // Standard ground for level 2 and 3
   } else {
     groundY = 30;
   }
@@ -509,6 +467,11 @@ void resetGame() {
   isInvincible = false;
   invincibilityTimer = 0;
   initObstacles();
+  // Ghost reset
+  for (int i = 0; i < MAX_GHOSTS; i++)
+    ghosts[i].active = false;
+  ghostSpawnTimer = 0;
+  isL3Changed = false;
   initApples();
 
   gameRunTimeSeconds = 0;
@@ -549,10 +512,6 @@ void updateCavePhysics() {
     } else {
       // Cave is "on sight" on the right side - stop BG and move character
       if (charX < caveX + 50) {
-        isCharFrozen = true; // Prevent player input
-        isLeftArrowPressed = false;
-        specialKeyPressed[GLUT_KEY_LEFT] = 0;
-        isRightArrowPressed = true;
         charX += 5;
         // Basic animation while moving automatically
         charAnimCounter++;
@@ -563,9 +522,7 @@ void updateCavePhysics() {
             charFrameIndex = 1;
         }
       } else {
-        isCharFrozen = false;
         levelOneComplete = true;
-        updateHighScore(currentLevel, applesCollected);
         gameState = LEVEL_COMPLETE;
       }
     }
@@ -635,17 +592,10 @@ static void firePendingAction() {
         currentLevel = 2;
         resetGame();
       }
-    } else if (gameState == LEVEL2_CAVE_STORY) {
-      level2CaveStoryIndex++;
-      storyTimerCount = 0;
-      if (level2CaveStoryIndex >= 3) {
-        gameState = NEXT_LEVEL_IQ;
-        initCaveState();
-        initIQ();
-        playMusicTrack(TRACK_CAVE);
-        storyTimerCount = 0;
-      }
-    } else if (gameState == LEVEL3_INTRO || gameState == LEVEL4_INTRO) {
+    } else if (gameState == LEVEL3_INTRO) {
+      currentLevel = 3;
+      resetGame();
+    } else if (gameState == LEVEL4_INTRO) {
       gameState = LEVEL_NOT_READY;
     }
     break;
@@ -656,18 +606,13 @@ static void firePendingAction() {
     } else if (gameState == LEVEL1_INTRO || gameState == LEVEL1_STORY) {
       currentLevel = 1;
       resetGame();
-    } else if (gameState == LEVEL2_INTRO || gameState == LEVEL2_STORY ||
-               gameState == LEVEL2_CAVE_STORY) {
-      if (gameState == LEVEL2_CAVE_STORY) {
-        gameState = NEXT_LEVEL_IQ;
-        initCaveState();
-        initIQ();
-        playMusicTrack(TRACK_CAVE);
-      } else {
-        currentLevel = 2;
-        resetGame();
-      }
-    } else if (gameState == LEVEL3_INTRO || gameState == LEVEL4_INTRO) {
+    } else if (gameState == LEVEL2_INTRO || gameState == LEVEL2_STORY) {
+      currentLevel = 2;
+      resetGame();
+    } else if (gameState == LEVEL3_INTRO) {
+      currentLevel = 3;
+      resetGame();
+    } else if (gameState == LEVEL4_INTRO) {
       gameState = LEVEL_NOT_READY;
     }
     break;
@@ -702,14 +647,6 @@ static void firePendingAction() {
         gameState = LEVEL2_INTRO;
         storyTimerCount = 0;
       }
-    } else if (gameState == LEVEL2_CAVE_STORY) {
-      if (level2CaveStoryIndex > 0) {
-        level2CaveStoryIndex--;
-        storyTimerCount = 0;
-      } else {
-        gameState = NEXT_LEVEL_IQ; // Go back to cave
-        storyTimerCount = 0;
-      }
     }
     break;
   // ---- Level Selection ----
@@ -727,6 +664,7 @@ static void firePendingAction() {
     break;
   case 32:
     playMusicTrack(TRACK_NONE);
+    currentLevel = 3;
     gameState = LEVEL3_INTRO;
     storyTimerCount = 0;
     break;
@@ -826,19 +764,6 @@ void globalTimerLogic() {
         resetGame();
       }
     }
-  } else if (gameState == LEVEL2_CAVE_STORY && !btnAnimActive) {
-    storyTimerCount++;
-    if (storyTimerCount >= 5) {
-      storyTimerCount = 0;
-      level2CaveStoryIndex++;
-      if (level2CaveStoryIndex >= 3) {
-        gameState = NEXT_LEVEL_IQ;
-        initCaveState();
-        initIQ();
-        playMusicTrack(TRACK_CAVE);
-        storyTimerCount = 0;
-      }
-    }
   } else if (gameState == LEVEL3_INTRO || gameState == LEVEL4_INTRO) {
     // Disable automatic transition to gameplay for levels 2, 3, and 4
   } else if (gameState == LEVEL1_STORY && !btnAnimActive) {
@@ -855,7 +780,7 @@ void globalTimerLogic() {
   if (gameState == GAME && !isGamePaused && !levelOneComplete) {
     gameRunTimeSeconds++;
 
-    int transitionTime = (currentLevel == 1) ? 60 : 90;
+    int transitionTime = 120; // 120 seconds for game timer
 
     if (gameRunTimeSeconds >= transitionTime && !isCaveActive) {
       isCaveActive = true;
@@ -863,6 +788,24 @@ void globalTimerLogic() {
       for (int i = 0; i < 3; i++) {
         obstacles[i].active = false;
         obstacles[i].x = -200;
+        bombs[i].active = false;
+      }
+      for (int i = 0; i < 2; i++) {
+        if (sharks[i].active) {
+          sharks[i].isRetreating = true;
+          sharks[i].jumpState = 0;
+          sharks[i].velocityY = 0;
+        }
+        bridges[i].active = false;
+      }
+      for (int i = 0; i < 5; i++) {
+        if (dragons[i].active) {
+          dragons[i].isVanishing = true;
+          dragons[i].vanishingTimer = 30;
+        }
+      }
+      for (int i = 0; i < MAX_GHOSTS; i++) {
+        ghosts[i].active = false;
       }
     }
   }
@@ -871,11 +814,11 @@ void globalTimerLogic() {
 void checkCollision() {
   if (gameState != GAME || isGamePaused || isInvincible)
     return;
-  if (levelOneComplete && currentLevel != 2)
+  if (levelOneComplete && currentLevel == 1)
     return;
 
-  if (currentLevel == 2) {
-    // ---- SHARK LOGIC for Level 2 ----
+  if (currentLevel == 2 || currentLevel == 3) {
+    // ---- SHARK/WORM LOGIC ----
     for (int i = 0; i < 2; i++) {
       if (sharks[i].active && !sharks[i].isDying && !sharks[i].isRetreating) {
         int sW = (sharks[i].type == 1) ? 70 : 90;
@@ -890,11 +833,9 @@ void checkCollision() {
             continue;
           }
           // Normal Damage
-          int damage = (sharks[i].type == 1) ? 1 : 2;
+          int damage = (currentLevel == 3) ? 2 : ((sharks[i].type == 1) ? 1 : 2);
           lives -= damage;
-          startScreenShake(15, 8); // Medium shake on shark bite
           if (lives <= 0) {
-            updateHighScore(currentLevel, applesCollected);
             gameState = GAME_OVER;
           } else {
             isInvincible = true;
@@ -904,61 +845,59 @@ void checkCollision() {
       }
     }
 
-    // ---- DRAGON KILLING WITH SHIFT ----
-    for (int i = 0; i < 5; i++) {
-      if (dragons[i].active && !dragons[i].isVanishing) {
-        // Dragon center is x+150, y+150 (300x300 size)
-        float targetX = (float)(charX + (float)charWidth / 2.0f);
-        float targetY = (float)(charY + (float)charHeight / 2.0f);
-        float dx = targetX - (dragons[i].x + 150.0f);
-        float dy = targetY - (dragons[i].y + 150.0f);
-        float dist = (float)sqrt(dx * dx + dy * dy);
+    // ---- DRAGON KILLING WITH SHIFT (Level 2 Only) ----
+    if (currentLevel == 2) {
+      for (int i = 0; i < 5; i++) {
+        if (dragons[i].active && !dragons[i].isVanishing) {
+          // Dragon center is x+150, y+150 (300x300 size)
+          float targetX = (float)(charX + (float)charWidth / 2.0f);
+          float targetY = (float)(charY + (float)charHeight / 2.0f);
+          float dx = targetX - (dragons[i].x + 150.0f);
+          float dy = targetY - (dragons[i].y + 150.0f);
+          float dist = (float)sqrt((double)(dx * dx + dy * dy));
 
-        if (dist < 150.0f) {
-          if (keyPressed[' ']) { // Space allows killing
-            dragons[i].isVanishing = true;
-            dragons[i].vanishingTimer = 30;
-          } else if (!isInvincible) {
-            // Contact damage from dragon if not attacking/shifting
-            lives--;
-            if (lives <= 0) {
-              updateHighScore(currentLevel, applesCollected);
-              gameState = GAME_OVER;
-            } else {
-              isInvincible = true;
-              invincibilityTimer = 60;
+          if (dist < 150.0f) {
+            if (keyPressed[' ']) { // Space allows killing
+              dragons[i].isVanishing = true;
+              dragons[i].vanishingTimer = 30;
+            } else if (!isInvincible) {
+              // Contact damage from dragon if not attacking/shifting
+              lives--;
+              if (lives <= 0)
+                gameState = GAME_OVER;
+              else {
+                isInvincible = true;
+                invincibilityTimer = 60;
+              }
             }
           }
         }
       }
     }
 
-    // ---- BOMB COLLISION ----
-    for (int i = 0; i < 3; i++) {
-      if (bombs[i].active) {
-        if (charX + charWidth - 30 > bombs[i].x &&
-            charX + 30 < bombs[i].x + 70 &&
-            charY + charHeight - 30 > bombs[i].y &&
-            charY + 10 < bombs[i].y + 70) {
-          bombs[i].active = false;
-          isCharFrozen = true;
-          freezeTimer = 100; // 3 seconds @ 30ms (approx 100 ticks)
-          lives--;
-          startScreenShake(20, 15); // Large shake on bomb explosion
-
-          if (lives <= 0) {
-            updateHighScore(currentLevel, applesCollected);
-            gameState = GAME_OVER;
-          }
-          for (int j = 0; j < 3; j++) {
-            if (!explosions[j].active) {
-              explosions[j].active = true;
-              // Center the explosion on the character's body
-              explosions[j].x = (float)(charX + charWidth / 2);
-              explosions[j].y = (float)(charY + charHeight / 2);
-              explosions[j].frame = 0;
-              explosions[j].timer = 0;
-              break;
+    // ---- BOMB COLLISION (Level 2 Only) ----
+    if (currentLevel == 2) {
+      for (int i = 0; i < 3; i++) {
+        if (bombs[i].active) {
+          if (charX + charWidth - 30 > bombs[i].x &&
+              charX + 30 < bombs[i].x + 50 &&
+              charY + charHeight - 30 > bombs[i].y &&
+              charY + 10 < bombs[i].y + 50) {
+            bombs[i].active = false;
+            isCharFrozen = true;
+            freezeTimer = 90; // 3 seconds at 30fps
+            lives--;
+            if (lives <= 0)
+              gameState = GAME_OVER;
+            for (int j = 0; j < 3; j++) {
+              if (!explosions[j].active) {
+                explosions[j].active = true;
+                explosions[j].x = bombs[i].x + 25;
+                explosions[j].y = 90; // In line with bridge
+                explosions[j].frame = 0;
+                explosions[j].timer = 0;
+                break;
+              }
             }
           }
         }
@@ -977,9 +916,7 @@ void checkCollision() {
           charY + charHeight - 50 > obstacles[i].y &&
           charY < obstacles[i].y + obsHitH) {
         lives--;
-        startScreenShake(15, 8); // Medium shake on obstacle clash
         if (lives <= 0) {
-          updateHighScore(currentLevel, applesCollected);
           gameState = GAME_OVER;
         } else {
           isInvincible = true;
@@ -993,7 +930,7 @@ void checkCollision() {
 /* -------------------- WRAPPERS -------------------- */
 void autoScrollRecursiveWrapper() {
   if (!isGamePaused && gameState == GAME &&
-      (currentLevel == 2 || !levelOneComplete) &&
+      (currentLevel == 2 || currentLevel == 3 || !levelOneComplete) &&
       (!isCaveActive || caveX > 650)) {
     autoScrollRecursive();
   }
@@ -1001,7 +938,7 @@ void autoScrollRecursiveWrapper() {
 
 void updateObstaclePhysicsWrapper() {
   if (!isGamePaused && gameState == GAME &&
-      (currentLevel == 2 || !levelOneComplete)) {
+      (currentLevel == 2 || currentLevel == 3 || !levelOneComplete)) {
     updateObstaclePhysics();
   }
 }
@@ -1022,7 +959,7 @@ void updateCharacterMovementWrapper() {
 
 void updateApplesWrapper() {
   if (!isGamePaused && gameState == GAME &&
-      (currentLevel == 2 || !levelOneComplete)) {
+      (currentLevel == 2 || currentLevel == 3 || !levelOneComplete)) {
     updateApplePhysics();
     checkAppleCollision();
   }
@@ -1030,14 +967,14 @@ void updateApplesWrapper() {
 
 void updateWeatherWrapper() {
   if (!isGamePaused && gameState == GAME &&
-      (currentLevel == 2 || !levelOneComplete)) {
+      (currentLevel == 2 || currentLevel == 3 || !levelOneComplete)) {
     updateWeatherPhysics();
   }
 }
 
 void updateHeartWrapper() {
   if (!isGamePaused && gameState == GAME &&
-      (currentLevel == 2 || !levelOneComplete)) {
+      (currentLevel == 2 || currentLevel == 3 || !levelOneComplete)) {
     updateHeartLogic();
   }
 }
@@ -1074,11 +1011,8 @@ void updateFallSequence() {
   fallVel -= 0.8f; // Stronger gravity for fall effect
 
   if (fallY < -200) {
-    // Reached bottom - Respawn Logic
-    if (hitBridgeIndex != -1 && bridges[hitBridgeIndex].active) {
-      charX = (int)bridges[hitBridgeIndex].x + 450 + 10;
-      if (charX > 880)
-        charX = 880;
+    if (currentLevel == 3) {
+      isL3Changed = !isL3Changed; // Toggle background on fall
     }
 
     // Trigger Jump Effect
@@ -1099,7 +1033,7 @@ void updateShiftInput() {
   static int doubleSpaceActiveTimer = 0;
   static int singleSpaceActiveTimer = 0;
 
-  bool currentSpace = keyPressed[' '] != 0;
+  bool currentSpace = (keyPressed[' '] != 0);
 
   if (doubleSpaceActiveTimer > 0)
     doubleSpaceActiveTimer--;
@@ -1120,21 +1054,24 @@ void updateShiftInput() {
       spaceDoubleTimer = 0;
       singleSpaceActiveTimer = 0; // Cancel single tap effect if it just started
 
-      if (currentLevel == 2 && gameState == GAME) {
+      if ((currentLevel == 2 || currentLevel == 3) && gameState == GAME) {
         for (int i = 0; i < 2; i++) {
           // If shark is on screen and not already dying, kill it
-          if (sharks[i].active && !sharks[i].isDying &&
-              sharks[i].x < screenWidth + 200) {
+          float sx = sharks[i].x;
+          float cx = (float)charX;
+          float dist = (sx > cx) ? (sx - cx) : (cx - sx);
+          float attackDist = 250.0f;
+          if (sharks[i].active && !sharks[i].isDying && dist < attackDist) {
             sharks[i].isDying = true;
             sharks[i].dyingVel = 5.0f; // Pop up
 
-            // Re-center on screen if it was just warped away by a single tap
-            if (sharks[i].x > (float)screenWidth) {
-              sharks[i].x = (float)(screenWidth - 150);
-            }
-
             // AWARD SCORE
-            int scoreGain = (sharks[i].type == 1) ? 10 : 20;
+            int scoreGain = 0;
+            if (currentLevel == 3) {
+              scoreGain = 100; // extra points!
+            } else {
+              scoreGain = (sharks[i].type == 1) ? 10 : 20;
+            }
             applesCollected += scoreGain;
           }
         }
@@ -1146,12 +1083,17 @@ void updateShiftInput() {
 
       // Wait a tiny bit or just do it? We do it immediately but double tap can
       // override.
-      if (currentLevel == 2 && gameState == GAME) {
+      if ((currentLevel == 2 || currentLevel == 3) && gameState == GAME) {
         for (int i = 0; i < 2; i++) {
-          if (sharks[i].active && !sharks[i].isDying &&
-              sharks[i].x < screenWidth) {
-            // RETREAT: Send back to the right
+          float sx = sharks[i].x;
+          float cx = (float)charX;
+          float dist = (sx > cx) ? (sx - cx) : (cx - sx);
+          float attackDist = 250.0f;
+          if (sharks[i].active && !sharks[i].isDying && dist < attackDist) {
+            // RETREAT: Send back to bottom right
             sharks[i].isRetreating = true;
+            sharks[i].jumpState = 0;
+            sharks[i].velocityY = 0;
           }
         }
       }
@@ -1180,29 +1122,7 @@ void masterGameLoop() {
   checkCollision();
   updateCharacterMovementWrapper();
   updateFallSequence();
-  updateScreenShake();
-  updateScorePopups();
-
-  // Magnet Spawn & Check
-  if (gameState == GAME && !isGamePaused && !isMagnetVisible &&
-      !isMagnetBuffActive) {
-    magnetSpawnTimer++;
-    if (magnetSpawnTimer > magnetNextSpawnThreshold) {
-      magnetSpawnTimer = 0;
-      magnetNextSpawnThreshold = 233 + rand() % 201;
-      if (rand() % 2 == 0) { // Still keeping 50% chance but can make it 100% if
-                             // user wants precise delivery
-        isMagnetVisible = true;
-        magnetX = (float)(charX + 200 + rand() % 400);
-        if (magnetX > screenWidth - 50)
-          magnetX = screenWidth - 50;
-        magnetY = screenHeight + 50;
-      }
-    }
-  }
-
   updateApplesWrapper();
-  checkMagnetCollision(); // From AppleHandler.h
   updateWeatherWrapper();
   updateHeartWrapper();
   updateCavePhysics();
@@ -1241,14 +1161,6 @@ void iDraw() {
     drawLevel1Intro();
   } else if (gameState == LEVEL2_INTRO) {
     drawLevel2Intro();
-  } else if (gameState == LEVEL2_CAVE_STORY) {
-    drawLevel2CaveStory();
-  } else if (gameState == LEVEL3_INTRO) {
-    drawLevel3Intro();
-  } else if (gameState == LEVEL4_INTRO) {
-    drawLevel4Intro();
-  } else if (gameState == LEVEL1_STORY) {
-    drawLevel1Story();
   } else if (gameState == LEVEL2_STORY) {
     drawLevelTwoStory();
   } else if (gameState == LEVEL3_INTRO) {
@@ -1265,7 +1177,9 @@ void iDraw() {
     drawDragons();
 
     if (isCaveActive) {
-      if (currentLevel == 2) {
+      if (currentLevel == 3) {
+        iShowImage(caveX, 90, 300, 300, caveImgL3);
+      } else if (currentLevel == 2) {
         iShowImage(caveX, 90, 300, 300, caveImgL2);
       } else {
         iShowImage(caveX, 0, 400, 400, caveImg);
@@ -1273,24 +1187,12 @@ void iDraw() {
     }
 
     drawCharacter();
-    drawMagnet(); // From AppleHandler.h
     drawExplosions();
     drawWeatherEffects();
     drawLivesUI();
     drawAppleScoreUI();
-    drawTimerUI();
     drawShardElements();
-
-    // Draw Score Pop-ups
-    iSetColor(255, 255, 0); // Yellow for popups
-    for (int i = 0; i < 10; i++) {
-      if (popups[i].active) {
-        char popupText[10];
-        sprintf_s(popupText, "+1");
-        iText(popups[i].x, popups[i].y, popupText, GLUT_BITMAP_HELVETICA_18);
-      }
-    }
-    iSetColor(255, 255, 255); // Reset color
+    drawTimer();
 
     if (gameState == GAME) {
       drawPauseMenu();
@@ -1321,19 +1223,11 @@ void iDraw() {
   } else if (gameState == HIGHSCORES) {
     iShowImage(0, 0, screenWidth, screenHeight, mainMenuBG);
     iSetColor(255, 255, 255);
-    iText(screenWidth / 2.0 - 100, screenHeight / 2.0 + 100,
-          (char *)"HIGH SCORES", GLUT_BITMAP_TIMES_ROMAN_24);
-
-    char scoreBuf[50];
-    for (int i = 0; i < 4; i++) {
-      sprintf_s(scoreBuf, "Level %d: %d Food", i + 1, highScores[i]);
-      iText(screenWidth / 2.0 - 80, screenHeight / 2.0 + 50 - (i * 40),
-            scoreBuf, GLUT_BITMAP_HELVETICA_18);
-    }
-
+    iText(screenWidth / 2.0 - 180, screenHeight / 2.0,
+          (char *)"HIGHSCORES NOT READY YET", GLUT_BITMAP_TIMES_ROMAN_24);
     iSetColor(200, 200, 200);
-    iText(screenWidth / 2.0 - 130, 50, (char *)"Press 'B' to Return to Menu",
-          GLUT_BITMAP_HELVETICA_18);
+    iText(screenWidth / 2.0 - 130, screenHeight / 2.0 - 50,
+          (char *)"Press 'B' to Return to Menu", GLUT_BITMAP_HELVETICA_18);
   } else if (gameState == LEVEL_NOT_READY) {
     iShowImage(0, 0, screenWidth, screenHeight, levelSelectionBG);
     iSetColor(255, 255, 255);
@@ -1477,19 +1371,6 @@ void iMouse(int button, int state, int mx, int my) {
       } else if (action == 3) { // Previous
         startBtnAnim(2, 22, 22);
       }
-    } else if (gameState == LEVEL2_CAVE_STORY) {
-      if (handleHomeButtonMouse(mx, my)) {
-        startBtnAnim(2, 23, 23); // Home
-        return;
-      }
-      int action = handleStoryMouse(mx, my);
-      if (action == 1) { // Next
-        startBtnAnim(2, 20, 20);
-      } else if (action == 2) { // Skip
-        startBtnAnim(2, 21, 21);
-      } else if (action == 3) { // Previous
-        startBtnAnim(2, 22, 22);
-      }
     } else if (gameState == LEVEL3_INTRO || gameState == LEVEL4_INTRO) {
       if (handleHomeButtonMouse(mx, my)) {
         startBtnAnim(2, 23, 23); // Home
@@ -1518,16 +1399,9 @@ void iMouse(int button, int state, int mx, int my) {
         playClickSound();
       if (action == 1) {
         playMusicTrack(TRACK_NONE);
-        if (currentLevel == 2) {
-          // Go directly to cave 2 story after level 2 completion
-          gameState = LEVEL2_CAVE_STORY;
-          level2CaveStoryIndex = 0;
-          storyTimerCount = 0;
-        } else {
-          gameState = NEXT_LEVEL_IQ;
-          initCaveState();
-          initIQ();
-        }
+        gameState = NEXT_LEVEL_IQ;
+        initCaveState();
+        initIQ();
       } else if (action == 2)
         resetGame();
       else if (action == 3) {
@@ -1540,11 +1414,7 @@ void iMouse(int button, int state, int mx, int my) {
         if (result == 1) {
           playClickSound();
           playMusicTrack(TRACK_NONE);
-          if (currentLevel == 2) {
-            gameState = LEVEL3_INTRO;
-          } else {
-            gameState = LEVEL2_INTRO;
-          }
+          gameState = LEVEL2_INTRO;
           storyTimerCount = 0;
         } else if (result == 2) {
           playClickSound(); // Next button on phase 1 transition
@@ -1569,13 +1439,9 @@ void iMouse(int button, int state, int mx, int my) {
           isLevelTransitioning = true;
           transitionPhase = 2; // Show shardexplain.png
         } else {
-          // Incorrect answer: Skip Explanation, go directly to next stage
+          // Incorrect answer: Skip Explanation, go directly to Level 2
           playMusicTrack(TRACK_NONE);
-          if (currentLevel == 2) {
-            gameState = LEVEL3_INTRO;
-          } else {
-            gameState = LEVEL2_INTRO;
-          }
+          gameState = LEVEL2_INTRO;
           storyTimerCount = 0;
         }
         // Do NOT switch to LEVEL2_INTRO yet for correct answer. Wait for
@@ -1604,14 +1470,12 @@ void iKeyboard(unsigned char key) {
   }
   if (gameState == LEVEL_NOT_READY && (key == 'b' || key == 'B')) {
     gameState = LEVEL_SELECTION;
-    playMusicTrack(TRACK_STORY);
   }
 
   // Storytelling Shortcuts: Space for Skip
   if (!btnAnimActive && key == ' ') {
     if (gameState == INITIAL_STORY || gameState == LEVEL1_INTRO ||
         gameState == LEVEL1_STORY || gameState == LEVEL2_INTRO ||
-        gameState == LEVEL2_STORY || gameState == LEVEL2_CAVE_STORY ||
         gameState == LEVEL3_INTRO || gameState == LEVEL4_INTRO) {
       startBtnAnim(2, 21, 21); // Skip
     }
@@ -1624,6 +1488,13 @@ void iKeyboard(unsigned char key) {
       attackAnimCounter = 0;
     }
   }
+
+  // Populate keyPressed array
+  keyPressed[key] = 1;
+}
+
+void iKeyboardUp(unsigned char key) {
+  keyPressed[key] = 0;
 }
 
 void iSpecialKeyboard(unsigned char key) {
@@ -1633,69 +1504,32 @@ void iSpecialKeyboard(unsigned char key) {
   // Storytelling Shortcuts: Right Arrow for Next, Left Arrow for Previous
   if (gameState == INITIAL_STORY || gameState == LEVEL1_INTRO ||
       gameState == LEVEL1_STORY || gameState == LEVEL2_INTRO ||
-      gameState == LEVEL2_STORY || gameState == LEVEL2_CAVE_STORY ||
-      gameState == LEVEL3_INTRO || gameState == LEVEL4_INTRO) {
+      gameState == LEVEL2_STORY || gameState == LEVEL3_INTRO ||
+      gameState == LEVEL4_INTRO) {
     if (key == GLUT_KEY_RIGHT) {
       startBtnAnim(2, 20, 20); // Next
     } else if (key == GLUT_KEY_LEFT) {
-      // Return to level selection but play the music too
-      gameState = LEVEL_SELECTION;
-      storyTimerCount = 0;
-      playMusicTrack(TRACK_STORY);
-      // startBtnAnim(2, 22, 22); // Previous
+      startBtnAnim(2, 22, 22); // Previous
     }
-  } else if (gameState == LEVEL_COMPLETE) {
-    if (key == GLUT_KEY_RIGHT) {
-      // Simulate Next button click (Action 1)
-      playClickSound();
-      playMusicTrack(TRACK_NONE);
-      if (currentLevel == 2) {
-        gameState = LEVEL2_CAVE_STORY;
-        level2CaveStoryIndex = 0;
-        storyTimerCount = 0;
-      } else {
-        gameState = NEXT_LEVEL_IQ;
-        initCaveState();
-        initIQ();
-      }
-    }
-  } else if (gameState == NEXT_LEVEL_IQ) {
-    if (key == GLUT_KEY_RIGHT) {
-      if (isLevelTransitioning) {
-        // Next on transition Phase 1 -> Phase 2 (or Cave Story)
-        int result = handleCaveTransitionClick(760, 60); // Fake coords for Next
-        if (result == 1) {
-          playClickSound();
-          playMusicTrack(TRACK_NONE);
-          if (currentLevel == 2) {
-            gameState = LEVEL2_CAVE_STORY;
-            level2CaveStoryIndex = 0;
-          } else {
-            gameState = LEVEL2_INTRO;
-          }
-          storyTimerCount = 0;
-        } else if (result == 2) {
-          playClickSound();
-          playMusicTrack(TRACK_CAVE);
-        }
-      } else if (iqAnswered) {
-        // Next button after answering IQ
-        playClickSound();
-        if (iqCorrect) {
-          hasClaimedShard = true;
-          isLevelTransitioning = true;
-          transitionPhase = 2; // Show shardexplain.png
-        } else {
-          playMusicTrack(TRACK_NONE);
-          if (currentLevel == 2) {
-            gameState = LEVEL3_INTRO;
-          } else {
-            gameState = LEVEL2_INTRO;
-          }
-          storyTimerCount = 0;
-        }
-      }
-    }
+  }
+
+  // Populate specialKeyPressed array
+  specialKeyPressed[key] = 1;
+}
+
+void iSpecialKeyboardUp(unsigned char key) {
+  specialKeyPressed[key] = 0;
+}
+void drawTimer() {
+  if (gameState == GAME && !levelOneComplete) {
+    char timeStr[32];
+    int remaining = 120 - gameRunTimeSeconds;
+    if (remaining < 0)
+      remaining = 0;
+    sprintf_s(timeStr, "Time: %02d:%02d", remaining / 60, remaining % 60);
+    iSetColor(255, 255, 255);
+    iText(screenWidth / 2.0 - 50, screenHeight - 60, (char *)timeStr,
+          GLUT_BITMAP_TIMES_ROMAN_24);
   }
 }
 void fixedUpdate() {}
@@ -1704,8 +1538,6 @@ void fixedUpdate() {}
 int main() {
   iInitialize(screenWidth, screenHeight, (char *)"Fragment of Divinity");
   srand((unsigned int)time(NULL));
-
-  loadHighScores();
 
   initObstacles();
   introImage = iLoadImage((char *)"images fod\\menu\\intro.png");
@@ -1726,11 +1558,17 @@ int main() {
   loadCaveAssets();
   caveSceneBgL2 = iLoadImage((char *)"Wizard\\cave22.png");
   wizardL2Img = iLoadImage((char *)"Wizard\\wizard2.0.png");
+  caveImgL3 = iLoadImage((char *)"level3\\cave3.png");
+  wizardL3Img = iLoadImage((char *)"level3\\wizard3.png");
   loadCharacter2Assets();
   loadDragonAssets();
   initDragons();
   initShard();
   haloImg = iLoadImage((char *)"scores and items\\halo.png");
+
+  // Register UP functions if supported by the library
+  // glutKeyboardUpFunc(iKeyboardUp);
+  // glutSpecialUpFunc(iSpecialKeyboardUp);
 
   iSetTimer(30, masterGameLoop);
   iSetTimer(500, buttonAnimationTimer);
@@ -1741,4 +1579,3 @@ int main() {
   iStart();
   return 0;
 }
-//text change

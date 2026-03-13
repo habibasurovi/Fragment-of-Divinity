@@ -17,10 +17,8 @@ extern int haloTimer;
 extern int haloImg;
 extern int shardImg;
 extern int currentLevel;
-extern int screenWidth, screenHeight;
+// extern int screenWidth, screenHeight; // Commented out to avoid #define conflict in VS 2013
 extern bool hasClaimedShard;
-extern int shakeOffsetX;
-extern int shakeOffsetY;
 
 inline void initShard() {
     isFallingShardActive = false;
@@ -124,7 +122,7 @@ inline void updateShardLogic() {
 
 inline void drawShardElements() {
     if (isFallingShardActive) {
-        iShowImage((int)fallingShardX + shakeOffsetX, (int)fallingShardY + shakeOffsetY, 60, 60, shardImg);
+        iShowImage((int)fallingShardX, (int)fallingShardY, 60, 60, shardImg);
     }
     
     if (isHaloActive) {
@@ -133,7 +131,7 @@ inline void drawShardElements() {
         int haloSize = 200;
         int hX = charX + (charWidth / 2) - (haloSize / 2);
         int hY = charY; // As requested, same as character's Y
-        iShowImage(hX + shakeOffsetX, hY + shakeOffsetY, haloSize, haloSize, haloImg);
+        iShowImage(hX, hY, haloSize, haloSize, haloImg);
     }
 }
 

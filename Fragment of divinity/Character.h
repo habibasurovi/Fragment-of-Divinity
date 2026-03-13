@@ -18,7 +18,6 @@ extern bool isCharFrozen;
 extern bool isFallingSequence;
 extern float fallY;
 extern float fallVel;
-extern void startScreenShake(int duration, int magnitude);
 
 // Animation Speed Control
 extern int charAnimSpeed; // Adjust this to change speed (Higher = Slower)
@@ -27,8 +26,6 @@ extern int charAnimCounter;
 // Jump & Bend Variables
 extern bool isJumping;
 extern bool isBending;
-extern int shakeOffsetX;
-extern int shakeOffsetY;
 extern int jumpSpeed;        // Peak naturally at 180
 extern int highJumpSpeed;    // Higher jump for spacebar
 extern int gravity;          // Gravity effect
@@ -64,6 +61,20 @@ extern int doubleBendHeight;
 extern int currentLevel;
 extern bool isShiftPressed;
 extern bool isDoubleShiftTriggered;
+extern unsigned int keyPressed[512];
+extern unsigned int specialKeyPressed[512];
+
+inline bool isSpecialKeyPressed(int key) {
+  if (key < 0 || key >= 512)
+    return false;
+  return specialKeyPressed[key] != 0;
+}
+
+inline bool isKeyPressed(int key) {
+  if (key < 0 || key >= 512)
+    return false;
+  return keyPressed[key] != 0;
+}
 
 // Movement helpers
 inline void moveCharRight() {
@@ -154,7 +165,7 @@ inline void drawCharacter() {
   }
 
   if (frame != -1) {
-    iShowImage(rX + shakeOffsetX, rY + shakeOffsetY, rW, rH, frame);
+    iShowImage(rX, rY, rW, rH, frame);
   }
 }
 
@@ -192,10 +203,10 @@ inline void updateCharacterMovement() {
   }
 
   // --- CONTROL LOGIC ---
-  if (currentLevel == 2) {
+  if (currentLevel == 2 || currentLevel == 3) {
     // --- INSTANT ACTION LOGIC (LEVEL 2) ---
-    bool upNow = isSpecialKeyPressed(GLUT_KEY_UP) != 0;
-    bool downNow = isSpecialKeyPressed(GLUT_KEY_DOWN) != 0;
+    bool upNow = (isSpecialKeyPressed(GLUT_KEY_UP) != 0);
+    bool downNow = (isSpecialKeyPressed(GLUT_KEY_DOWN) != 0);
 
     // Explicitly ignore Shift for any movement initiation
     if (isShiftPressed) {
@@ -204,7 +215,7 @@ inline void updateCharacterMovement() {
     }
 
     // Bending Logic (Instant)
-    if (!isJumping && !isSpecialKeyPressed(GLUT_KEY_LEFT)) {
+    if (!isJumping) {
       if (downNow) {
         if (!prevDownPressed) {
           if (bendPressTimer > 0) {
@@ -227,7 +238,7 @@ inline void updateCharacterMovement() {
       bendPressTimer--;
 
     // Jumping Logic (Instant + Upgrade)
-    if (upNow && !prevUpPressed && !isSpecialKeyPressed(GLUT_KEY_LEFT)) {
+    if (upNow && !prevUpPressed) {
       if (!isJumping) {
         isJumping = true;
         verticalVelocity = 26; // Clears shark2 peak safely
@@ -306,19 +317,19 @@ inline void updateCharacterMovement() {
         jumpHorizontalSpeed = 20; // Original
       }
     } else {
-      if (isSpecialKeyPressed(GLUT_KEY_UP) && !isSpecialKeyPressed(GLUT_KEY_LEFT)) {
+      if (isSpecialKeyPressed(GLUT_KEY_UP)) {
         isJumping = true;
         verticalVelocity = jumpSpeed;
         jumpHorizontalSpeed = 20; // Original
         currentJumpDirection =
-            (isLeftArrowPressed) ? -1 : 1;
+            (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) ? -1 : 1;
         if (isBending) {
           isBending = false;
           charHeight = originalHeight;
         }
       }
 
-      if (isSpecialKeyPressed(GLUT_KEY_DOWN) && !isSpecialKeyPressed(GLUT_KEY_LEFT)) {
+      if (isSpecialKeyPressed(GLUT_KEY_DOWN)) {
         if (!isBending) {
           isBending = true;
           charHeight = bendHeight;
@@ -343,7 +354,6 @@ inline void updateCharacterMovement() {
     moveCharLeft();
   } else {
     isRightArrowPressed = false;
-    isLeftArrowPressed = false;
   }
 }
 inline void updateCharacterAnimation() {}

@@ -29,6 +29,7 @@ extern int dialogueBoxImg;  // New dialogue box image
 extern bool iqCorrect;      // Defined in IQ.h
 extern int postAnswerIndex; // Defined in IQ.h
 extern int caveImgL2, caveSceneBgL2, wizardL2Img;
+extern int caveImgL3, wizardL3Img;
 extern int currentLevel;
 extern int shardImg;
 
@@ -58,21 +59,15 @@ inline void initCaveState() {
   charY = 100;      // Same Y coordinate as wizard
   charHeight = 250; // Ensure normal size
   charWidth = 200;  // Ensure normal size
-  charFrameIndex = 0; // Frame 1 (idle/standing)
 
   wizardIndex = 0;
   isWizardMoving = false;     // Wizard waits for character
   isCharacterEntering = true; // Character starts moving
   wizardTimer = 0;
 
-  // Transition Logic - Start with entry splash screen (Phase 1) for Level 1
-  if (currentLevel == 2) {
-      isLevelTransitioning = false;
-      transitionPhase = 0;
-  } else {
-      isLevelTransitioning = true;
-      transitionPhase = 1;
-  }
+  // Transition Logic - Start with entry splash screen (Phase 1)
+  isLevelTransitioning = true;
+  transitionPhase = 1;
   transitionTimer = 0;
 
   // Dialogue Init
@@ -153,7 +148,9 @@ inline void drawCave() {
       iShowImage(0, 0, 1000, 600, levelChange1);
     } else if (transitionPhase == 2) {
       // Background: cave
-      if (currentLevel == 2) {
+      if (currentLevel == 3) {
+        iShowImage(0, 0, 1000, 600, caveImgL3);
+      } else if (currentLevel == 2) {
         iShowImage(0, 0, 1000, 600, caveSceneBgL2);
       } else {
         iShowImage(0, 0, 1000, 600, caveSceneBg);
@@ -171,7 +168,9 @@ inline void drawCave() {
     iShowImage(750, 50, 220, 70, imgNextLevel);
     return;
   }
-  if (currentLevel == 2) {
+  if (currentLevel == 3) {
+    iShowImage(0, 0, 1000, 600, caveImgL3);
+  } else if (currentLevel == 2) {
     iShowImage(0, 0, 1000, 600, caveSceneBgL2);
   } else {
     iShowImage(0, 0, 1000, 600, caveSceneBg);
@@ -220,7 +219,9 @@ inline void drawCave() {
   }
 
   // Draw Wizard
-  if (currentLevel == 2) {
+  if (currentLevel == 3) {
+    iShowImage(wizardX, wizardY, 200, 200, wizardL3Img);
+  } else if (currentLevel == 2) {
     iShowImage(wizardX, wizardY, 200, 200, wizardL2Img);
   } else {
     iShowImage(wizardX, wizardY, 200, 200, wizardImgs[wizardIndex]);
@@ -246,15 +247,25 @@ inline void drawCave() {
     int textY = boxY + 90;
     int textX = boxX + 70; // Increased padding for right shift
 
-    if (wizardDialogueIndex == 1) {
-      iText(textX + 20, textY, (char *)"Speak the truth, traveler",
-            GLUT_BITMAP_TIMES_ROMAN_24);
-    } else if (wizardDialogueIndex == 2) {
-      iText(textX + 10, textY, (char *)"Only wisdom shall unlock it",
-            GLUT_BITMAP_TIMES_ROMAN_24);
-    } else if (wizardDialogueIndex == 3) {
-      iText(textX + 60, textY, (char *)"Answer or perish!",
-            GLUT_BITMAP_TIMES_ROMAN_24);
+    if (currentLevel == 3) {
+      if (wizardDialogueIndex == 1) {
+        iText(textX + 20, textY, (char *)"Show me your agility!", GLUT_BITMAP_TIMES_ROMAN_24);
+      } else if (wizardDialogueIndex == 2) {
+        iText(textX + 10, textY, (char *)"Catch the floating shard!", GLUT_BITMAP_TIMES_ROMAN_24);
+      } else if (wizardDialogueIndex == 3) {
+        iText(textX + 60, textY, (char *)"Begin!", GLUT_BITMAP_TIMES_ROMAN_24);
+      }
+    } else {
+      if (wizardDialogueIndex == 1) {
+        iText(textX + 20, textY, (char *)"Speak the truth, traveler",
+              GLUT_BITMAP_TIMES_ROMAN_24);
+      } else if (wizardDialogueIndex == 2) {
+        iText(textX + 10, textY, (char *)"Only wisdom shall unlock it",
+              GLUT_BITMAP_TIMES_ROMAN_24);
+      } else if (wizardDialogueIndex == 3) {
+        iText(textX + 60, textY, (char *)"Answer or perish!",
+              GLUT_BITMAP_TIMES_ROMAN_24);
+      }
     }
   }
 }

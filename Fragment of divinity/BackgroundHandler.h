@@ -16,14 +16,20 @@ extern int s2bG1, s2bG2, s2bG3, s2bG4;
 extern int w2bG1, w2bG2, w2bG3, w2bG4;
 extern int r2bG1, r2bG2, r2bG3, r2bG4;
 
+// Level 3 background assets
+extern int l3bG1, l3bG2, l3bG2_1, l3bG2_2;
+extern bool isL3Changed;
+
 extern int bGX; // background X position
-extern int shakeOffsetX;
-extern int shakeOffsetY;
 
 // Screen dimensions needed for logic (Redefining or assuming these match iMain)
 // Ideally pass these or define in a common header. For now, matching iMain.
+#ifndef SCREEN_W
 #define SCREEN_W 1000
+#endif
+#ifndef SCREEN_H
 #define SCREEN_H 600
+#endif
 #ifndef SCROLL_SPD
 #define SCROLL_SPD 3
 #endif
@@ -62,6 +68,12 @@ inline void loadBackgroundAssets() {
   r2bG2 = iLoadImage("background img\\rainy22.bmp");
   r2bG3 = iLoadImage("background img\\rainy23.bmp");
   r2bG4 = iLoadImage("background img\\rainy24.bmp");
+
+  // Level 3 Assets
+  l3bG1 = iLoadImage("level3\\l3bg1.1.jpg");
+  l3bG2 = iLoadImage("level3\\l3bg1.2.jpg");
+  l3bG2_1 = iLoadImage("level3\\l3bg2.1.jpg");
+  l3bG2_2 = iLoadImage("level3\\l3bg2.2.jpg");
 }
 
 inline void autoScrollRecursive() {
@@ -91,6 +103,18 @@ inline void drawBackground() {
       img3 = w2bG3;
       img4 = w2bG4;
     }
+  } else if (currentLevel == 3) {
+    if (!isL3Changed) {
+      img1 = l3bG1;
+      img2 = l3bG2;
+      img3 = l3bG1;
+      img4 = l3bG2;
+    } else {
+      img1 = l3bG2_1;
+      img2 = l3bG2_2;
+      img3 = l3bG2_1;
+      img4 = l3bG2_2;
+    }
   } else {
     if (selectedWeather == 0) { // Summer
       img1 = sbG1;
@@ -110,10 +134,10 @@ inline void drawBackground() {
     }
   }
 
-  iShowImage(bGX + shakeOffsetX, 0 + shakeOffsetY, SCREEN_W, SCREEN_H, img1);
-  iShowImage(bGX + SCREEN_W + shakeOffsetX, 0 + shakeOffsetY, SCREEN_W, SCREEN_H, img2);
-  iShowImage(bGX + 2 * SCREEN_W + shakeOffsetX, 0 + shakeOffsetY, SCREEN_W, SCREEN_H, img3);
-  iShowImage(bGX + 3 * SCREEN_W + shakeOffsetX, 0 + shakeOffsetY, SCREEN_W, SCREEN_H, img4);
+  iShowImage(bGX, 0, SCREEN_W, SCREEN_H, img1);
+  iShowImage(bGX + SCREEN_W, 0, SCREEN_W, SCREEN_H, img2);
+  iShowImage(bGX + 2 * SCREEN_W, 0, SCREEN_W, SCREEN_H, img3);
+  iShowImage(bGX + 3 * SCREEN_W, 0, SCREEN_W, SCREEN_H, img4);
 }
 
 #endif

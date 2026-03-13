@@ -16,8 +16,7 @@ extern int charX, charY, charWidth, charHeight;
 extern int currentLevel;
 extern bool isGamePaused;
 extern GameState gameState;
-extern int shakeOffsetX;
-extern int shakeOffsetY;
+extern unsigned int keyPressed[512];
 
 struct Dragon {
   float x, y;
@@ -90,7 +89,7 @@ inline void spawnDragon() {
 }
 
 inline void updateDragonPhysics() {
-  if (isGamePaused || gameState != GAME || currentLevel != 2)
+  if (isGamePaused || gameState != GAME || (currentLevel != 2))
     return;
 
   // Only one dragon at a time, coming after 10 seconds (333 ticks at 30ms)
@@ -129,18 +128,19 @@ inline void updateDragonPhysics() {
       // Dragon center is x+150, y+150 (for 300x300 size)
       float dx = targetX - (dragons[i].x + 150.0f);
       float dy = targetY - (dragons[i].y + 150.0f);
-      float dist = (float)sqrt(dx * dx + dy * dy);
+      float dist = (float)sqrt((double)(dx * dx + dy * dy));
 
       // Chasing Logic: Move toward character
       if (dist > 10.0f) {
         // Vertical chase (descend to match character)
-        if ((float)fabs(dy) > 5.0f) {
+        float absDy = (dy > 0) ? dy : -dy;
+        if (absDy > 5.0f) {
           dragons[i].y += (dy / dist) * dragons[i].speed;
         }
 
         // Horizontal chase
-        if ((float)fabs(dx) >
-            120.0f) { // Maintain a slight distance before attacking
+        float absDx = (dx > 0) ? dx : -dx;
+        if (absDx > 120.0f) { // Maintain a slight distance before attacking
           dragons[i].x += (dx / dist) * dragons[i].speed;
         }
       }
@@ -150,7 +150,8 @@ inline void updateDragonPhysics() {
         dragons[i].isAttacking = true;
 
         // Space button causes the dragon to vanish
-        if (isKeyPressed(' ')) {
+        // Space button causes the dragon to vanish
+        if (keyPressed[' ']) {
           dragons[i].isVanishing = true;
           dragons[i].vanishingTimer = 60; // 2 seconds of blinking
           dragons[i].holdATimer = 0;
@@ -187,7 +188,7 @@ inline void updateDragonPhysics() {
 }
 
 inline void drawDragons() {
-  if (gameState != GAME || currentLevel != 2)
+  if (gameState != GAME || (currentLevel != 2))
     return;
   for (int i = 0; i < 5; i++) {
     if (dragons[i].active) {
@@ -206,7 +207,7 @@ inline void drawDragons() {
 
       if (img != -1) {
         // Increased size (previous 250*250, now 300*300)
-        iShowImage((int)dragons[i].x + shakeOffsetX, (int)dragons[i].y + shakeOffsetY, 300, 300, img);
+        iShowImage((int)dragons[i].x, (int)dragons[i].y, 300, 300, img);
       }
     }
   }

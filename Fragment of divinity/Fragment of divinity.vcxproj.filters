@@ -65,11 +65,5 @@
     <ClInclude Include="WeatherHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="character 2.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GameInitialize.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

@@ -22,6 +22,13 @@ extern int dialogueBoxImg; // From cave.h (loaded there, extern-ed here)
 extern bool iqAnswered;
 extern bool iqCorrect;
 
+extern int miniGameTargetX;
+extern int miniGameTargetY;
+extern int miniGameTargetSpeedX;
+extern int miniGameTargetSpeedY;
+extern int miniGameClicks;
+extern int shardImg;
+
 struct IQButton {
   int x, y, w, h;
   char text[100];
@@ -128,9 +135,27 @@ inline void initIQ() {
   postAnswerIndex = 0;
   postAnswerTimer = 0;
   randomizeIQ();
+  if (currentLevel == 3) {
+    miniGameTargetX = 500;
+    miniGameTargetY = 300;
+    miniGameTargetSpeedX = 6;
+    miniGameTargetSpeedY = 6;
+    miniGameClicks = 0;
+  }
 }
 
 inline void updateIQLogic() {
+  if (currentLevel == 3 && !iqAnswered) {
+    miniGameTargetX += miniGameTargetSpeedX;
+    miniGameTargetY += miniGameTargetSpeedY;
+    if (miniGameTargetX <= 0 || miniGameTargetX >= 900) {
+      miniGameTargetSpeedX *= -1;
+    }
+    if (miniGameTargetY <= 150 || miniGameTargetY >= 500) {
+      miniGameTargetSpeedY *= -1;
+    }
+  }
+
   if (iqAnswered && postAnswerIndex > 0 && postAnswerIndex < 3) {
     postAnswerTimer++;
     // Change dialogue every 90 frames (approx 3 seconds)
@@ -156,6 +181,25 @@ inline void drawIQ() {
 
     // Text inside Wizard Box
     iSetColor(0, 0, 0); // Black Text
+
+    if (currentLevel == 3) {
+      if (!iqAnswered) {
+        iText(wizBoxX + 60, wizBoxY + 115, (char *)"Catch the Shard!", GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(wizBoxX + 60, wizBoxY + 85, (char *)"Click it 3 times.", GLUT_BITMAP_TIMES_ROMAN_24);
+        
+        iSetColor(255, 255, 255);
+        iShowImage(miniGameTargetX, miniGameTargetY, 80, 80, shardImg);
+      } else {
+        iSetColor(0, 0, 0);
+        if (postAnswerIndex == 1) {
+          iText(wizBoxX + 60, wizBoxY + 110, (char *)"You are swift.", GLUT_BITMAP_TIMES_ROMAN_24);
+          iText(wizBoxX + 60, wizBoxY + 80, (char *)"Take the Shard.", GLUT_BITMAP_TIMES_ROMAN_24);
+        } else {
+          iText(wizBoxX + 60, wizBoxY + 110, (char *)"Press Next to proceed.", GLUT_BITMAP_TIMES_ROMAN_24);
+        }
+      }
+      return;
+    }
 
     if (!iqAnswered) {
       // Show Question
@@ -228,6 +272,26 @@ inline void drawIQ() {
 }
 
 inline void handleIQClick(int mx, int my) {
+  if (currentLevel == 3) {
+    if (!isWizardMoving && !isCharacterEntering && !iqAnswered && !isWizardTalking) {
+      if (mx >= miniGameTargetX && mx <= miniGameTargetX + 80 && my >= miniGameTargetY && my <= miniGameTargetY + 80) {
+        miniGameClicks++;
+        if (miniGameTargetSpeedX > 0) miniGameTargetSpeedX += 3;
+        else miniGameTargetSpeedX -= 3;
+        if (miniGameTargetSpeedY > 0) miniGameTargetSpeedY += 3;
+        else miniGameTargetSpeedY -= 3;
+        
+        if (miniGameClicks >= 3) {
+          iqAnswered = true;
+          iqCorrect = true;
+          postAnswerIndex = 1;
+          postAnswerTimer = 0;
+        }
+      }
+    }
+    return;
+  }
+
   if (!isWizardMoving && !isCharacterEntering && !iqAnswered &&
       !isWizardTalking) {
     for (int i = 0; i < 3; i++) {

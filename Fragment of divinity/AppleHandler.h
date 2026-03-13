@@ -20,17 +20,6 @@ extern int appleSpawnTimer;
 extern bool isCaveActive;
 extern bool isLevelTransitioning;
 extern int transitionTimer;
-extern void addScorePopup(float x, float y); // From iMain.cpp
-extern int shakeOffsetX;
-extern int shakeOffsetY;
-
-// Magnet Power-up
-extern int magnetImg;
-extern float magnetX;
-extern float magnetY;
-extern bool isMagnetVisible;
-extern bool isMagnetBuffActive;
-extern int magnetBuffTimer;
 
 #define APPLE_Y 120
 #define APPLE_W 40
@@ -39,7 +28,6 @@ extern int magnetBuffTimer;
 
 inline void loadAppleAssets() {
   appleImg = iLoadImage("scores and items\\apple.png");
-  magnetImg = iLoadImage("scores and items\\magnet.png");
 }
 
 inline void initApples() {
@@ -65,41 +53,6 @@ inline void updateApplePhysics() {
       if (apples[i].x < -50) {
         apples[i].active = false;
       }
-    }
-  }
-
-  // 1.5 Magnet Pull Logic
-  if (isMagnetBuffActive) {
-    magnetBuffTimer--;
-    if (magnetBuffTimer <= 0) {
-      isMagnetBuffActive = false;
-    } else {
-      for (int i = 0; i < 20; i++) {
-        if (apples[i].active && apples[i].x < SCREEN_W && apples[i].x > 0) {
-          // Calculate vector towards character
-          float targetX = charX + (charWidth / 2.0f);
-          float targetY = charY + (charHeight / 2.0f);
-          
-          float dx = targetX - apples[i].x;
-          float dy = targetY - apples[i].y;
-          float dist = sqrt(dx * dx + dy * dy);
-          
-          if (dist > 5.0f && dist < 400.0f) { // Only pull if within reasonable range (400px radius)
-            float moveX = (dx / dist) * 15.0f; // Pull speed 15
-            float moveY = (dy / dist) * 15.0f;
-            apples[i].x += (int)moveX;
-            apples[i].y += (int)moveY;
-          }
-        }
-      }
-    }
-  }
-
-  // 1.6 Magnet Drop Logic
-  if (isMagnetVisible) {
-    magnetY -= 5.0f; // Fall speed
-    if (magnetY < -100) {
-       isMagnetVisible = false;
     }
   }
 
@@ -219,24 +172,7 @@ inline void checkAppleCollision() {
 
         apples[i].active = false;
         applesCollected++;
-        addScorePopup((float)apples[i].x, (float)apples[i].y);
       }
-    }
-  }
-}
-
-inline void checkMagnetCollision() {
-  if (isMagnetVisible) {
-    int cLeft = charX + 50;
-    int cRight = charX + charWidth - 50;
-    int cTop = charY + charHeight - 20;
-    int cBottom = charY;
-
-    if (cRight > magnetX && cLeft < magnetX + 50 &&
-        cTop > magnetY && cBottom < magnetY + 50) {
-      isMagnetVisible = false;
-      isMagnetBuffActive = true;
-      magnetBuffTimer = 300; // 10 seconds at 30fps
     }
   }
 }
@@ -244,15 +180,9 @@ inline void checkMagnetCollision() {
 inline void drawApples() {
   for (int i = 0; i < 20; i++) {
     if (apples[i].active) {
-      iShowImage(apples[i].x + shakeOffsetX, apples[i].y + shakeOffsetY, APPLE_W, APPLE_H,
+      iShowImage(apples[i].x, apples[i].y, APPLE_W, APPLE_H,
                  appleImg); // Render in world
     }
-  }
-}
-
-inline void drawMagnet() {
-  if (isMagnetVisible) {
-    iShowImage((int)magnetX + shakeOffsetX, (int)magnetY + shakeOffsetY, 50, 50, magnetImg);
   }
 }
 

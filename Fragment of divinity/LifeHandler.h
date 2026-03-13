@@ -15,8 +15,6 @@ extern int heartImg;
 extern int gameRunTimeSeconds; // Defined in iMain.cpp
 extern int charX, charY;       // From Character.h
 extern int charWidth, charHeight;
-extern int shakeOffsetX;
-extern int shakeOffsetY;
 
 extern int heartItemImg;
 struct HeartItem {
@@ -47,8 +45,8 @@ extern bool heart2Queued;
 inline void updateHeartLogic() {
   // Initialize spawn times once
   if (heart1SpawnTime == 0) {
-    heart1SpawnTime = 15 + rand() % 11; // 15-25s
-    heart2SpawnTime = 40 + rand() % 11; // 40-50s
+    heart1SpawnTime = 20 + rand() % 16; // 20-35s
+    heart2SpawnTime = 50 + rand() % 16; // 50-65s
   }
 
   // Spawn Heart 1
@@ -126,7 +124,7 @@ inline void drawLivesUI() {
   // Draw Spawned Heart Items
   for (int i = 0; i < 2; i++) {
     if (heartItems[i].active) {
-      iShowImage(heartItems[i].x + shakeOffsetX, heartItems[i].y + shakeOffsetY, 40, 40, heartItemImg);
+      iShowImage(heartItems[i].x, heartItems[i].y, 40, 40, heartItemImg);
     }
   }
 }

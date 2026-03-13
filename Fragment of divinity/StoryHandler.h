@@ -10,7 +10,6 @@ extern int level1IntroImage;
 extern int level2IntroImage, level3IntroImage, level4IntroImage;
 extern int level1StoryImages[3];
 extern int level2StoryImages[3];
-extern int level2CaveStoryImages[3];
 extern int levelSelectionBG;
 extern int level1BtnImg, level2BtnImg, level3BtnImg, level4BtnImg;
 extern int nextBtnImg, skipBtnImg, homeBtnImg, prevBtnImg, btnLvlCustomImg;
@@ -24,7 +23,6 @@ extern LevelButton lvl1Btn, lvl2Btn, lvl3Btn, lvl4Btn, lvlCustomBtn;
 extern int initialStoryIndex;
 extern int level1StoryIndex;
 extern int level2StoryIndex;
-extern int level2CaveStoryIndex;
 extern int storyTimerCount;
 
 // Animation globals (defined in iMain.cpp)
@@ -107,12 +105,6 @@ inline void loadStoryAssets() {
   for (int i = 0; i < 3; i++) {
     sprintf_s(path, "story\\level 2\\%d.png", i + 8);
     level2StoryImages[i] = iLoadImage(path);
-  }
-
-  // Level 2 Cave Story
-  for (int i = 0; i < 3; i++) {
-    sprintf_s(path, "story\\cave2story\\%d.png", i + 11);
-    level2CaveStoryImages[i] = iLoadImage(path);
   }
 
   // Level Selection Assets
@@ -238,15 +230,6 @@ inline void drawLevel4Intro() {
 inline void drawLevelTwoStory() {
   if (level2StoryIndex < 3) {
     iShowImage(0, 0, 1000, 600, level2StoryImages[level2StoryIndex]);
-    DRAW_STORY_BTN(nextBtnX, nextBtnY, btnStoryW, btnStoryH, nextBtnImg, 20);
-    DRAW_STORY_BTN(prevBtnX, prevBtnY, btnStoryW, btnStoryH, prevBtnImg, 22);
-    DRAW_STORY_BTN(skipBtnX, skipBtnY, btnStoryW, btnStoryH, skipBtnImg, 21);
-  }
-}
-
-inline void drawLevel2CaveStory() {
-  if (level2CaveStoryIndex < 3) {
-    iShowImage(0, 0, 1000, 600, level2CaveStoryImages[level2CaveStoryIndex]);
     DRAW_STORY_BTN(nextBtnX, nextBtnY, btnStoryW, btnStoryH, nextBtnImg, 20);
     DRAW_STORY_BTN(prevBtnX, prevBtnY, btnStoryW, btnStoryH, prevBtnImg, 22);
     DRAW_STORY_BTN(skipBtnX, skipBtnY, btnStoryW, btnStoryH, skipBtnImg, 21);

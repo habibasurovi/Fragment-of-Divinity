@@ -241,8 +241,9 @@ inline void iShowImage(int x, int y, int width, int height,
   glDisable(GL_TEXTURE_2D);
 }
 
-inline void iShowImageFlipped(int x, int y, int width, int height,
-                              unsigned int texture) {
+inline void iShowImageHFlip(int x, int y, int width, int height,
+                            unsigned int texture) {
+
   glEnable(GL_TEXTURE_2D);
   glBindTexture(GL_TEXTURE_2D, texture);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -252,7 +253,7 @@ inline void iShowImageFlipped(int x, int y, int width, int height,
   glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
   glBegin(GL_QUADS);
-  glTexCoord2f(1, 0); // Flipped S-coordinate
+  glTexCoord2f(1, 0);
   glVertex2f(x, y);
   glTexCoord2f(0, 0);
   glVertex2f(x + width, y);
