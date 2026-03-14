@@ -6,6 +6,11 @@
 #include "iGraphics.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
+#include "GameState.h"
+
+extern GameState gameState;
+extern bool isGamePaused;
 
 // Variables
 struct Apple {
@@ -21,6 +26,17 @@ extern bool isCaveActive;
 extern bool isLevelTransitioning;
 extern int transitionTimer;
 
+// Magnet Item Variables
+struct Magnet {
+  float x, y;
+  bool active;
+};
+extern Magnet magnetItem;
+extern int magnetImg;
+extern int magnetSpawnTimer; // Timer to spawn a new magnet from top
+extern int magnetEffectTimer; // How long the effect lasts once collected
+extern int magnetEffectActive; // 1 if active, 0 otherwise
+
 #define APPLE_Y 120
 #define APPLE_W 40
 #define APPLE_H 40
@@ -28,14 +44,21 @@ extern int transitionTimer;
 
 inline void loadAppleAssets() {
   appleImg = iLoadImage("scores and items\\apple.png");
+  magnetImg = iLoadImage("scores and items\\magnet.png");
 }
+
 
 inline void initApples() {
   for (int i = 0; i < 20; i++) {
     apples[i].active = false;
   }
   applesCollected = 0;
+  magnetItem.active = false;
+  magnetSpawnTimer = 0;
+  magnetEffectTimer = 0;
+  magnetEffectActive = 0;
 }
+
 
 inline void updateApplePhysics() {
   // 1. Move existing apples
@@ -44,13 +67,27 @@ inline void updateApplePhysics() {
 
   for (int i = 0; i < 20; i++) {
     if (apples[i].active) {
-      apples[i].x -= SCROLL_SPD; // Move with background speed
+      if (magnetEffectActive && magnetEffectTimer > 0) {
+        // Gravitate towards character
+        float dx = (charX + charWidth/2) - (apples[i].x + APPLE_W/2);
+        float dy = (charY + charHeight/2) - (apples[i].y + APPLE_H/2);
+        float dist = sqrt(dx*dx + dy*dy);
+        if (dist < 600) { // Magnet range
+          float speed = 15.0f;
+          apples[i].x += (dx / dist) * speed;
+          apples[i].y += (dy / dist) * speed;
+        } else {
+          apples[i].x -= SCROLL_SPD;
+        }
+      } else {
+        apples[i].x -= SCROLL_SPD; // Move with background speed
+      }
       activeCount++;
 
       if (apples[i].x > rightmostX)
         rightmostX = apples[i].x;
 
-      if (apples[i].x < -50) {
+      if (apples[i].x < -50 || apples[i].y < -50 || apples[i].y > SCREEN_H + 50) {
         apples[i].active = false;
       }
     }
@@ -157,6 +194,8 @@ inline void updateApplePhysics() {
   }
 }
 
+extern void spawnAppleScorePopup(float x, float y);
+
 inline void checkAppleCollision() {
   // Character Hitbox (approximate based on refined logic)
   int cLeft = charX + 50;
@@ -172,6 +211,7 @@ inline void checkAppleCollision() {
 
         apples[i].active = false;
         applesCollected++;
+        spawnAppleScorePopup(apples[i].x, apples[i].y);
       }
     }
   }
@@ -180,9 +220,55 @@ inline void checkAppleCollision() {
 inline void drawApples() {
   for (int i = 0; i < 20; i++) {
     if (apples[i].active) {
-      iShowImage(apples[i].x, apples[i].y, APPLE_W, APPLE_H,
-                 appleImg); // Render in world
+      iShowImage(apples[i].x, apples[i].y, APPLE_W, APPLE_H, appleImg);
     }
+  }
+}
+
+inline void updateMagnetPhysics() {
+  if (gameState != GAME || isGamePaused) return;
+
+  // 1. Spawning Logic
+  if (!magnetItem.active && magnetEffectTimer <= 0) {
+    magnetSpawnTimer++;
+    // Spawn every 10-15 seconds (approx 300-450 frames at 30fps)
+    if (magnetSpawnTimer >= 300 + rand() % 151) {
+      magnetItem.active = true;
+      magnetItem.x = (float)(100 + rand() % 800);
+      magnetItem.y = (float)(SCREEN_H + 100); // Start above screen
+      magnetSpawnTimer = 0;
+    }
+  }
+
+  // 2. Movement & Collision
+  if (magnetItem.active) {
+    magnetItem.y -= 4.0f; // Falling speed
+
+    // Check collision with character
+    if (charX + charWidth - 40 > magnetItem.x && charX + 40 < magnetItem.x + 60 &&
+        charY + charHeight - 20 > magnetItem.y && charY + 20 < magnetItem.y + 60) {
+      magnetItem.active = false;
+      magnetEffectActive = 1;
+      magnetEffectTimer = 300; // 10 seconds at 30fps
+    }
+
+    if (magnetItem.y < -100) {
+      magnetItem.active = false;
+    }
+  }
+
+  // 3. Effect Timer
+  if (magnetEffectTimer > 0) {
+    magnetEffectTimer--;
+    if (magnetEffectTimer <= 0) {
+      magnetEffectActive = 0;
+    }
+  }
+}
+
+inline void drawMagnet() {
+  if (magnetItem.active) {
+    iShowImage((int)magnetItem.x, (int)magnetItem.y, 60, 60, magnetImg);
   }
 }
 

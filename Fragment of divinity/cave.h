@@ -32,6 +32,7 @@ extern int caveImgL2, caveSceneBgL2, wizardL2Img;
 extern int caveImgL3, wizardL3Img;
 extern int currentLevel;
 extern int shardImg;
+extern int gunImg, gunExplainImg;
 
 // Forward Declaration
 void updateIQLogic();
@@ -48,6 +49,9 @@ inline void loadCaveAssets() {
   levelChange2 = iLoadImage((char *)"Wizard\\shardexplain.png");
   dialogueBoxImg = iLoadImage((char *)"Wizard\\textbox.png");
   shardImg = iLoadImage((char *)"Wizard\\shard.png");
+
+  gunImg = iLoadImage((char *)"Wizard\\gun.png");
+  gunExplainImg = iLoadImage((char *)"Wizard\\gunexplain.png");
 }
 
 inline void initCaveState() {
@@ -66,8 +70,14 @@ inline void initCaveState() {
   wizardTimer = 0;
 
   // Transition Logic - Start with entry splash screen (Phase 1)
-  isLevelTransitioning = true;
-  transitionPhase = 1;
+  // Remove level 1 pages for level 2
+  if (currentLevel == 2) {
+      isLevelTransitioning = false;
+      transitionPhase = 0;
+  } else {
+      isLevelTransitioning = true;
+      transitionPhase = 1;
+  }
   transitionTimer = 0;
 
   // Dialogue Init
@@ -155,13 +165,17 @@ inline void drawCave() {
       } else {
         iShowImage(0, 0, 1000, 600, caveSceneBg);
       }
-      // shardexplain image centered in the middle of the screen
+      // Explain image centered in the middle of the screen
       int imgW = 700;
       int imgH = 350;
       int imgX = (1000 - imgW) / 2; // 250
       int imgY = (600 - imgH) / 2;  // 125
       iSetColor(255, 255, 255);
-      iShowImage(imgX, imgY, imgW, imgH, levelChange2);
+      if (currentLevel == 2) {
+        iShowImage(imgX, imgY, imgW, imgH, gunExplainImg);
+      } else {
+        iShowImage(imgX, imgY, imgW, imgH, levelChange2);
+      }
     }
 
     // Draw Next Button at bottom right (Bigger)
@@ -205,7 +219,11 @@ inline void drawCave() {
     iShowImage(boxX, boxY, boxW, boxH, dialogueBoxImg);
 
     // Draw Shard
-    iShowImage(shardX, shardY, shardW, shardH, shardImg);
+    if (currentLevel == 2) {
+      iShowImage(shardX, shardY, shardW, shardH, gunImg);
+    } else {
+      iShowImage(shardX, shardY, shardW, shardH, shardImg);
+    }
 
     // Draw Info Text (Centered Title)
     iSetColor(0, 0, 0);
@@ -254,6 +272,17 @@ inline void drawCave() {
         iText(textX + 10, textY, (char *)"Catch the floating shard!", GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 3) {
         iText(textX + 60, textY, (char *)"Begin!", GLUT_BITMAP_TIMES_ROMAN_24);
+      }
+    } else if (currentLevel == 2) {
+      if (wizardDialogueIndex == 1) {
+        iText(textX + 20, textY, (char *)"You have proven your worth.",
+              GLUT_BITMAP_TIMES_ROMAN_24);
+      } else if (wizardDialogueIndex == 2) {
+        iText(textX + 20, textY, (char *)"Time to wield a weapon of power.",
+              GLUT_BITMAP_TIMES_ROMAN_24);
+      } else if (wizardDialogueIndex == 3) {
+        iText(textX + 20, textY, (char *)"But first, prove your mind!",
+              GLUT_BITMAP_TIMES_ROMAN_24);
       }
     } else {
       if (wizardDialogueIndex == 1) {

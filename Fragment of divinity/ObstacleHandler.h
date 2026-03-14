@@ -9,8 +9,10 @@
 extern int obs1, obs2, obs3;
 extern int obstacleSpawnTimer;
 extern bool isCaveActive;
-extern int bombImg;
-extern int explosionImgs[5];
+extern int bombImgs[4];
+extern int bombAnimCounter;
+extern int bombAnimFrame;
+extern int explosionImgs[7];
 
 // Screen dimensions needed for logic
 #ifndef SCREEN_W
@@ -40,6 +42,12 @@ extern int shortPillerImg, longPillerImg;
 extern int flameImgs[4];
 extern int fireImgs[4];
 
+// Level 3 NPCs
+extern int npc1Walk[9];
+extern int npc1Attack[9];
+extern int npc2Walk[9];
+extern int greenFireImgs[9];
+
 extern bool isL3HoleRemoved;
 extern bool flamesHitGround[2];
 extern bool isFlameFalling[2];
@@ -51,6 +59,35 @@ extern int handFrame;
 extern int wormFrame;
 extern float handOffset;
 extern float handDir;
+
+#define MAX_NPCS 3
+#define MAX_FIRES 3
+
+// 0: walking, 1: attacking, 2: dying
+struct WalkingNPC {
+  float x, y;
+  bool active;
+  int type; // 1: Melee, 2: Ranged
+  int state; 
+  int life; // 5 hits to kill
+  int animFrame;
+  int animCounter;
+  int attackTimer; 
+  int fireCooldown; // For NPC2
+  bool hasAttacked; // To apply damage once per attack animation
+  int hitFlashTimer; // Frames for flashing on hit
+};
+
+struct GreenFire {
+  float x, y;
+  bool active;
+  int animFrame;
+  int animCounter;
+};
+
+extern WalkingNPC npcList[MAX_NPCS];
+extern GreenFire fireList[MAX_FIRES];
+extern int npcSpawnTimer;
 
 struct Obstacle {
   int x, y;
@@ -67,6 +104,7 @@ struct Shark {
   bool isDying;
   float dyingVel;
   bool isRetreating;
+  int hitFlashTimer; // Frames for flashing on hit
 };
 
 struct Bomb {
@@ -151,10 +189,13 @@ inline void loadObstacleAssets() {
   imgGBL = iLoadImage("obs img\\gbl.png");
 
   // Bomb & Explosion Assets
-  bombImg = iLoadImage("obs img\\bomb.png");
+  bombImgs[0] = iLoadImage("obs img\\fire-ball-burning\\frame_000.png");
+  bombImgs[1] = iLoadImage("obs img\\fire-ball-burning\\frame_001.png");
+  bombImgs[2] = iLoadImage("obs img\\fire-ball-burning\\frame_002.png");
+  bombImgs[3] = iLoadImage("obs img\\fire-ball-burning\\frame_003.png");
   char expPath[100];
-  for (int i = 0; i < 5; i++) {
-    sprintf_s(expPath, "obs img\\explosion\\ezgif-frame-00%d.png", i + 1);
+  for (int i = 0; i < 7; i++) {
+    sprintf_s(expPath, "obs img\\explosion\\explosion%d.png", i + 1);
     explosionImgs[i] = iLoadImage(expPath);
   }
 
@@ -183,6 +224,18 @@ inline void loadObstacleAssets() {
     sprintf_s(path, "level3\\fire%d.png", i + 1);
     fireImgs[i] = iLoadImage(path);
   }
+
+  for (int i = 0; i < 9; i++) {
+    char path[100];
+    sprintf_s(path, "l3images\\walkingnpc1\\frame_00%d.png", i);
+    npc1Walk[i] = iLoadImage(path);
+    sprintf_s(path, "l3images\\walkingnpc1\\attack\\frame_00%d.png", i);
+    npc1Attack[i] = iLoadImage(path);
+    sprintf_s(path, "l3images\\walkingnpc2\\frame_00%d.png", i);
+    npc2Walk[i] = iLoadImage(path);
+    sprintf_s(path, "l3images\\walkingnpc2\\green-fire-burning\\frame_00%d.png", i);
+    greenFireImgs[i] = iLoadImage(path);
+  }
 }
 
 inline void initObstacles() {
@@ -194,6 +247,7 @@ inline void initObstacles() {
     sharks[i].jumpState = 0;
     sharks[i].isDying = false;
     sharks[i].dyingVel = 0;
+    sharks[i].hitFlashTimer = 0;
     bridges[i].active = false;
     bridges[i].isBroken = false;
     bridges[i].leverActivated = false;
@@ -222,8 +276,16 @@ inline void initObstacles() {
     flamesHitGround[i] = false;
     isFlameFalling[i] = false;
     flameYPos[i] = 0;
-    flameVel[i] = 0;
   }
+  for (int i = 0; i < MAX_NPCS; i++) {
+    npcList[i].active = false;
+    npcList[i].hitFlashTimer = 0;
+  }
+  for (int i = 0; i < MAX_FIRES; i++) {
+    fireList[i].active = false;
+  }
+  npcSpawnTimer = 0;
+  level2SpawnDist = 0;
 }
 
 // Obstacle Settings
@@ -331,6 +393,11 @@ inline void updateObstaclePhysics() {
     }
 
     // ---- BOMB PHYSICS ----
+    bombAnimCounter++;
+    if (bombAnimCounter > 1) { // Faster animation
+      bombAnimCounter = 0;
+      bombAnimFrame = (bombAnimFrame + 1) % 4;
+    }
     for (int i = 0; i < 3; i++) {
       if (bombs[i].active) {
         bombs[i].y -= 6;
@@ -340,20 +407,21 @@ inline void updateObstaclePhysics() {
       }
     }
 
-    // ---- EXPLOSION ANIMATION ----
+    // ---- EXPLOSION PHYSICS ----
     for (int i = 0; i < 3; i++) {
       if (explosions[i].active) {
         explosions[i].timer++;
-        if (explosions[i].timer >=
-            18) { // 3 seconds total (5 frames * 18 = 90 frames)
+        if (explosions[i].timer >= 3) { // Consistent frame speed
           explosions[i].timer = 0;
           explosions[i].frame++;
-          if (explosions[i].frame >= 5) {
+          if (explosions[i].frame >= 7) {
             explosions[i].active = false;
           }
         }
       }
     }
+
+    // Bridge Collision Damage logic follows...
 
     // ---- BRIDGE COLLISION DAMAGE ----
     if (!isInvincible && !isFallingSequence) {
@@ -434,8 +502,8 @@ inline void updateObstaclePhysics() {
         if (!bombs[i].active) {
           bombs[i].active = true;
           bombs[i].x = (float)(charX + (rand() % 400));
-          if (bombs[i].x > SCREEN_W - 50)
-            bombs[i].x = (float)(SCREEN_W - 50);
+          if (bombs[i].x > SCREEN_W - 40)
+            bombs[i].x = (float)(SCREEN_W - 40);
           bombs[i].y = SCREEN_H + 50;
           bombSpawnTimer = 0;
           break;
@@ -577,19 +645,6 @@ inline void updateObstaclePhysics() {
     fireFrame = (fireFrame + 1) % 40;
     wormFrame = (wormFrame + 1) % 40;
 
-    // ---- EXPLOSION ANIMATION ----
-    for (int i = 0; i < 3; i++) {
-      if (explosions[i].active) {
-        explosions[i].timer++;
-        if (explosions[i].timer >= 18) {
-          explosions[i].timer = 0;
-          explosions[i].frame++;
-          if (explosions[i].frame >= 5)
-            explosions[i].active = false;
-        }
-      }
-    }
-
     // Spawning Level 3
     level2SpawnDist += SCROLL_SPD;
     if (level2SpawnDist > 1000) {
@@ -628,6 +683,115 @@ inline void updateObstaclePhysics() {
           }
         }
       }
+    }
+
+    // ---- NPC & GREEN FIRE LOGIC ----
+    // Update Green Fire Projectiles
+    for (int i = 0; i < MAX_FIRES; i++) {
+      if (fireList[i].active) {
+        fireList[i].x -= 10.0f; // Fast horizontal movement
+        fireList[i].animCounter++;
+        if (fireList[i].animCounter >= 3) {
+          fireList[i].animCounter = 0;
+          fireList[i].animFrame = (fireList[i].animFrame + 1) % 9;
+        }
+        if (fireList[i].x < -100) {
+          fireList[i].active = false;
+        }
+      }
+    }
+
+    // Update Walking NPCs
+    for (int i = 0; i < MAX_NPCS; i++) {
+      if (npcList[i].active) {
+        if (npcList[i].state == 0) { // Walking
+          npcList[i].x -= 4.0f; // Walk left
+          npcList[i].animCounter++;
+          if (npcList[i].animCounter >= 4) {
+            npcList[i].animCounter = 0;
+            npcList[i].animFrame = (npcList[i].animFrame + 1) % 9;
+          }
+
+          if (npcList[i].type == 1) { // Melee NPC
+            // Distance check to char for attack
+            if (npcList[i].x - charX < 150 && npcList[i].x > charX - 50) {
+              npcList[i].state = 1; // Transition to Attack
+              npcList[i].animFrame = 0;
+              npcList[i].attackTimer = 0;
+              npcList[i].hasAttacked = false;
+            }
+          } else if (npcList[i].type == 2) { // Ranged NPC
+            // Shoot green fire roughly every 3-6 seconds (90 to 180 frames)
+            npcList[i].fireCooldown--;
+            if (npcList[i].fireCooldown <= 0) {
+              // Spawn fire
+              for (int j = 0; j < MAX_FIRES; j++) {
+                if (!fireList[j].active) {
+                  fireList[j].active = true;
+                  fireList[j].x = npcList[i].x - 30; 
+                  fireList[j].y = npcList[i].y + 30; // Height for 100x100 NPC
+                  fireList[j].animFrame = 0;
+                  fireList[j].animCounter = 0;
+                  break;
+                }
+              }
+              npcList[i].fireCooldown = 90 + (rand() % 90);
+            }
+          }
+
+        } else if (npcList[i].state == 1) { // Attacking (NPC1 only)
+          npcList[i].x -= SCROLL_SPD; // Fix: Keep NPC positioned relative to scrolling background
+          npcList[i].attackTimer++;
+          if (npcList[i].attackTimer % 4 == 0) {
+            npcList[i].animFrame++;
+          }
+          // The attack lands around frame 5/6
+          if (!npcList[i].hasAttacked && npcList[i].animFrame >= 5) {
+             if (charX + charWidth > npcList[i].x - 30 && charX < npcList[i].x + 30 &&
+                 charY + charHeight > groundY && charY < groundY + 100) {
+                 if (!isInvincible && !isFallingSequence) {
+                     lives--;
+                     isInvincible = true;
+                     invincibilityTimer = 60;
+                 }
+             }
+             npcList[i].hasAttacked = true;
+          }
+
+          if (npcList[i].animFrame >= 9) {
+            npcList[i].state = 0; // Back to walking
+            npcList[i].animFrame = 0;
+            npcList[i].hasAttacked = false;
+          }
+        }
+
+        if (npcList[i].x < -200) {
+          npcList[i].active = false;
+        }
+      }
+    }
+
+    // Spawning Level 3 NPCs
+    npcSpawnTimer++;
+    // Spawn every 5 to 15 seconds (approx 150 to 450 frames @ 30fps)
+    static int nextNpcGap = 150 + (rand() % 300);
+    if (npcSpawnTimer >= nextNpcGap) {
+        npcSpawnTimer = 0;
+        nextNpcGap = 150 + (rand() % 300);
+        for (int i = 0; i < MAX_NPCS; i++) {
+            if (!npcList[i].active) {
+                npcList[i].active = true;
+                npcList[i].x = SCREEN_W + 100;
+                npcList[i].y = groundY;
+                npcList[i].type = (rand() % 2) + 1; // 1 or 2
+                npcList[i].state = 0;
+                npcList[i].life = 2; // Fixed: 2 hits to kill
+                npcList[i].animFrame = 0;
+                npcList[i].animCounter = 0;
+                npcList[i].fireCooldown = 90 + (rand() % 90); // Init cooldown
+                break;
+            }
+        }
     }
 
     return;
@@ -670,6 +834,13 @@ inline void drawObstacles() {
   if (currentLevel == 2) {
     for (int i = 0; i < 2; i++) {
       if (sharks[i].active) {
+        if (sharks[i].hitFlashTimer > 0) sharks[i].hitFlashTimer--;
+        
+        // Blink logic: skip drawing every 2nd frame when hitFlash is active
+        if (sharks[i].hitFlashTimer > 0 && (sharks[i].hitFlashTimer / 2) % 2 == 0) {
+            continue;
+        }
+
         int img = 0;
         int sW, sH;
         if (sharks[i].type == 1) {
@@ -733,7 +904,8 @@ inline void drawObstacles() {
     }
     for (int i = 0; i < 3; i++) {
       if (bombs[i].active) {
-        iShowImage((int)bombs[i].x, (int)bombs[i].y, 50, 50, bombImg);
+        iShowImage((int)bombs[i].x, (int)bombs[i].y, 50, 60,
+                   bombImgs[bombAnimFrame]); // Size 50x60
       }
     }
     return;
@@ -838,24 +1010,56 @@ inline void drawObstacles() {
       }
 
       // Hole and Hands
-      if (!isL3HoleRemoved) {
-        // Render Hole
-        iShowImage((int)bridges[i].x - 50, (int)bridges[i].y - 70, 550, 100,
-                   l3HoleImg);
-        
-        // Render Hand on top of hole if flame didn't hit ground
-        if (!flamesHitGround[i]) {
-            // Hand Y lowered by 10 as requested (now at y - 70)
-            // Size 300x160, centered over hole
-            iShowImage((int)bridges[i].x + 75, (int)bridges[i].y - 70, 300, 160,
-                       handImgs[handFrame / 10]);
-        }
-      } else {
-        // If hole is "removed" by flame, keep rendering hole
-        iShowImage((int)bridges[i].x - 50, (int)bridges[i].y - 70, 550, 100,
-                   l3HoleImg);
+      // Always render Hole
+      iShowImage((int)bridges[i].x - 50, (int)bridges[i].y - 70, 550, 100, l3HoleImg);
+      
+      // Render Hand on top of hole if flame didn't hit ground FOR THIS SPECIFIC HOLE
+      if (!flamesHitGround[i]) {
+          // Hand Y lowered by 10 as requested (now at y - 70)
+          // Size 300x160, centered over hole
+          iShowImage((int)bridges[i].x + 75, (int)bridges[i].y - 70, 300, 160,
+                     handImgs[handFrame / 10]);
       }
+    } // End of Hole & Hands loop
+
+    // Render Green Fire Projectiles
+    for (int i = 0; i < MAX_FIRES; i++) {
+        if (fireList[i].active) {
+            iShowImage((int)fireList[i].x, (int)fireList[i].y, 100, 100, greenFireImgs[fireList[i].animFrame]);
+        }
     }
+
+    // Render Walking NPCs
+    for (int i = 0; i < MAX_NPCS; i++) {
+        if (npcList[i].active) {
+            if (npcList[i].hitFlashTimer > 0) npcList[i].hitFlashTimer--;
+            
+            // Blink logic
+            if (npcList[i].hitFlashTimer > 0 && (npcList[i].hitFlashTimer / 2) % 2 == 0) {
+                continue;
+            }
+
+            int currentImg = 0;
+            if (npcList[i].type == 1) { // Melee
+                if (npcList[i].state == 0) // Walking
+                    currentImg = npc1Walk[npcList[i].animFrame];
+                else if (npcList[i].state == 1) // Attacking
+                    currentImg = npc1Attack[npcList[i].animFrame];
+            } else if (npcList[i].type == 2) { // Ranged
+                currentImg = npc2Walk[npcList[i].animFrame];
+            }
+
+            if (currentImg != 0) {
+                int drawW = 100, drawH = 100;
+                if (npcList[i].type == 1 && npcList[i].state == 0) {
+                    drawW = 85; 
+                    drawH = 85;
+                }
+                iShowImage((int)npcList[i].x, (int)npcList[i].y, drawW, drawH, currentImg);
+            }
+        }
+    }
+
     return;
   }
 
@@ -870,13 +1074,14 @@ inline void drawObstacles() {
         iShowImage(obstacles[i].x, obstacles[i].y, 120, 120, obs3);
     }
   }
-}
+} // Adding the brace for the end of drawObstacles()
 
 inline void drawExplosions() {
   if (currentLevel == 2) {
     for (int i = 0; i < 3; i++) {
       if (explosions[i].active) {
-        iShowImage((int)explosions[i].x - 65, (int)explosions[i].y, 130, 70,
+        // Draw explosion centered on impact - 250x250 for MAX IMPACT
+        iShowImage((int)explosions[i].x - 125, (int)explosions[i].y - 125, 250, 250,
                    explosionImgs[explosions[i].frame]);
       }
     }

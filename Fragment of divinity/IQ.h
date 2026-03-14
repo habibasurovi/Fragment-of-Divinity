@@ -1,3 +1,4 @@
+
 #ifndef IQ_H
 #define IQ_H
 
@@ -217,20 +218,36 @@ inline void drawIQ() {
     } else {
       // Show Result Dialogue
       if (iqCorrect) {
-        if (postAnswerIndex == 1) {
-          iText(wizBoxX + 60, wizBoxY + 110, (char *)"Wise indeed.",
-                GLUT_BITMAP_TIMES_ROMAN_24);
-          iText(wizBoxX + 60, wizBoxY + 80, (char *)"Time bends to those who",
-                GLUT_BITMAP_TIMES_ROMAN_24);
-          iText(wizBoxX + 60, wizBoxY + 50, (char *)"understand it.",
-                GLUT_BITMAP_TIMES_ROMAN_24);
-        } else { // Index 2 or higher
-          iText(wizBoxX + 60, wizBoxY + 110,
-                (char *)"Take this, the OBSIDIAN AEGIS.",
-                GLUT_BITMAP_TIMES_ROMAN_24);
-          iText(wizBoxX + 60, wizBoxY + 80,
-                (char *)"Let moments obey your will.",
-                GLUT_BITMAP_TIMES_ROMAN_24);
+        if (currentLevel == 2) {
+          if (postAnswerIndex == 1) {
+            iText(wizBoxX + 60, wizBoxY + 110, (char *)"Well answered.",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+            iText(wizBoxX + 60, wizBoxY + 80, (char *)"The AZURAAN REQUIREM",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+            iText(wizBoxX + 60, wizBoxY + 50, (char *)"is yours.",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+          } else {
+            iText(wizBoxX + 60, wizBoxY + 110, (char *)"A weapon to strike",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+            iText(wizBoxX + 60, wizBoxY + 80, (char *)"your enemies down.",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+          }
+        } else {
+          if (postAnswerIndex == 1) {
+            iText(wizBoxX + 60, wizBoxY + 110, (char *)"Wise indeed.",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+            iText(wizBoxX + 60, wizBoxY + 80, (char *)"Time bends to those who",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+            iText(wizBoxX + 60, wizBoxY + 50, (char *)"understand it.",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+          } else { // Index 2 or higher
+            iText(wizBoxX + 60, wizBoxY + 110,
+                  (char *)"Take this, the OBSIDIAN AEGIS.",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+            iText(wizBoxX + 60, wizBoxY + 80,
+                  (char *)"Let moments obey your will.",
+                  GLUT_BITMAP_TIMES_ROMAN_24);
+          }
         }
       } else {
         if (postAnswerIndex == 1) {

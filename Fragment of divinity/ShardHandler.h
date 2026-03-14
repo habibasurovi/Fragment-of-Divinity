@@ -28,7 +28,7 @@ inline void initShard() {
 }
 
 inline void updateShardLogic() {
-    if (currentLevel != 2 || !hasClaimedShard) return;
+    if ((currentLevel != 2 && currentLevel != 3) || !hasClaimedShard) return;
 
     // 1. Spawning
     shardSpawnTimer++;
@@ -96,8 +96,8 @@ inline void updateShardLogic() {
         // c. Bombs
         for (int i = 0; i < 3; i++) {
             if (bombs[i].active) {
-                if (charX + charWidth > bombs[i].x && charX < bombs[i].x + 50 &&
-                    charY + charHeight > bombs[i].y && charY < bombs[i].y + 50) {
+                if (charX + charWidth > bombs[i].x && charX < bombs[i].x + 40 &&
+                    charY + charHeight > bombs[i].y && charY < bombs[i].y + 40) {
                     bombs[i].active = false;
                 }
             }
@@ -121,6 +121,8 @@ inline void updateShardLogic() {
 }
 
 inline void drawShardElements() {
+    if (currentLevel != 2 && currentLevel != 3) return;
+
     if (isFallingShardActive) {
         iShowImage((int)fallingShardX, (int)fallingShardY, 60, 60, shardImg);
     }

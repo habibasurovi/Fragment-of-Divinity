@@ -10,6 +10,8 @@ extern int level1IntroImage;
 extern int level2IntroImage, level3IntroImage, level4IntroImage;
 extern int level1StoryImages[3];
 extern int level2StoryImages[3];
+extern int level3StoryImages[3];
+extern int cave2StoryImages[3];
 extern int levelSelectionBG;
 extern int level1BtnImg, level2BtnImg, level3BtnImg, level4BtnImg;
 extern int nextBtnImg, skipBtnImg, homeBtnImg, prevBtnImg, btnLvlCustomImg;
@@ -23,6 +25,8 @@ extern LevelButton lvl1Btn, lvl2Btn, lvl3Btn, lvl4Btn, lvlCustomBtn;
 extern int initialStoryIndex;
 extern int level1StoryIndex;
 extern int level2StoryIndex;
+extern int level3StoryIndex;
+extern int cave2StoryIndex;
 extern int storyTimerCount;
 
 // Animation globals (defined in iMain.cpp)
@@ -105,6 +109,18 @@ inline void loadStoryAssets() {
   for (int i = 0; i < 3; i++) {
     sprintf_s(path, "story\\level 2\\%d.png", i + 8);
     level2StoryImages[i] = iLoadImage(path);
+  }
+
+  // Level 3 Story
+  for (int i = 0; i < 3; i++) {
+    sprintf_s(path, "story\\level 3\\%d.png", i + 14);
+    level3StoryImages[i] = iLoadImage(path);
+  }
+
+  // Cave 2 Story
+  for (int i = 0; i < 3; i++) {
+    sprintf_s(path, "story\\cave2story\\%d.png", i + 11);
+    cave2StoryImages[i] = iLoadImage(path);
   }
 
   // Level Selection Assets
@@ -230,6 +246,24 @@ inline void drawLevel4Intro() {
 inline void drawLevelTwoStory() {
   if (level2StoryIndex < 3) {
     iShowImage(0, 0, 1000, 600, level2StoryImages[level2StoryIndex]);
+    DRAW_STORY_BTN(nextBtnX, nextBtnY, btnStoryW, btnStoryH, nextBtnImg, 20);
+    DRAW_STORY_BTN(prevBtnX, prevBtnY, btnStoryW, btnStoryH, prevBtnImg, 22);
+    DRAW_STORY_BTN(skipBtnX, skipBtnY, btnStoryW, btnStoryH, skipBtnImg, 21);
+  }
+}
+
+inline void drawLevelThreeStory() {
+  if (level3StoryIndex < 3) {
+    iShowImage(0, 0, 1000, 600, level3StoryImages[level3StoryIndex]);
+    DRAW_STORY_BTN(nextBtnX, nextBtnY, btnStoryW, btnStoryH, nextBtnImg, 20);
+    DRAW_STORY_BTN(prevBtnX, prevBtnY, btnStoryW, btnStoryH, prevBtnImg, 22);
+    DRAW_STORY_BTN(skipBtnX, skipBtnY, btnStoryW, btnStoryH, skipBtnImg, 21);
+  }
+}
+
+inline void drawCaveTwoStory() {
+  if (cave2StoryIndex < 3) {
+    iShowImage(0, 0, 1000, 600, cave2StoryImages[cave2StoryIndex]);
     DRAW_STORY_BTN(nextBtnX, nextBtnY, btnStoryW, btnStoryH, nextBtnImg, 20);
     DRAW_STORY_BTN(prevBtnX, prevBtnY, btnStoryW, btnStoryH, prevBtnImg, 22);
     DRAW_STORY_BTN(skipBtnX, skipBtnY, btnStoryW, btnStoryH, skipBtnImg, 21);
