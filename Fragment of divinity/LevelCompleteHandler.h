@@ -36,7 +36,7 @@ inline void loadLevelCompleteAssets() {
   imgNextLevel = iLoadImage((char *)"background img\\next.png");
   imgRestartLevel = iLoadImage((char *)"background img\\restart.png");
   imgHomeLevel = iLoadImage((char *)"background img\\home.png");
-  caveIQBG = iLoadImage((char *)"background img\\cavebg.png");
+  caveIQBG = iLoadImage((char *)"background img\\cave2.png"); // cavebg.png not found on disk, using cave2.png
 
   // Triangular layout:
   // Home: Bottom center
@@ -92,8 +92,8 @@ inline void drawLevelComplete() {
   iShowImage(620, 300, 30, 30, appleImg);
   iSetColor(255, 230, 100); // Golden color to match theme
   char scoreText[10];
-  sprintf_s(scoreText, "%d", applesCollected);
-  iText(640, 300, scoreText, GLUT_BITMAP_HELVETICA_18);
+  sprintf_s(scoreText, sizeof(scoreText), "%d", applesCollected);
+  iText(640, 300, (char*)scoreText, (void*)GLUT_BITMAP_HELVETICA_18);
 }
 
 inline void drawNextLevelIQ() {

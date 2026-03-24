@@ -83,59 +83,63 @@ extern int  btnAnimContext; // 0=MainMenu, 1=Custom, 2=Story
 // this file.
 
 inline void loadStoryAssets() {
+  static bool storyLoaded = false;
+  if (storyLoaded) return;
+  storyLoaded = true;
+
   char path[100];
 
   // Initial Story
   for (int i = 0; i < 12; i++) {
-    sprintf_s(path, "story\\initial story\\%d.png", i + 1);
+    sprintf_s(path, sizeof(path), "story\\initial story\\%d.png", i + 1);
     initialStoryImages[i] = iLoadImage(path);
   }
 
   // Level 1 Intro
-  level1IntroImage = iLoadImage("story\\level 1\\frontpage.png");
+  level1IntroImage = iLoadImage((char *)"story\\level 1\\frontpage.png");
 
   // Other Level Intros
-  level2IntroImage = iLoadImage("story\\level 2\\frontpage2.png");
-  level3IntroImage = iLoadImage("story\\level 3\\frontpage3.png");
-  level4IntroImage = iLoadImage("story\\level 4\\frontpage4.png");
+  level2IntroImage = iLoadImage((char *)"story\\level 2\\frontpage2.png");
+  level3IntroImage = iLoadImage((char *)"story\\level 3\\frontpage3.png");
+  level4IntroImage = iLoadImage((char *)"story\\level 4\\frontpage4.png");
 
   // Level 1 Story
   for (int i = 0; i < 3; i++) {
-    sprintf_s(path, "story\\level 1\\%d.png", i + 1);
+    sprintf_s(path, sizeof(path), "story\\level 1\\%d.png", i + 1);
     level1StoryImages[i] = iLoadImage(path);
   }
 
   // Level 2 Story
   for (int i = 0; i < 3; i++) {
-    sprintf_s(path, "story\\level 2\\%d.png", i + 8);
+    sprintf_s(path, sizeof(path), "story\\level 2\\%d.png", i + 8);
     level2StoryImages[i] = iLoadImage(path);
   }
 
   // Level 3 Story
   for (int i = 0; i < 3; i++) {
-    sprintf_s(path, "story\\level 3\\%d.png", i + 14);
+    sprintf_s(path, sizeof(path), "story\\level 3\\%d.png", i + 14);
     level3StoryImages[i] = iLoadImage(path);
   }
 
   // Cave 2 Story
   for (int i = 0; i < 3; i++) {
-    sprintf_s(path, "story\\cave2story\\%d.png", i + 11);
+    sprintf_s(path, sizeof(path), "story\\cave2story\\%d.png", i + 11);
     cave2StoryImages[i] = iLoadImage(path);
   }
 
   // Level Selection Assets
-  levelSelectionBG = iLoadImage("story\\level btn bg.png");
-  level1BtnImg = iLoadImage("story\\l1 btn.png");
-  level2BtnImg = iLoadImage("story\\l2 btn.png");
-  level3BtnImg = iLoadImage("story\\l3 btn.png");
-  level4BtnImg = iLoadImage("story\\l4 btn.png");
+  levelSelectionBG = iLoadImage((char *)"story\\level btn bg.png");
+  level1BtnImg = iLoadImage((char *)"story\\l1 btn.png");
+  level2BtnImg = iLoadImage((char *)"story\\l2 btn.png");
+  level3BtnImg = iLoadImage((char *)"story\\l3 btn.png");
+  level4BtnImg = iLoadImage((char *)"story\\l4 btn.png");
 
   // Buttons
-  nextBtnImg = iLoadImage("story\\next button.png");
-  skipBtnImg = iLoadImage("story\\skip button.png");
-  homeBtnImg = iLoadImage("story\\home icon button.png");
-  prevBtnImg = iLoadImage("story\\previous button.png");
-  btnLvlCustomImg = iLoadImage("story\\customization button.png");
+  nextBtnImg = iLoadImage((char *)"story\\next button.png");
+  skipBtnImg = iLoadImage((char *)"story\\skip button.png");
+  homeBtnImg = iLoadImage((char *)"story\\home icon button.png");
+  prevBtnImg = iLoadImage((char *)"story\\previous button.png");
+  btnLvlCustomImg = iLoadImage((char *)"story\\customization button.png");
 
   // Initialize Level Selection Buttons
   lvl1Btn.w = 330;

@@ -23,13 +23,13 @@ extern int frameX, frameY, frameW, frameH;
 
 inline void loadPauseMenuAssets() {
   // Load Images
-  pauseBtnImage = iLoadImage("images fod\\menu\\buttons internal\\pause.png");
-  pauseFrameImage = iLoadImage("images fod\\menu\\buttons internal\\frame.png");
-  btnContinue = iLoadImage("images fod\\menu\\buttons internal\\continue.png");
-  btnRestart = iLoadImage("images fod\\menu\\buttons internal\\restart.png");
+  pauseBtnImage = iLoadImage((char *)"images fod\\menu\\buttons internal\\pause.png");
+  pauseFrameImage = iLoadImage((char *)"images fod\\menu\\buttons internal\\frame.png");
+  btnContinue = iLoadImage((char *)"images fod\\menu\\buttons internal\\continue.png");
+  btnRestart = iLoadImage((char *)"images fod\\menu\\buttons internal\\restart.png");
   btnSettingsPause =
-      iLoadImage("images fod\\menu\\buttons internal\\settings.png");
-  btnExitPause = iLoadImage("images fod\\menu\\buttons internal\\exit.png");
+      iLoadImage((char *)"images fod\\menu\\buttons internal\\settings.png");
+  btnExitPause = iLoadImage((char *)"images fod\\menu\\buttons internal\\exit.png");
 
   // Initialize Pause Button (Top Left Corner)
   bPause.x = 20;

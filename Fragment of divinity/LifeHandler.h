@@ -26,8 +26,8 @@ extern struct HeartItem heartItems[2];
 extern int heartsSpawnedCount;
 
 inline void loadLifeAssets() {
-  heartImg = iLoadImage("scores and items\\heart1.bmp");
-  heartItemImg = iLoadImage("scores and items\\heart2.bmp");
+  heartImg = iLoadImage((char *)"scores and items\\heart1.bmp");
+  heartItemImg = iLoadImage((char *)"scores and items\\heart2.bmp");
 
   // Initialize hearts
   for (int i = 0; i < 2; i++) {

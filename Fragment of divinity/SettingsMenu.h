@@ -29,13 +29,13 @@ struct SettingsButton {
 extern SettingsButton bMusic, bSound, bBackSettings;
 
 inline void loadSettingsAssets() {
-  settingsBG = iLoadImage("images fod\\menu\\settings menu\\settings bg.png");
+  settingsBG = iLoadImage((char *)"images fod\\menu\\settings menu\\settings bg.png");
   settingsFrame =
-      iLoadImage("images fod\\menu\\settings menu\\settings farme.png");
-  btnMusic = iLoadImage("images fod\\menu\\settings menu\\music button.png");
-  btnSound = iLoadImage("images fod\\menu\\settings menu\\sound.png");
-  btnExitSettings = iLoadImage("images fod\\menu\\settings menu\\exit.png");
-  crossImage = iLoadImage("images fod\\menu\\settings menu\\cross.png");
+      iLoadImage((char *)"images fod\\menu\\settings menu\\settings farme.png");
+  btnMusic = iLoadImage((char *)"images fod\\menu\\settings menu\\music button.png");
+  btnSound = iLoadImage((char *)"images fod\\menu\\settings menu\\sound.png");
+  btnExitSettings = iLoadImage((char *)"images fod\\menu\\settings menu\\exit.png");
+  crossImage = iLoadImage((char *)"images fod\\menu\\settings menu\\cross.png");
 
   // Unified Button Size
   int btnW = 320;

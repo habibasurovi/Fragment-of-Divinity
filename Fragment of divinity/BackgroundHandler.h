@@ -2,6 +2,7 @@
 #define BACKGROUNDHANDLER_H
 
 #include "iGraphics.h"
+#include "Boss.h"
 
 // Variables
 extern int selectedWeather;
@@ -16,9 +17,11 @@ extern int s2bG1, s2bG2, s2bG3, s2bG4;
 extern int w2bG1, w2bG2, w2bG3, w2bG4;
 extern int r2bG1, r2bG2, r2bG3, r2bG4;
 
-// Level 3 background assets
 extern int l3bG1, l3bG2, l3bG2_1, l3bG2_2;
 extern bool isL3Changed;
+
+// Level 4 background assets
+extern int bg41, bg42;
 
 extern int bGX; // background X position
 
@@ -35,45 +38,51 @@ extern int bGX; // background X position
 #endif
 
 inline void loadBackgroundAssets() {
+  static bool backgroundsLoaded = false;
+  if (backgroundsLoaded) return;
+  backgroundsLoaded = true;
+
   // Rainy (Default/Existing) - Level 1
-  bG1 = iLoadImage("background img\\bG1.bmp");
-  bG2 = iLoadImage("background img\\bG2.bmp");
-  bG3 = iLoadImage("background img\\bG3.bmp");
-  bG4 = iLoadImage("background img\\bG4.bmp");
+  bG1 = iLoadImage((char *)"background img\\bG1.bmp");
+  bG2 = iLoadImage((char *)"background img\\bG2.bmp");
+  bG3 = iLoadImage((char *)"background img\\bG3.bmp");
+  bG4 = iLoadImage((char *)"background img\\bG4.bmp");
 
   // Summer - Level 1
-  sbG1 = iLoadImage("background img\\sbG1.bmp");
-  sbG2 = iLoadImage("background img\\sbG2.bmp");
-  sbG3 = iLoadImage("background img\\sbG3.bmp");
-  sbG4 = iLoadImage("background img\\sbG4.bmp");
+  sbG1 = iLoadImage((char *)"background img\\sbG1.bmp");
+  sbG2 = iLoadImage((char *)"background img\\sbG2.bmp");
+  sbG3 = iLoadImage((char *)"background img\\sbG3.bmp");
+  sbG4 = iLoadImage((char *)"background img\\sbG4.bmp");
 
   // Winter - Level 1
-  wbG1 = iLoadImage("background img\\wbG1.bmp");
-  wbG2 = iLoadImage("background img\\wbG2.bmp");
-  wbG3 = iLoadImage("background img\\wbG3.bmp");
-  wbG4 = iLoadImage("background img\\wbG4.bmp");
+  wbG1 = iLoadImage((char *)"background img\\wbG1.bmp");
+  wbG2 = iLoadImage((char *)"background img\\wbG2.bmp");
+  wbG3 = iLoadImage((char *)"background img\\wbG3.bmp");
+  wbG4 = iLoadImage((char *)"background img\\wbG4.bmp");
 
   // Level 2 Assets
-  s2bG1 = iLoadImage("background img\\summer21.bmp");
-  s2bG2 = iLoadImage("background img\\summer22.bmp");
-  s2bG3 = iLoadImage("background img\\summer23.bmp");
-  s2bG4 = iLoadImage("background img\\summer24.bmp");
+  s2bG1 = iLoadImage((char *)"background img\\summer21.bmp");
+  s2bG2 = iLoadImage((char *)"background img\\summer22.bmp");
+  s2bG3 = iLoadImage((char *)"background img\\summer23.bmp");
+  s2bG4 = iLoadImage((char *)"background img\\summer24.bmp");
 
-  w2bG1 = iLoadImage("background img\\winte21.bmp"); // Filename on disk
-  w2bG2 = iLoadImage("background img\\winter22.bmp");
-  w2bG3 = iLoadImage("background img\\winter23.bmp");
-  w2bG4 = iLoadImage("background img\\winte24.bmp"); // Filename on disk
+  w2bG1 = iLoadImage((char *)"background img\\winte21.bmp"); // Filename on disk
+  w2bG2 = iLoadImage((char *)"background img\\winter22.bmp");
+  w2bG3 = iLoadImage((char *)"background img\\winter23.bmp");
+  w2bG4 = iLoadImage((char *)"background img\\winte24.bmp"); // Filename on disk
 
-  r2bG1 = iLoadImage("background img\\rainy21.bmp");
-  r2bG2 = iLoadImage("background img\\rainy22.bmp");
-  r2bG3 = iLoadImage("background img\\rainy23.bmp");
-  r2bG4 = iLoadImage("background img\\rainy24.bmp");
+  r2bG1 = iLoadImage((char *)"background img\\rainy21.bmp");
+  r2bG2 = iLoadImage((char *)"background img\\rainy22.bmp");
+  r2bG3 = iLoadImage((char *)"background img\\rainy23.bmp");
+  r2bG4 = iLoadImage((char *)"background img\\rainy24.bmp");
 
   // Level 3 Assets
-  l3bG1 = iLoadImage("level3\\l3bg1.1.jpg");
-  l3bG2 = iLoadImage("level3\\l3bg1.2.jpg");
-  l3bG2_1 = iLoadImage("level3\\l3bg2.1.jpg");
-  l3bG2_2 = iLoadImage("level3\\l3bg2.2.jpg");
+  l3bG1 = iLoadImage((char *)"level3\\l3bg1.1.jpg");
+  l3bG2 = iLoadImage((char *)"level3\\l3bg1.2.jpg");
+  l3bG2_1 = iLoadImage((char *)"level3\\l3bg2.1.jpg");
+  l3bG2_2 = iLoadImage((char *)"level3\\l3bg2.2.jpg");
+
+  // Level 4 Boss assets (Loading deferred to resetGame/Level 4 start)
 }
 
 inline void autoScrollRecursive() {
@@ -115,6 +124,11 @@ inline void drawBackground() {
       img3 = l3bG2_1;
       img4 = l3bG2_2;
     }
+  } else if (currentLevel == 4) {
+    img1 = bg41;
+    img2 = bg42;
+    img3 = bg42;
+    img4 = bg42;
   } else {
     if (selectedWeather == 0) { // Summer
       img1 = sbG1;

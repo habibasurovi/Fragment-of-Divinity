@@ -28,8 +28,8 @@ int gunBarAnimTimer = 0;                  // Equip animation countdown
 
 // ---- Load ----
 inline void loadGunBarAssets() {
-  gunBarImg = iLoadImage("scores and items\\gunbar.png");
-  emptyGunBarImg = iLoadImage("scores and items\\emptygunbar.png");
+  gunBarImg = iLoadImage((char *)"scores and items\\gunbar.png");
+  emptyGunBarImg = iLoadImage((char *)"scores and items\\emptygunbar.png");
 }
 
 // ---- Init (call on level reset) ----
@@ -93,13 +93,13 @@ inline void drawGunBar() {
       // Draw cooldown seconds remaining (centered text)
       int secondsLeft = (gunBarCooldown + 29) / 30; // round up
       char timeStr[8];
-      sprintf_s(timeStr, "%ds", secondsLeft);
+      sprintf_s(timeStr, sizeof(timeStr), "%ds", secondsLeft);
       iSetColor(0, 0, 0); // Black text
       // Center text: each char ~9px wide, font height ~18px
       int textLen = (int)strlen(timeStr);
       int tx = bx + (bw - textLen * 9) / 2;
       int ty = by + (bh - 18) / 2;
-      iText(tx, ty, timeStr, GLUT_BITMAP_HELVETICA_18);
+      iText(tx, ty, (char*)timeStr, (void*)GLUT_BITMAP_HELVETICA_18);
     } else {
       // Draw base bar image (available state)
       iSetColor(255, 255, 255);

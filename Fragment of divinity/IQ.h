@@ -185,18 +185,18 @@ inline void drawIQ() {
 
     if (currentLevel == 3) {
       if (!iqAnswered) {
-        iText(wizBoxX + 60, wizBoxY + 115, (char *)"Catch the Shard!", GLUT_BITMAP_TIMES_ROMAN_24);
-        iText(wizBoxX + 60, wizBoxY + 85, (char *)"Click it 3 times.", GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(wizBoxX + 60, wizBoxY + 115, (char *)"Catch the Shard!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(wizBoxX + 60, wizBoxY + 85, (char *)"Click it 3 times.", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
         
         iSetColor(255, 255, 255);
         iShowImage(miniGameTargetX, miniGameTargetY, 80, 80, shardImg);
       } else {
         iSetColor(0, 0, 0);
         if (postAnswerIndex == 1) {
-          iText(wizBoxX + 60, wizBoxY + 110, (char *)"You are swift.", GLUT_BITMAP_TIMES_ROMAN_24);
-          iText(wizBoxX + 60, wizBoxY + 80, (char *)"Take the Shard.", GLUT_BITMAP_TIMES_ROMAN_24);
+          iText(wizBoxX + 60, wizBoxY + 110, (char *)"You are swift.", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+          iText(wizBoxX + 60, wizBoxY + 80, (char *)"Take the Shard.", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
         } else {
-          iText(wizBoxX + 60, wizBoxY + 110, (char *)"Press Next to proceed.", GLUT_BITMAP_TIMES_ROMAN_24);
+          iText(wizBoxX + 60, wizBoxY + 110, (char *)"Press Next to proceed.", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
         }
       }
       return;
@@ -206,14 +206,14 @@ inline void drawIQ() {
       // Show Question
       if (currentRiddleIndex != -1) {
         iText(wizBoxX + 60, wizBoxY + 115,
-              currentRiddles[currentRiddleIndex].line1,
-              GLUT_BITMAP_TIMES_ROMAN_24);
+              (char*)currentRiddles[currentRiddleIndex].line1,
+              (void*)GLUT_BITMAP_TIMES_ROMAN_24);
         iText(wizBoxX + 60, wizBoxY + 85,
-              currentRiddles[currentRiddleIndex].line2,
-              GLUT_BITMAP_TIMES_ROMAN_24);
+              (char*)currentRiddles[currentRiddleIndex].line2,
+              (void*)GLUT_BITMAP_TIMES_ROMAN_24);
         iText(wizBoxX + 130, wizBoxY + 55,
-              currentRiddles[currentRiddleIndex].line3,
-              GLUT_BITMAP_TIMES_ROMAN_24);
+              (char*)currentRiddles[currentRiddleIndex].line3,
+              (void*)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     } else {
       // Show Result Dialogue
@@ -221,45 +221,45 @@ inline void drawIQ() {
         if (currentLevel == 2) {
           if (postAnswerIndex == 1) {
             iText(wizBoxX + 60, wizBoxY + 110, (char *)"Well answered.",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
             iText(wizBoxX + 60, wizBoxY + 80, (char *)"The AZURAAN REQUIREM",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
             iText(wizBoxX + 60, wizBoxY + 50, (char *)"is yours.",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
           } else {
             iText(wizBoxX + 60, wizBoxY + 110, (char *)"A weapon to strike",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
             iText(wizBoxX + 60, wizBoxY + 80, (char *)"your enemies down.",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
           }
         } else {
           if (postAnswerIndex == 1) {
             iText(wizBoxX + 60, wizBoxY + 110, (char *)"Wise indeed.",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
             iText(wizBoxX + 60, wizBoxY + 80, (char *)"Time bends to those who",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
             iText(wizBoxX + 60, wizBoxY + 50, (char *)"understand it.",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
           } else { // Index 2 or higher
             iText(wizBoxX + 60, wizBoxY + 110,
                   (char *)"Take this, the OBSIDIAN AEGIS.",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
             iText(wizBoxX + 60, wizBoxY + 80,
                   (char *)"Let moments obey your will.",
-                  GLUT_BITMAP_TIMES_ROMAN_24);
+                  (void *)GLUT_BITMAP_TIMES_ROMAN_24);
           }
         }
       } else {
         if (postAnswerIndex == 1) {
           iText(wizBoxX + 60, wizBoxY + 100, (char *)"Foolish answer.",
-                GLUT_BITMAP_TIMES_ROMAN_24);
+                (void *)GLUT_BITMAP_TIMES_ROMAN_24);
           iText(wizBoxX + 60, wizBoxY + 70, (char *)"Your mind is not ready.",
-                GLUT_BITMAP_TIMES_ROMAN_24);
+                (void *)GLUT_BITMAP_TIMES_ROMAN_24);
         } else { // Index 2 or higher
           iText(wizBoxX + 60, wizBoxY + 100, (char *)"Go... and pray time",
-                GLUT_BITMAP_TIMES_ROMAN_24);
+                (void *)GLUT_BITMAP_TIMES_ROMAN_24);
           iText(wizBoxX + 60, wizBoxY + 70, (char *)"shows you mercy.",
-                GLUT_BITMAP_TIMES_ROMAN_24);
+                (void *)GLUT_BITMAP_TIMES_ROMAN_24);
         }
       }
     }
@@ -282,7 +282,7 @@ inline void drawIQ() {
 
         iSetColor(0, 0, 0);
         iText(iqOptions[i].x + textOffset, iqOptions[i].y + 20,
-              iqOptions[i].text, GLUT_BITMAP_TIMES_ROMAN_24);
+              (char*)iqOptions[i].text, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     }
   }

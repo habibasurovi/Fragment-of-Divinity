@@ -2,6 +2,8 @@
 #define CHARACTER_H
 
 #include "iGraphics.h"
+#include "Boss.h"
+#include <math.h>
 
 // Character Global Variables
 extern int charX; // Adjusted starting position
@@ -64,6 +66,15 @@ extern bool isDoubleShiftTriggered;
 extern unsigned int keyPressed[512];
 extern unsigned int specialKeyPressed[512];
 
+extern bool isGunAttacking;
+extern int gunAttackFrameIndex;
+extern bool isJumpAttacking;
+extern int jumpAttackFrameIndex;
+extern int jumpAttackAnimCounter;
+int getSelectedCharacterGunImage(int frame, bool isBack);
+int getSelectedCharacterJumpAttackImage(int index);
+int getSelectedCharacterStaticImage(int frameIndex, bool isBack);
+
 inline bool isSpecialKeyPressed(int key) {
   if (key < 0 || key >= 512)
     return false;
@@ -79,13 +90,15 @@ inline bool isKeyPressed(int key) {
 // Movement helpers
 inline void moveCharRight() {
   if (charX + charWidth < 1000) { // Screen Width Boundary (1000)
-    charX += 20;                  // Increased Speed
+    if (currentLevel == 4) charX += 8; // Slower walking speed for Level 4
+    else charX += 20;                  // Increased Speed
   }
 }
 
 inline void moveCharLeft() {
   if (charX > 0) { // Left Boundary
-    charX -= 20;   // Increased Speed
+    if (currentLevel == 4) charX -= 8; // Slower walking speed for Level 4
+    else charX -= 20;   // Increased Speed
   }
 }
 
@@ -95,74 +108,68 @@ inline void stopCharMovement() {
 
 // Draw character
 extern bool isHaloActive;
+// Helper to get frame info for drawing character or clones
+inline void getCharacterFrameInfo(int customX, int customY, int &rX, int &rY, int &rW, int &rH, int &frame) {
+  bool isBack = isLeftArrowPressed || isSpecialKeyPressed(GLUT_KEY_LEFT);
+  rX = customX; rY = customY; rW = charWidth; rH = charHeight;
+  frame = -1;
+
+  if (isFallingSequence) {
+    frame = getSelectedCharacterFallImage();
+    rY = (int)fallY - (charY - customY); // Adjust relative to current charY
+    rW = 125;
+    rH = 125;
+  } else if (isGunAttacking) {
+    frame = getSelectedCharacterGunImage(gunAttackFrameIndex, isBack);
+  } else if (isAttacking) {
+    frame = getSelectedCharacterAttackImage(attackFrameIndex, isBack);
+  } else if (isJumping) {
+    if (isJumpAttacking && jumpAttackFrameIndex < 2) {
+      frame = getSelectedCharacterJumpAttackImage(jumpAttackFrameIndex);
+    } else {
+      int currentJumpImg = 0;
+      if (verticalVelocity > 0)
+        currentJumpImg = 0; // jump1
+      else if (verticalVelocity > -10)
+        currentJumpImg = 1; // jump2
+      else
+        currentJumpImg = 2; // jump3
+
+      frame = getSelectedCharacterJumpImage(currentJumpImg, isBack);
+    }
+  } else if (isRightArrowPressed || isLeftArrowPressed) {
+    if (currentLevel == 4 && level4Phase == 1) {
+      frame = getSelectedCharacterImage(charFrameIndex, isBack);
+    } else {
+      frame = getCharacterRunImage(runFrameIndex, isBack);
+      if (selectedCharacter == 1) { // Kaero specifically needs offsets for run images
+        rX = customX - 25;
+        rY = customY - 20;
+        rW = charWidth + 50;
+        rH = charHeight + 50;
+      }
+    }
+  } else {
+    // Idle
+    if (currentLevel == 4) {
+      frame = getSelectedCharacterStaticImage(charFrameIndex, isBack);
+    } else {
+      frame = getSelectedCharacterImage(charFrameIndex, isBack);
+    }
+  }
+}
+
+// Draw character
+extern bool isHaloActive;
 inline void drawCharacter() {
+  iSetColor(255, 255, 255); // Reset color to prevent orange ghosts
   if (isInvincible && !isHaloActive && (invincibilityTimer / 5) % 2 == 0) {
     // Skip drawing to create blink effect
     return;
   }
 
-  bool isBack = isLeftArrowPressed || isSpecialKeyPressed(GLUT_KEY_LEFT);
-  int frame = -1;
-  int rX = charX, rY = charY, rW = charWidth, rH = charHeight;
-
-  if (isFallingSequence) {
-    frame = getSelectedCharacterFallImage();
-    rY = (int)fallY;
-    // Potentially adjust width/height for fall image if needed
-    rW = 125;
-    rH = 125;
-  } else if (isAttacking) {
-    frame = getSelectedCharacterAttackImage(attackFrameIndex, isBack);
-    // Standardizing attack size boost for all to prevent "getting small"
-    rX = charX - 30;
-    rW = charWidth + 60;
-    rH = charHeight + 60;
-    // Grounding: Apply stronger Y-offsets to ensure feet stay on the ground
-    if (selectedCharacter == 1) {
-      rY = charY - 50; // Kael/Kaero offset
-    } else {
-      rY = charY - 40; // Aryn and Leora offset to match walking feet level
-    }
-  } else if (isJumping) {
-    int currentJumpImg = 0;
-    if (verticalVelocity > 0)
-      currentJumpImg = 0; // jump1
-    else if (verticalVelocity > -10)
-      currentJumpImg = 1; // jump2
-    else
-      currentJumpImg = 2; // jump3
-
-    frame = getSelectedCharacterJumpImage(currentJumpImg, isBack);
-    if (selectedCharacter == 1) {
-      rX = charX - 25;
-      rY = charY - 20;
-      rW = charWidth + 50;
-      rH = charHeight + 50;
-    } else {
-      rX = charX;
-      rY = charY;
-      rW = charWidth;
-      rH = charHeight;
-    }
-  } else if (isSpecialKeyPressed(GLUT_KEY_RIGHT) ||
-             isSpecialKeyPressed(GLUT_KEY_LEFT)) {
-    // Show run images
-    frame = getCharacterRunImage(runFrameIndex, isBack);
-    if (selectedCharacter == 1) {
-      rX = charX - 25;
-      rY = charY - 20;
-      rW = charWidth + 50;
-      rH = charHeight + 50;
-    } else {
-      rX = charX;
-      rY = charY;
-      rW = charWidth;
-      rH = charHeight;
-    }
-  } else {
-    frame = getSelectedCharacterImage(charFrameIndex, isBack);
-    // Standard walking size uses default charX, charY, charWidth, charHeight
-  }
+  int rX, rY, rW, rH, frame;
+  getCharacterFrameInfo(charX, charY, rX, rY, rW, rH, frame);
 
   if (frame != -1) {
     iShowImage(rX, rY, rW, rH, frame);
@@ -183,13 +190,41 @@ extern int currentLevel;
 inline void updateCharacterMovement() {
   if (isCharFrozen)
     return;
+    
+  extern int level4Phase;
+  if (currentLevel == 4 && level4Phase == 1) {
+    isRightArrowPressed = true;
+    isLeftArrowPressed = false;
+    // Walk Animation for Level 4 Phase 1 Intro
+    charAnimCounter++;
+    if (charAnimCounter >= charAnimSpeed) {
+      charAnimCounter = 0;
+      charFrameIndex++;
+      if (charFrameIndex >= 10) charFrameIndex = 1; // Images 2 to 10 (indices 1 to 9)
+    }
+    return; // block other inputs during auto-scroll
+  }
+  // FIX: Once phase 1 ends, clear the forced right-arrow state
+  if (currentLevel == 4 && level4Phase > 1) {
+    // Only clear if no real key is pressed (prevents overriding actual input)
+    if (!isSpecialKeyPressed(GLUT_KEY_RIGHT)) isRightArrowPressed = false;
+    if (!isSpecialKeyPressed(GLUT_KEY_LEFT))  isLeftArrowPressed  = false;
+  }
+
   bool isMoving = false;
   if (isSpecialKeyPressed(GLUT_KEY_RIGHT) ||
       isSpecialKeyPressed(GLUT_KEY_LEFT)) {
     isMoving = true;
   }
 
-  int currentAnimSpeed = isMoving ? 2 : 6;
+  int currentAnimSpeed;
+  if (currentLevel == 4) {
+    // Idle: slow cycle (14 ticks) so 3-frame static pose looks natural
+    // Moving: keep the same brisk walking pace (4 ticks)
+    currentAnimSpeed = isMoving ? 4 : 14;
+  } else {
+    currentAnimSpeed = isMoving ? 2 : 6;
+  }
 
   if (!isJumping) {
     charAnimCounter++;
@@ -203,8 +238,8 @@ inline void updateCharacterMovement() {
   }
 
   // --- CONTROL LOGIC ---
-  if (currentLevel == 2 || currentLevel == 3) {
-    // --- INSTANT ACTION LOGIC (LEVEL 2) ---
+  if (currentLevel == 2 || currentLevel == 3 || currentLevel == 4) {
+    // --- INSTANT ACTION LOGIC (LEVEL 2/3/4) ---
     bool upNow = (isSpecialKeyPressed(GLUT_KEY_UP) != 0);
     bool downNow = (isSpecialKeyPressed(GLUT_KEY_DOWN) != 0);
 
@@ -284,9 +319,41 @@ inline void updateCharacterMovement() {
       if (charY <= groundY) {
         charY = groundY;
         isJumping = false;
+        isJumpAttacking = false;
         verticalVelocity = 0;
         currentJumpDirection = 0;
         jumpHorizontalSpeed = 10;
+      }
+
+      // Jump Attack Animation
+      if (isJumpAttacking) {
+        jumpAttackAnimCounter++;
+        if (jumpAttackAnimCounter >= 8) {
+          jumpAttackAnimCounter = 0;
+          jumpAttackFrameIndex++;
+          // Turn off attack after frame 2 (index 1 is 2nd frame, so index 2 is finished)
+          if (jumpAttackFrameIndex >= 2) {
+             isJumpAttacking = false;
+          }
+        }
+
+        // Logic hit check: if boss also jumps and last jumpattack frame isactive
+        if (jumpAttackFrameIndex == 1 && boss4Obj.active && boss4Obj.currentSkill == 1 && boss4Obj.jumpSkillState == 2) {
+          // Check collision
+          float charCenterX = charX + charWidth / 2.0f;
+          float bossCenterX = boss4Obj.x + 75.0f; // BOSS_WIDTH/2
+          float dist = (float)fabs(charCenterX - bossCenterX);
+          // Collision distance (approximate body width overlap)
+          if (dist < 100 && (float)fabs(charY - boss4Obj.y) < 150) {
+             if (!boss4Obj.isHit) {
+                boss4Obj.life -= 5;
+                boss4Obj.isHit = true;
+                boss4Obj.hitTimer = 20;
+                // Transition to normal jump after hit
+                isJumpAttacking = false;
+             }
+          }
+        }
       }
     }
   } else {
@@ -354,6 +421,7 @@ inline void updateCharacterMovement() {
     moveCharLeft();
   } else {
     isRightArrowPressed = false;
+    isLeftArrowPressed = false; // FIX: Reset left flag so character stops going left
   }
 }
 inline void updateCharacterAnimation() {}

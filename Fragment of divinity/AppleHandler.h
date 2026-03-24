@@ -43,8 +43,8 @@ extern int magnetEffectActive; // 1 if active, 0 otherwise
 #define APPLE_GAP 80
 
 inline void loadAppleAssets() {
-  appleImg = iLoadImage("scores and items\\apple.png");
-  magnetImg = iLoadImage("scores and items\\magnet.png");
+  appleImg = iLoadImage((char *)"scores and items\\apple.png");
+  magnetImg = iLoadImage((char *)"scores and items\\magnet.png");
 }
 
 
@@ -61,6 +61,7 @@ inline void initApples() {
 
 
 inline void updateApplePhysics() {
+  if (currentLevel == 4) return;
   // 1. Move existing apples
   int activeCount = 0;
   int rightmostX = -100;
@@ -69,8 +70,8 @@ inline void updateApplePhysics() {
     if (apples[i].active) {
       if (magnetEffectActive && magnetEffectTimer > 0) {
         // Gravitate towards character
-        float dx = (charX + charWidth/2) - (apples[i].x + APPLE_W/2);
-        float dy = (charY + charHeight/2) - (apples[i].y + APPLE_H/2);
+        float dx = (charX + charWidth/2.0f) - (apples[i].x + APPLE_W/2.0f);
+        float dy = (charY + charHeight/2.0f) - (apples[i].y + APPLE_H/2.0f);
         float dist = sqrt(dx*dx + dy*dy);
         if (dist < 600) { // Magnet range
           float speed = 15.0f;
@@ -197,6 +198,7 @@ inline void updateApplePhysics() {
 extern void spawnAppleScorePopup(float x, float y);
 
 inline void checkAppleCollision() {
+  if (currentLevel == 4) return;
   // Character Hitbox (approximate based on refined logic)
   int cLeft = charX + 50;
   int cRight = charX + charWidth - 50;
@@ -218,6 +220,7 @@ inline void checkAppleCollision() {
 }
 
 inline void drawApples() {
+  if (currentLevel == 4) return;
   for (int i = 0; i < 20; i++) {
     if (apples[i].active) {
       iShowImage(apples[i].x, apples[i].y, APPLE_W, APPLE_H, appleImg);
@@ -282,12 +285,12 @@ inline void drawAppleScoreUI() {
 
   // Colon
   iSetColor(255, 255, 255);
-  iText(uiX + 50, uiY + 10, ":", GLUT_BITMAP_TIMES_ROMAN_24);
+  iText(uiX + 50, uiY + 10, (char*)":", (void*)GLUT_BITMAP_TIMES_ROMAN_24);
 
   // Score
   char scoreText[10];
-  sprintf_s(scoreText, "%d", applesCollected);
-  iText(uiX + 70, uiY + 10, scoreText, GLUT_BITMAP_TIMES_ROMAN_24);
+  sprintf_s(scoreText, sizeof(scoreText), "%d", applesCollected);
+  iText(uiX + 70, uiY + 10, (char*)scoreText, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
 }
 
 #endif

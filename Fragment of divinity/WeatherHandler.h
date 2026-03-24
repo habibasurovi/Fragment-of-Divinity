@@ -37,10 +37,10 @@ extern int ghostSpawnTimer;
 inline void loadWeatherAssets() {
   // Creating weather effect logic
   // Task 2: use ice.bmp for winter, water.bmp for rainy
-  imgIce = iLoadImage("background img\\ice.bmp");
-  imgWater = iLoadImage("background img\\water.bmp");
-  imgGhost1 = iLoadImage("level3\\ghost1.png");
-  imgGhost2 = iLoadImage("level3\\ghost2.png");
+  imgIce = iLoadImage((char *)"background img\\ice.bmp");
+  imgWater = iLoadImage((char *)"background img\\water.bmp");
+  imgGhost1 = iLoadImage((char *)"level3\\ghost1.png");
+  imgGhost2 = iLoadImage((char *)"level3\\ghost2.png");
 
   for (int i = 0; i < MAX_PARTICLES; i++) {
     weatherParticles[i].active = true;

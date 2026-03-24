@@ -1,13 +1,22 @@
+#include <windows.h>
+#include <mmsystem.h>
+#include <math.h>
+#include <stdio.h>
+#include <time.h>
+
+
 // iGraphics.h variables
 unsigned int keyPressed[512];
 unsigned int specialKeyPressed[512];
 
+#include "Boss.h"
 #include "AppleHandler.h"
 #include "BackgroundHandler.h"
 #include "Character.h"
 #include "CharacterCustomization.h"
 #include "CustomizationMenu.h"
 #include "GameState.h"
+#include "GunBarHandler.h"
 #include "HighScoreHandler.h"
 #include "IQ.h"
 #include "LevelCompleteHandler.h"
@@ -23,13 +32,10 @@ unsigned int specialKeyPressed[512];
 #include "character 2.h"
 #include "dragon.h"
 #include "iGraphics.h"
-#include "GunBarHandler.h"
-
-#include <math.h>
-#include <mmsystem.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include "gunattack.h"
+#include "cinder.h"
+#include "cloneattack.h"
+#include "attack.h"
 
 #pragma comment(lib, "winmm.lib")
 
@@ -198,6 +204,8 @@ int bGX = 0;
 int l3bG1, l3bG2, l3bG2_1, l3bG2_2;
 bool isL3Changed = false;
 
+// Level 4 Boss variables moved to Boss.h
+
 // IQ State Variables (Declared extern, defined in iMain.cpp)
 bool iqAnswered = false;
 bool iqCorrect = false;
@@ -247,6 +255,19 @@ int doubleJumpHorizontalSpeed = 14;
 bool isShiftPressed = false;
 bool isDoubleShiftTriggered = false;
 
+// Gun Attack Globals
+Fireball fireballs[MAX_FIREBALLS];
+bool isGunAttacking = false;
+int gunAttackFrameIndex = 0;
+int gunAttackAnimCounter = 0;
+int arynGun[3];
+int kaeroGun[3];
+int leoraGun[3];
+int blueFireball[3];
+int blueFireballBack[3];
+int redFireball[3];
+int redFireballBack[3];
+
 // AppleHandler.h variables
 Apple apples[20];
 int applesCollected = 0;
@@ -267,8 +288,7 @@ int imgRLL, imgGLL, imgRBL, imgGBL;
 int obstacleSpawnTimer = 0;
 
 // Level 3 Assets
-int worm11, worm12, worm13, worm14;
-int worm21, worm22, worm23, worm24;
+// Worm assets moved to Boss.h
 int l3HoleImg;
 int handImgs[4];
 int shortPillerImg, longPillerImg;
@@ -291,6 +311,11 @@ Obstacle obstacles[3];
 Shark sharks[2];
 BrokenBridge bridges[2];
 int sharksSpawnedInLevel = 0;
+
+int skullImgs[4];
+Skull skulls[3];
+int skullSpawnTimer = 0;
+int skullsKilled = 0;
 
 // Bomb Mechanic Globals
 int bombImgs[4];
@@ -383,16 +408,46 @@ int arynJumpBack[3];
 int kaelJumpBack[3];
 int leoraJumpBack[3];
 
-int arynAttack[7];
+int arynAttack[4];
 int kaeroAttack[6];
-int leoraAttack[6];
-int arynAttackBack[7];
+int leoraAttack[3];
+int arynAttackBack[4];
 int kaeroAttackBack[6];
-int leoraAttackBack[6];
+int leoraAttackBack[3];
 
 int arynFall;
 int kaeroFall;
 int leoraFall;
+
+int arynJumpAttack[2];
+int kaeroJumpAttack[2];
+int leoraJumpAttack[2];
+
+// Static (idle replacement) images for Level 4
+int arynStatic[3];
+int arynStaticBack[3];
+int kaeroStatic[3];
+int kaeroStaticBack[3];
+int leoraStatic[3];
+int leoraStaticBack[3];
+
+// Level 4 Special Attacks
+bool isTeleportAttacking = false;
+int teleportFrameIndex = 0;
+int teleportAnimCounter = 0;
+bool isMeteroidAttacking = false;
+int meteroidFrameIndex = 0;
+int meteroidAnimCounter = 0;
+
+// Clone Attack State
+ClonePhase clonePhase = CLONE_IDLE; 
+int cloneSummonFrame = 0;
+int cloneSummonCounter = 0;
+int cloneRunFrame = 0;
+int cloneRunCounter = 0;
+int cloneAtkFrame = 0;
+int cloneAtkCounter = 0;
+int cloneDoneTimer = 0;
 
 bool isAttacking = false;
 int attackFrameIndex = 0;
@@ -406,6 +461,9 @@ int leoraRun[7];
 int arynRunBack[9];
 int kaeroRunBack[8];
 int leoraRunBack[7];
+bool isJumpAttacking = false;
+int jumpAttackFrameIndex = 0;
+int jumpAttackAnimCounter = 0;
 bool isRightArrowPressed = false;
 bool isLeftArrowPressed = false;
 int lastShiftPressTime = 0;
@@ -420,9 +478,10 @@ bool prevUpPressed = false;
 bool prevDownPressed = false;
 
 // dragon.h variables
-int dragon1Imgs[9];
-int dragon2Imgs[10];
-int dragon3Imgs[6];
+int dragonFlyImgs[3][3];
+int dragonAttackImgs[3][2];
+int dragonBackFlyImgs[3][3];
+int dragonBackAttackImgs[3][2];
 Dragon dragons[5];
 int dragonSpawnTimeCounter = 0;
 int scoreGain = 0;
@@ -571,11 +630,15 @@ void playMusicTrack(MusicTrack track) {
 }
 
 void resetGame() {
-  if (currentLevel == 2 || currentLevel == 3) {
-    groundY = 83; // Standard ground for level 2 and 3
+  if (currentLevel == 2 || currentLevel == 3 || currentLevel == 4) {
+    groundY = 83; // Standard ground for levels 2, 3, and 4
   } else {
     groundY = 30;
   }
+
+  isJumpAttacking = false;
+  jumpAttackFrameIndex = 0;
+  jumpAttackAnimCounter = 0;
 
   charX = 100;
   charY = groundY;
@@ -624,37 +687,74 @@ void resetGame() {
   applesCollected = 0; // Fix: Reset score per-level for correct high scores
   level3StoryIndex = 0;
   cave2StoryIndex = 0;
-  if (currentLevel == 3) initGunBar(); // Reset gun bar for Level 3
+  if (currentLevel == 3) {
+    initGunBar(); // Reset gun bar for Level 3
+    initCinder();
+  }
+  if (currentLevel == 4) {
+    loadBossAssets(); // Deferred loading to prevent slow startup
+    level4Phase = 1;
+    level4ScrollCount = 0;
+    initFinalBoss();
+    
+    // Reset Level 4 Special Attacks & Clones
+    isTeleportAttacking = false;
+    isMeteroidAttacking = false;
+    clonePhase = CLONE_IDLE;
+  }
 }
 
 void updateCavePhysics() {
   if (!isGamePaused && gameState == GAME && isCaveActive) {
-    if (caveX > 650) {
-      caveX -= 3;
+    // Force reset states to ensure character enters the cave by walking motion
+    isJumping = false;
+    isBending = false;
+    isAttacking = false;
+    isFallingSequence = false;
+    verticalVelocity = 0;
+    isRightArrowPressed = false;
+    isLeftArrowPressed = false;
+    if (charY > groundY) {
+      charY -= 10;
+      if (charY < groundY) charY = groundY;
+    } else if (charY < groundY) {
+      charY = groundY;
+    }
+
+    int caveMid;
+    if (currentLevel == 3) {
+      caveMid = caveX + 150;
+    } else if (currentLevel == 2) {
+      caveMid = caveX + 150;
     } else {
-      // Cave is "on sight" on the right side - stop BG and move character
-      if (charX < caveX + 50) {
-        charX += 5;
-        // Basic animation while moving automatically
-        charAnimCounter++;
-        if (charAnimCounter >= charAnimSpeed) {
-          charAnimCounter = 0;
-          charFrameIndex++;
-          if (charFrameIndex >= 9) // Loop 1-8 (Images 2-9)
-            charFrameIndex = 1;
-        }
-      } else {
-        levelOneComplete = true;
-        gameState = LEVEL_COMPLETE;
-        updateHighScore(currentLevel,
-                        applesCollected); // Save high score on level complete
+      caveMid = caveX + 200;
+    }
+
+    // Character stops before passing the cave, moves to middle instead.
+    if (charX < caveMid) {
+      charX += 5;
+
+      // Basic animation while moving automatically
+      charAnimCounter++;
+      if (charAnimCounter >= charAnimSpeed) {
+        charAnimCounter = 0;
+        charFrameIndex++;
+        if (charFrameIndex >= 9) // Loop 1-8 (Images 2-9)
+          charFrameIndex = 1;
       }
+    } else {
+      // Once charX reaches caveMid, transition to next phase
+      gameState = NEXT_LEVEL_IQ;
+      initCaveState();
+      initIQ();
+      playMusicTrack(TRACK_CAVE);
     }
   }
 }
 
 // Fire pending action after animation delay
 static void firePendingAction() {
+  btnAnimActive = false; // Reset flag to prevent repeated execution
   switch (pendingAction) {
   // ---- Main Menu ----
   case 1: // Start -> Initial Story
@@ -729,7 +829,8 @@ static void firePendingAction() {
         resetGame();
       }
     } else if (gameState == LEVEL4_INTRO) {
-      gameState = LEVEL_NOT_READY;
+      currentLevel = 4;
+      resetGame();
     } else if (gameState == CAVE2_STORY) {
       cave2StoryIndex++;
       storyTimerCount = 0;
@@ -761,7 +862,8 @@ static void firePendingAction() {
       initIQ();
       playMusicTrack(TRACK_CAVE);
     } else if (gameState == LEVEL4_INTRO) {
-      gameState = LEVEL_NOT_READY;
+      currentLevel = 4;
+      resetGame();
     }
     break;
   case 22: // Previous
@@ -834,7 +936,9 @@ static void firePendingAction() {
     break;
   case 33:
     playMusicTrack(TRACK_NONE);
+    currentLevel = 4;
     gameState = LEVEL4_INTRO;
+    storyTimerCount = 0;
     break;
   case 34:
     previousState = LEVEL_SELECTION;
@@ -935,10 +1039,14 @@ void globalTimerLogic() {
     gameRunTimeSeconds++;
 
     int transitionTime = 30; // 30 seconds for game timer
+    if (currentLevel == 2 || currentLevel == 3) {
+      transitionTime = 120;
+    }
 
-    if (gameRunTimeSeconds >= transitionTime && !isCaveActive) {
+    if (currentLevel != 4 && gameRunTimeSeconds >= transitionTime &&
+        !isCaveActive) {
       isCaveActive = true;
-      caveX = 1000;
+      caveX = 700;
       for (int i = 0; i < 3; i++) {
         obstacles[i].active = false;
         obstacles[i].x = -200;
@@ -1048,9 +1156,9 @@ void checkCollision() {
               if (!explosions[j].active) {
                 explosions[j].active = true;
                 explosions[j].x =
-                    (float)(charX + charWidth / 2); // center X of char
+                    (float)(charX + charWidth / 2.0); // center X of char
                 explosions[j].y =
-                    (float)(charY + charHeight / 2); // center Y of char body
+                    (float)(charY + charHeight / 2.0); // center Y of char body
                 explosions[j].frame = 0;
                 explosions[j].timer = 0;
                 break;
@@ -1148,11 +1256,80 @@ void checkCollision() {
           }
         }
       }
+
+      // 3. Skull Collision
+      for (int i = 0; i < 3; i++) {
+        if (skulls[i].active && !skulls[i].isVanishing) {
+          // Player hitting skull
+          if (isAttacking && attackFrameIndex >= 1 && attackFrameIndex <= 6 &&
+              !npcSlashDone) {
+            float skullCx = skulls[i].x + 30.0f;
+            float playerReachRight = (float)(charX + charWidth + 160);
+            float playerReachLeft = (float)(charX - 60);
+            float skullTop = skulls[i].y + 60.0f;
+            float skullBottom = skulls[i].y;
+
+            if (skullCx > playerReachLeft && skullCx < playerReachRight &&
+                charY < skullTop && charY + charHeight > skullBottom) {
+              skulls[i].isVanishing = true;
+              skulls[i].vanishingTimer = 10;
+              npcSlashDone = true;
+
+              skullsKilled++;
+              if (skullsKilled >= 5) {
+                lives++;
+                skullsKilled -= 5;
+                spawnPopupText(charX, charY + 100);
+              }
+              currentCombo++;
+              comboDisplayTimer = 60;
+              applesCollected += 10;
+              spawnScorePopup(10);
+              continue;
+            }
+          }
+
+          // Skull touching player
+          if (!isInvincible && !isFallingSequence) {
+            float charCx = charX + charWidth / 2.0f;
+            float charCy = charY + charHeight / 2.0f;
+            float sCx = skulls[i].x + 30.0f;
+            float sCy = skulls[i].y + 30.0f;
+            float dx = charCx - sCx;
+            float dy = charCy - sCy;
+            float dist = (float)sqrt((double)(dx * dx + dy * dy));
+
+            if (dist < 35.0f) {
+              skulls[i].isVanishing = true;
+              skulls[i].vanishingTimer = 10;
+
+              lives--;
+              if (lives <= 0) {
+                gameState = GAME_OVER;
+              } else {
+                isFallingSequence = true;
+                isCharFrozen = true;
+                fallY = (float)charY;
+                fallVel = -2;
+                isInvincible = true;
+                invincibilityTimer = 120;
+              }
+            }
+          }
+        }
+      }
     }
     return;
   }
 
   // Level 1 logic
+  if (currentLevel == 4) {
+    handleBossHit();
+    // Fix: Reset slash state for Level 4 Boss to allow subsequent attacks
+    if (!isAttacking)
+      npcSlashDone = false;
+    return;
+  }
   for (int i = 0; i < 3; i++) {
     if (obstacles[i].active) {
       int obsHitW = 100;
@@ -1177,15 +1354,36 @@ void checkCollision() {
 
 /* -------------------- WRAPPERS -------------------- */
 void autoScrollRecursiveWrapper() {
-  if (!isGamePaused && gameState == GAME &&
-      (currentLevel == 2 || currentLevel == 3 || !levelOneComplete) &&
-      (!isCaveActive || caveX > 650)) {
-    autoScrollRecursive();
+  if (!isGamePaused && gameState == GAME && !isCaveActive) {
+    bool shouldScroll = false;
+    if (currentLevel == 1 && !levelOneComplete)
+      shouldScroll = true;
+    else if (currentLevel == 2 || currentLevel == 3)
+      shouldScroll = true;
+    else if (currentLevel == 4 && level4Phase == 1)
+      shouldScroll = true;
+
+    if (shouldScroll) {
+      if (currentLevel == 4) {
+        bGX -= SCROLL_SPD;
+        if (bGX <= -SCREEN_W) {
+          bGX = -SCREEN_W;        // Stop background
+          if (level4Phase == 1) { // Only initialize once
+            level4Phase = 2;      // Transition to boss appearance
+            initFinalBoss();
+            boss4Obj.active = true;
+            boss4Obj.x = SCREEN_W + 50; 
+          }
+        }
+      } else {
+        autoScrollRecursive();
+      }
+    }
   }
 }
 
 void updateObstaclePhysicsWrapper() {
-  if (!isGamePaused && gameState == GAME &&
+  if (!isGamePaused && gameState == GAME && currentLevel != 4 &&
       (currentLevel == 2 || currentLevel == 3 || !levelOneComplete)) {
     updateObstaclePhysics();
   }
@@ -1193,9 +1391,7 @@ void updateObstaclePhysicsWrapper() {
 
 void updateCharacterMovementWrapper() {
   if (!isGamePaused && gameState == GAME) {
-    if (!isCaveActive || caveX > 650) {
-      updateCharacterMovement();
-    }
+    updateCharacterMovement();
     if (isInvincible) {
       invincibilityTimer--;
       if (invincibilityTimer <= 0) {
@@ -1206,7 +1402,7 @@ void updateCharacterMovementWrapper() {
 }
 
 void updateApplesWrapper() {
-  if (!isGamePaused && gameState == GAME &&
+  if (!isGamePaused && gameState == GAME && currentLevel != 4 &&
       (currentLevel == 2 || currentLevel == 3 || !levelOneComplete)) {
     updateApplePhysics();
     checkAppleCollision();
@@ -1215,16 +1411,38 @@ void updateApplesWrapper() {
 }
 
 void updateWeatherWrapper() {
-  if (!isGamePaused && gameState == GAME &&
+  if (!isGamePaused && gameState == GAME && currentLevel != 4 &&
       (currentLevel == 2 || currentLevel == 3 || !levelOneComplete)) {
     updateWeatherPhysics();
   }
 }
 
 void updateHeartWrapper() {
-  if (!isGamePaused && gameState == GAME &&
+  if (!isGamePaused && gameState == GAME && currentLevel != 4 &&
       (currentLevel == 2 || currentLevel == 3 || !levelOneComplete)) {
     updateHeartLogic();
+  }
+}
+
+void updateLevel4Logic() {
+  if (currentLevel != 4 || gameState != GAME || isGamePaused)
+    return;
+
+  if (level4Phase == 1) {
+    // Background scroll handles shifting to phase 2
+  } else if (level4Phase == 2) {
+    // Boss comes from right side to x=750
+    if (boss4Obj.x > 750) {
+      boss4Obj.x -= 4; // Faster Walking speed (was 2)
+      updateFinalBossLogic();
+    } else {
+      boss4Obj.x = 750;
+      level4Phase = 3;           // resting phase
+      boss4Obj.frameIndex = 0; // Reset animation frame for standing
+      boss4Obj.animCounter = 0;
+    }
+  } else if (level4Phase == 3 || level4Phase == 4) {
+    updateFinalBossLogic();
   }
 }
 
@@ -1239,7 +1457,9 @@ void updateAttackAnimation() {
   if (!isAttacking)
     return;
 
-  int maxFrames = (selectedCharacter == 0) ? 7 : 6;
+  int maxFrames = 6;
+  if (selectedCharacter == 0) maxFrames = 4;
+  else if (selectedCharacter == 2) maxFrames = 3;
 
   attackAnimCounter++;
   if (attackAnimCounter >= attackAnimSpeed) {
@@ -1374,6 +1594,7 @@ void updateShiftInput() {
 void masterGameLoop() {
   updateShiftInput();
   autoScrollRecursiveWrapper();
+  updateLevel4Logic();
   updateObstaclePhysicsWrapper();
   checkCollision();
   updateCharacterMovementWrapper();
@@ -1385,8 +1606,17 @@ void masterGameLoop() {
   updateWizardWrapper();
   updateRunAnimation();
   updateDragonPhysics();
+  if (currentLevel == 3 && gameState == GAME && !isGamePaused) {
+    updateCinderPhysics();
+    checkCinderHit();
+  }
   updateShardLogic();
   updateAttackAnimation();
+  updateGunAttackAnimation();
+  updateFireballs();
+  updateCloneAttackAnimation();
+  updateTeleportAttackAnimation();
+  updateMeteroidAttackAnimation();
 
   // Save high score when game ends (GAME_OVER)
   static bool gameOverScoreSaved = false;
@@ -1458,6 +1688,7 @@ void masterGameLoop() {
 /* -------------------- DRAW FUNCTION -------------------- */
 void iDraw() {
   iClear();
+  iSetColor(255, 255, 255); // Global color reset to prevent "orange box" ghosts
 
   if (gameState == INTRO) {
     iShowImage(0, 0, screenWidth, screenHeight, introImage);
@@ -1490,10 +1721,17 @@ void iDraw() {
   } else if (gameState == GAME || gameState == LEVEL_COMPLETE ||
              gameState == GAME_OVER) {
     drawBackground();
-    drawApples();
-    drawMagnet();
-    drawObstacles();
-    drawDragons();
+    if (currentLevel != 4) {
+      drawApples();
+      drawMagnet();
+      drawObstacles();
+      drawDragons();
+      if (currentLevel == 3) {
+        drawCinder();
+      }
+    } else {
+      drawBoss();
+    }
 
     if (isCaveActive) {
       if (currentLevel == 3) {
@@ -1505,18 +1743,50 @@ void iDraw() {
       }
     }
 
-    drawCharacter();
+    if (!(currentLevel == 4 && level4Phase == 5)) {
+      if (!isTeleportAttacking && !isMeteroidAttacking) {
+          drawCharacter();
+      }
+      drawTeleportAttack(); // Teleport animation handles its own state check
+      drawMeteroidAttack(); // Meteroid animation handles its own state check
+      drawCloneAttack();   // Clone animation drawn over character (Level 4 only)
+      drawCharFireFlame(); // Fireball on-fire flame: drawn AFTER char so it is in front
+    }
+    drawFireballs();
     drawExplosions();
-    drawWeatherEffects();
+    if (currentLevel != 4) {
+      drawWeatherEffects();
+    }
     drawLivesUI();
-    drawAppleScoreUI();
+    if (currentLevel != 4) {
+      drawAppleScoreUI();
+    }
     drawShardElements();
     drawTimer();
+
+    if (currentLevel == 4 && level4Phase == 5) {
+      // Victory Screen - Polished Ultra Bold centered text
+      iSetColor(255, 100, 0);
+      // Clean high-impact bold (5x5 grid)
+      for (float ox = -2.0f; ox <= 2.0f; ox += 1.0f) {
+        for (float oy = -2.0f; oy <= 2.0f; oy += 1.0f) {
+          iText(340 + ox, 350 + oy, (char *)"CONGRATULATIONS!",
+                (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+          iText(430 + ox, 300 + oy, (char *)"VICTORY",
+                (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+        }
+      }
+      iSetColor(255, 255, 255);
+      iText(340, 350, (char *)"CONGRATULATIONS!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+      iText(430, 300, (char *)"VICTORY", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+      return; // Ensure no other UI elements (Shards, Timer, etc.) are drawn
+              // over victory
+    }
 
     // Draw Combo Text
     if (currentCombo > 1 && comboDisplayTimer > 0) {
       char comboText[50];
-      sprintf_s(comboText, "COMBO x%d!", currentCombo);
+      sprintf_s(comboText, sizeof(comboText), "COMBO x%d!", currentCombo);
 
       // Pulse effect
       int r = (comboDisplayTimer % 20 < 10) ? 255 : 255;
@@ -1524,23 +1794,22 @@ void iDraw() {
       int b = (comboDisplayTimer % 20 < 10) ? 0 : 0;
 
       iSetColor(255, 255, 255);
-      iText(52, 348, comboText, GLUT_BITMAP_TIMES_ROMAN_24);
+      iText(52, 348, (char*)comboText, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
       iSetColor(r, g, b);
-      iText(50, 350, comboText, GLUT_BITMAP_TIMES_ROMAN_24);
+      iText(50, 350, (char*)comboText, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
     }
 
     // Draw Score Popups
     for (int i = 0; i < 5; i++) {
       if (scorePopups[i].active) {
         char scoreStr[20];
-        sprintf_s(scoreStr, "+%d", scorePopups[i].amount);
+        sprintf_s(scoreStr, sizeof(scoreStr), "+%d", scorePopups[i].amount);
 
-        iSetColor(255, 255, 255);
-        iText(scorePopups[i].x + 1, scorePopups[i].y - 1, scoreStr,
-              GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(scorePopups[i].x + 1, scorePopups[i].y - 1, (char*)scoreStr,
+              (void*)GLUT_BITMAP_TIMES_ROMAN_24);
         iSetColor(50, 255, 50); // Neon Green
-        iText(scorePopups[i].x, scorePopups[i].y, scoreStr,
-              GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(scorePopups[i].x, scorePopups[i].y, (char*)scoreStr,
+              (void*)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     }
 
@@ -1548,8 +1817,8 @@ void iDraw() {
     for (int i = 0; i < 15; i++) {
       if (appleScorePopups[i].active) {
         iSetColor(255, 255, 0); // Yellow
-        iText(appleScorePopups[i].x, appleScorePopups[i].y, "+1",
-              GLUT_BITMAP_HELVETICA_18);
+        iText(appleScorePopups[i].x, appleScorePopups[i].y, (char*)"+1",
+              (void*)GLUT_BITMAP_HELVETICA_18);
       }
     }
 
@@ -1565,11 +1834,11 @@ void iDraw() {
 
         // Shadow layer for depth
         iSetColor(80, 50, 20);
-        iText(textX + 1, popups[i].y - 1, phrase, GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX + 1, popups[i].y - 1, (char*)phrase, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
 
         // Main text - muted amber tone
         iSetColor(180, 140, 60);
-        iText(textX, popups[i].y, phrase, GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX, popups[i].y, (char*)phrase, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     }
 
@@ -1578,11 +1847,11 @@ void iDraw() {
       drawGunBar(); // Gun bar (Level 3 only, if gun was earned)
     } else if (gameState == GAME_OVER) {
       iSetColor(255, 0, 0);
-      iText(screenWidth / 2.0 - 50, screenHeight / 2.0, (char *)"GAME OVER",
-            GLUT_BITMAP_TIMES_ROMAN_24);
+      iText(screenWidth / 2.0 - 50.0, screenHeight / 2.0, (char *)"GAME OVER",
+            (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       iSetColor(255, 255, 255);
-      iText(screenWidth / 2.0 - 80, screenHeight / 2.0 - 30,
-            (char *)"Press 'R' to Retry", GLUT_BITMAP_HELVETICA_18);
+      iText(screenWidth / 2.0 - 80.0, screenHeight / 2.0 - 30.0,
+            (char *)"Press 'R' to Retry", (void *)GLUT_BITMAP_HELVETICA_18);
     } else if (gameState == LEVEL_COMPLETE) {
       drawLevelComplete();
     }
@@ -1606,24 +1875,24 @@ void iDraw() {
 
     // Panel Background
     iSetColor(0, 0, 0);
-    iFilledRectangle(screenWidth / 2 - 320, 100, 640, 420);
+    iFilledRectangle(screenWidth / 2.0 - 320.0, 100.0, 640.0, 420.0);
     iSetColor(180, 140, 60);
-    iRectangle(screenWidth / 2 - 320, 100, 640, 420);
-    iRectangle(screenWidth / 2 - 318, 102, 636, 416);
+    iRectangle(screenWidth / 2.0 - 320.0, 100.0, 640.0, 420.0);
+    iRectangle(screenWidth / 2.0 - 318.0, 102.0, 636.0, 416.0);
 
     // Title
     iSetColor(255, 220, 80);
-    iText(screenWidth / 2.0 - 110, 480, (char *)"HIGH SCORES",
-          GLUT_BITMAP_TIMES_ROMAN_24);
+    iText(screenWidth / 2.0 - 110.0, 480.0, (char *)"HIGH SCORES",
+          (void *)GLUT_BITMAP_TIMES_ROMAN_24);
 
     // Subtitle
     iSetColor(200, 200, 200);
-    iText(screenWidth / 2.0 - 160, 450, (char *)"Best Food Collected per Level",
-          GLUT_BITMAP_HELVETICA_18);
+    iText(screenWidth / 2.0 - 160.0, 450.0,
+          (char *)"Best Food Collected per Level", (void *)GLUT_BITMAP_HELVETICA_18);
 
     // Separator line
     iSetColor(180, 140, 60);
-    iLine(screenWidth / 2 - 280, 440, screenWidth / 2 + 280, 440);
+    iLine(screenWidth / 2.0 - 280.0, 440.0, screenWidth / 2.0 + 280.0, 440.0);
 
     // Level entries
     const char *levelNames[4] = {
@@ -1633,34 +1902,34 @@ void iDraw() {
     char scoreText[64];
     for (int i = 0; i < 4; i++) {
       iSetColor(255, 220, 150);
-      iText(screenWidth / 2.0 - 240, (double)entryY[i], (char *)levelNames[i],
-            GLUT_BITMAP_HELVETICA_18);
+      iText(screenWidth / 2.0 - 240.0, (double)entryY[i], (char *)levelNames[i],
+            (void *)GLUT_BITMAP_HELVETICA_18);
       if (highScores[i] > 0) {
-        sprintf_s(scoreText, "%d food", highScores[i]);
+        sprintf_s(scoreText, sizeof(scoreText), "%d food", highScores[i]);
         iSetColor(100, 255, 180);
       } else {
-        sprintf_s(scoreText, "Not played yet");
+        sprintf_s(scoreText, sizeof(scoreText), "Not played yet");
         iSetColor(140, 140, 140);
       }
-      iText(screenWidth / 2.0 + 60, (double)entryY[i], scoreText,
-            GLUT_BITMAP_HELVETICA_18);
+      iText(screenWidth / 2.0 + 60.0, (double)entryY[i], (char *)scoreText,
+            (void *)GLUT_BITMAP_HELVETICA_18);
     }
 
     // Footer
     iSetColor(180, 140, 60);
-    iLine(screenWidth / 2 - 280, 165, screenWidth / 2 + 280, 165);
+    iLine(screenWidth / 2.0 - 280.0, 165.0, screenWidth / 2.0 + 280.0, 165.0);
     iSetColor(200, 200, 200);
-    iText(screenWidth / 2.0 - 120, 130, (char *)"Press 'B' to Return to Menu",
-          GLUT_BITMAP_HELVETICA_18);
+    iText(screenWidth / 2.0 - 120.0, 130.0,
+          (char *)"Press 'B' to Return to Menu", (void *)GLUT_BITMAP_HELVETICA_18);
 
   } else if (gameState == LEVEL_NOT_READY) {
     iShowImage(0, 0, screenWidth, screenHeight, levelSelectionBG);
     iSetColor(255, 255, 255);
-    iText(screenWidth / 2.0 - 180, screenHeight / 2.0,
-          (char *)"LEVEL GAMEPLAY NOT READY YET", GLUT_BITMAP_TIMES_ROMAN_24);
+    iText(screenWidth / 2.0 - 180.0, screenHeight / 2.0,
+          (char *)"LEVEL GAMEPLAY NOT READY YET", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
     iSetColor(200, 200, 200);
-    iText(screenWidth / 2.0 - 150, screenHeight / 2.0 - 50,
-          (char *)"Press 'B' to Return to Selection", GLUT_BITMAP_HELVETICA_18);
+    iText(screenWidth / 2.0 - 150.0, screenHeight / 2.0 - 50.0,
+          (char *)"Press 'B' to Return to Selection", (void *)GLUT_BITMAP_HELVETICA_18);
   }
 }
 
@@ -1842,6 +2111,9 @@ void iMouse(int button, int state, int mx, int my) {
           storyTimerCount = 0;
           playMusicTrack(
               TRACK_CAVE); // Start cave music during its story frames
+        } else if (currentLevel == 3) {
+          gameState = LEVEL4_INTRO;
+          storyTimerCount = 0;
         } else {
           gameState = NEXT_LEVEL_IQ;
           initCaveState();
@@ -1890,8 +2162,10 @@ void iMouse(int button, int state, int mx, int my) {
         playClickSound();
         if (iqCorrect) {
           // Correct answer: Show Shard Explanation Splash
-          if (currentLevel == 1) hasClaimedShard = true;
-          else if (currentLevel == 2) hasClaimedGun = true;
+          if (currentLevel == 1)
+            hasClaimedShard = true;
+          else if (currentLevel == 2)
+            hasClaimedGun = true;
           isLevelTransitioning = true;
           transitionPhase = 2; // Show shardexplain.png
         } else {
@@ -1952,6 +2226,44 @@ void iKeyboard(unsigned char key) {
     }
   }
 
+  if (gameState == GAME && (key == 'f' || key == 'F')) {
+    if (currentLevel != 4) { // Disable F key in Level 4
+        if (!isGunAttacking) {
+          isGunAttacking = true;
+          gunAttackFrameIndex = 0;
+          gunAttackAnimCounter = 0;
+        }
+    }
+  }
+
+  // Clone Attack: 'C' in Level 4
+  if (gameState == GAME && currentLevel == 4 && (key == 'c' || key == 'C')) {
+    triggerCloneAttack();
+  }
+
+  // Jump Attack: 'D' in Level 4
+  if (gameState == GAME && currentLevel == 4 && (key == 'd' || key == 'D')) {
+    if (!isJumping && !isAttacking && !isGunAttacking) {
+      isJumping = true;
+      isJumpAttacking = true;
+      jumpAttackFrameIndex = 0;
+      jumpAttackAnimCounter = 0;
+      verticalVelocity = 32; // Standard jump speed
+      jumpHorizontalSpeed = 10;
+      currentJumpDirection = (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) ? -1 : 1;
+    }
+  }
+
+  // Teleport Attack: 'B' in Level 4
+  if (gameState == GAME && currentLevel == 4 && (key == 'b' || key == 'B')) {
+    triggerTeleportAttack();
+  }
+
+  // Meteoroid Attack: 'E' in Level 4
+  if (gameState == GAME && currentLevel == 4 && (key == 'e' || key == 'E')) {
+    triggerMeteroidAttack();
+  }
+
   // Populate keyPressed array
   keyPressed[key] = 1;
 }
@@ -1987,6 +2299,11 @@ void iSpecialKeyboard(unsigned char key) {
           cave2StoryIndex = 0;
           storyTimerCount = 0;
           playMusicTrack(TRACK_CAVE);
+        } else if (currentLevel == 3) {
+          gameState = LEVEL4_INTRO;
+          level4Phase = 1; // RESET Level 4 Phase
+          bGX = 0;         // RESET Background
+          storyTimerCount = 0;
         } else {
           gameState = NEXT_LEVEL_IQ;
           initCaveState();
@@ -2002,7 +2319,8 @@ void iSpecialKeyboard(unsigned char key) {
           transitionPhase = 0;
           playMusicTrack(TRACK_CAVE);
         } else if (transitionPhase == 2) {
-          // Explain screen: proceed to next level intro (mirrors mouse handler exactly)
+          // Explain screen: proceed to next level intro (mirrors mouse handler
+          // exactly)
           playMusicTrack(TRACK_NONE);
           if (currentLevel == 1) {
             gameState = LEVEL2_INTRO;
@@ -2013,6 +2331,8 @@ void iSpecialKeyboard(unsigned char key) {
           } else if (currentLevel == 3) {
             gameState = LEVEL4_INTRO;
             currentLevel = 4;
+            level4Phase = 1; // RESET Level 4 Phase
+            bGX = 0;         // RESET Background
           }
           storyTimerCount = 0;
         }
@@ -2026,15 +2346,17 @@ void iSpecialKeyboard(unsigned char key) {
 
 void iSpecialKeyboardUp(unsigned char key) { specialKeyPressed[key] = 0; }
 void drawTimer() {
-  if (gameState == GAME && !levelOneComplete) {
+  if (gameState == GAME && !levelOneComplete && currentLevel != 4) {
     char timeStr[32];
-    int remaining = 30 - gameRunTimeSeconds;
+    int transitionTime = (currentLevel == 3) ? 120 : 30;
+    int remaining = transitionTime - gameRunTimeSeconds;
     if (remaining < 0)
       remaining = 0;
-    sprintf_s(timeStr, "Time: %02d:%02d", remaining / 60, remaining % 60);
+    sprintf_s(timeStr, sizeof(timeStr), "Time: %02d:%02d", remaining / 60,
+              remaining % 60);
     iSetColor(255, 255, 255);
-    iText(screenWidth / 2.0 - 50, screenHeight - 60, (char *)timeStr,
-          GLUT_BITMAP_TIMES_ROMAN_24);
+    iText(screenWidth / 2.0 - 50.0, screenHeight - 60.0, (char *)timeStr,
+          (void *)GLUT_BITMAP_TIMES_ROMAN_24);
   }
 }
 void fixedUpdate() {}
@@ -2072,6 +2394,12 @@ int main() {
   initShard();
   haloImg = iLoadImage((char *)"scores and items\\halo.png");
   loadGunBarAssets(); // Gun bar image
+  loadGunAttackAssets(); // Load Gun Attack and Fireball assets
+  loadCinderAssets();
+  loadBossAssets();       // Preload boss assets at startup to eliminate skip-button delay
+  loadCloneAttackAssets(); // Preload clone images
+  loadTeleportAttackAssets(); // Preload teleport attack images
+  // loadBossAssets(); // Deferred to resetGame() to speed up startup
 
   // Register UP functions if supported by the library
   // glutKeyboardUpFunc(iKeyboardUp);
@@ -2085,4 +2413,3 @@ int main() {
   iStart();
   return 0;
 }
-//uplode on github

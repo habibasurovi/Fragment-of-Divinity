@@ -23,17 +23,17 @@ extern int   btnAnimContext;  // 0=MainMenu, 1=Custom, 2=Story
 
 inline void loadMainMenuAssets() {
  
-  mainMenuBG = iLoadImage("images fod\\menu\\main menu\\demo1.jpg");
+  mainMenuBG = iLoadImage((char *)"images fod\\menu\\main menu\\demo1.jpg");
 
   // Loading Buttons
   btnStart =
-      iLoadImage("images fod\\menu\\main menu\\buttons\\start.png");
+      iLoadImage((char *)"images fod\\menu\\main menu\\buttons\\start.png");
   btnSettings =
-      iLoadImage("images fod\\menu\\main menu\\buttons\\settings.png");
+      iLoadImage((char *)"images fod\\menu\\main menu\\buttons\\settings.png");
   btnCustomization = iLoadImage(
-      "images fod\\menu\\main menu\\buttons\\customization.png");
-  btnExit = iLoadImage("images fod\\menu\\main menu\\buttons\\exit.png");
-  btnHighscore = iLoadImage("images fod\\menu\\main menu\\buttons\\highscrore.png");
+      (char *)"images fod\\menu\\main menu\\buttons\\customization.png");
+  btnExit = iLoadImage((char *)"images fod\\menu\\main menu\\buttons\\exit.png");
+  btnHighscore = iLoadImage((char *)"images fod\\menu\\main menu\\buttons\\highscrore.png");
 
   // Initializing Button Positions (Scaled for 1000x600)
   // Original X~200 -> 330. Original Y~250 -> 375.

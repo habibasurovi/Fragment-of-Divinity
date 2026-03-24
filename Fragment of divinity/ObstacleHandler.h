@@ -2,6 +2,7 @@
 #define OBSTACLEHANDLER_H
 
 #include "iGraphics.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -68,13 +69,13 @@ struct WalkingNPC {
   float x, y;
   bool active;
   int type; // 1: Melee, 2: Ranged
-  int state; 
+  int state;
   int life; // 5 hits to kill
   int animFrame;
   int animCounter;
-  int attackTimer; 
-  int fireCooldown; // For NPC2
-  bool hasAttacked; // To apply damage once per attack animation
+  int attackTimer;
+  int fireCooldown;  // For NPC2
+  bool hasAttacked;  // To apply damage once per attack animation
   int hitFlashTimer; // Frames for flashing on hit
 };
 
@@ -85,9 +86,24 @@ struct GreenFire {
   int animCounter;
 };
 
+struct Skull {
+  float x, y;
+  float velX, velY;
+  bool active;
+  bool isVanishing;
+  int vanishingTimer;
+  int animFrame;
+  int animCounter;
+};
+
 extern WalkingNPC npcList[MAX_NPCS];
 extern GreenFire fireList[MAX_FIRES];
 extern int npcSpawnTimer;
+
+extern int skullImgs[4];
+extern Skull skulls[3];
+extern int skullSpawnTimer;
+extern int skullsKilled;
 
 struct Obstacle {
   int x, y;
@@ -163,78 +179,84 @@ extern int nextSpawnGap;
 // Counter for total sharks in Level 2
 
 inline void loadObstacleAssets() {
-  obs1 = iLoadImage("obs img\\obs1.bmp");
-  obs2 = iLoadImage("obs img\\obs2.bmp");
-  obs3 = iLoadImage("obs img\\obs3.bmp");
+  static bool obstaclesLoaded = false;
+  if (obstaclesLoaded) return;
+  obstaclesLoaded = true;
+
+  obs1 = iLoadImage((char *)"obs img\\obs1.bmp");
+  obs2 = iLoadImage((char *)"obs img\\obs2.bmp");
+  obs3 = iLoadImage((char *)"obs img\\obs3.bmp");
 
   // Level 2 Shark Assets
-  shark11 = iLoadImage("obs img\\shark11.png");
-  shark12 = iLoadImage("obs img\\shark12.png");
-  shark13 = iLoadImage("obs img\\shark13.png");
+  shark11 = iLoadImage((char *)"obs img\\shark11.png");
+  shark12 = iLoadImage((char *)"obs img\\shark12.png");
+  shark13 = iLoadImage((char *)"obs img\\shark13.png");
 
-  shark21 = iLoadImage("obs img\\shark21.png");
-  shark22 = iLoadImage("obs img\\shark22.png");
-  shark23 = iLoadImage("obs img\\shark23.png");
+  shark21 = iLoadImage((char *)"obs img\\shark21.png");
+  shark22 = iLoadImage((char *)"obs img\\shark22.png");
+  shark23 = iLoadImage((char *)"obs img\\shark23.png");
 
-  obsBrokenBridge = iLoadImage("obs img\\obs21.png");
+  obsBrokenBridge = iLoadImage((char *)"obs img\\obs21.png");
 
   // Broken Bridge Assets
-  obs221 = iLoadImage("obs img\\obs221.bmp");
-  obs222 = iLoadImage("obs img\\obs222.bmp");
-  obs223 = iLoadImage("obs img\\obs223.bmp");
-  imgBroken = iLoadImage("obs img\\broken.png");
-  imgRLL = iLoadImage("obs img\\rll.png");
-  imgGLL = iLoadImage("obs img\\gll.png");
-  imgRBL = iLoadImage("obs img\\rbl.png");
-  imgGBL = iLoadImage("obs img\\gbl.png");
+  obs221 = iLoadImage((char *)"obs img\\obs221.bmp");
+  obs222 = iLoadImage((char *)"obs img\\obs222.bmp");
+  obs223 = iLoadImage((char *)"obs img\\obs223.bmp");
+  imgBroken = iLoadImage((char *)"obs img\\broken.png");
+  imgRLL = iLoadImage((char *)"obs img\\rll.png");
+  imgGLL = iLoadImage((char *)"obs img\\gll.png");
+  imgRBL = iLoadImage((char *)"obs img\\rbl.png");
+  imgGBL = iLoadImage((char *)"obs img\\gbl.png");
 
   // Bomb & Explosion Assets
-  bombImgs[0] = iLoadImage("obs img\\fire-ball-burning\\frame_000.png");
-  bombImgs[1] = iLoadImage("obs img\\fire-ball-burning\\frame_001.png");
-  bombImgs[2] = iLoadImage("obs img\\fire-ball-burning\\frame_002.png");
-  bombImgs[3] = iLoadImage("obs img\\fire-ball-burning\\frame_003.png");
+  bombImgs[0] = iLoadImage((char *)"obs img\\fire-ball-burning\\frame_000.png");
+  bombImgs[1] = iLoadImage((char *)"obs img\\fire-ball-burning\\frame_001.png");
+  bombImgs[2] = iLoadImage((char *)"obs img\\fire-ball-burning\\frame_002.png");
+  bombImgs[3] = iLoadImage((char *)"obs img\\fire-ball-burning\\frame_003.png");
   char expPath[100];
   for (int i = 0; i < 7; i++) {
-    sprintf_s(expPath, "obs img\\explosion\\explosion%d.png", i + 1);
-    explosionImgs[i] = iLoadImage(expPath);
+    sprintf_s(expPath, sizeof(expPath), "obs img\\explosion\\explosion%d.png", i + 1);
+    explosionImgs[i] = iLoadImage((char *)expPath);
   }
 
   // Level 3 Assets
-  worm11 = iLoadImage("level3\\worm11.png");
-  worm12 = iLoadImage("level3\\worm12.png");
-  worm13 = iLoadImage("level3\\worm13.png");
-  worm14 = iLoadImage(
-      "level3\\worm13.png"); // Using 13 if 14 missing as per folder list
+  worm11 = iLoadImage((char *)"level3\\worm11.png");
+  worm12 = iLoadImage((char *)"level3\\worm12.png");
+  worm13 = iLoadImage((char *)"level3\\worm13.png");
+  worm14 = iLoadImage((char *)"level3\\worm13.png"); // Using 13 if 14 missing as per folder list
 
-  worm21 = iLoadImage("level3\\worm21.png");
-  worm22 = iLoadImage("level3\\worm22.png");
-  worm23 = iLoadImage("level3\\worm23.png");
-  worm24 = iLoadImage("level3\\worm23.png"); // Using 23 if 24 missing
+  worm21 = iLoadImage((char *)"level3\\worm21.png");
+  worm22 = iLoadImage((char *)"level3\\worm22.png");
+  worm23 = iLoadImage((char *)"level3\\worm23.png");
+  worm24 = iLoadImage((char *)"level3\\worm23.png"); // Using 23 if 24 missing
 
-  l3HoleImg = iLoadImage("level3\\L3hole.png");
-  shortPillerImg = iLoadImage("level3\\shortpiller.png");
-  longPillerImg = iLoadImage("level3\\longpiller.png");
+  l3HoleImg = iLoadImage((char *)"level3\\L3hole.png");
+  shortPillerImg = iLoadImage((char *)"level3\\shortpiller.png");
+  longPillerImg = iLoadImage((char *)"level3\\longpiller.png");
 
   for (int i = 0; i < 4; i++) {
     char path[100];
-    sprintf_s(path, "level3\\hand%d.png", i + 1);
-    handImgs[i] = iLoadImage(path);
-    sprintf_s(path, "level3\\flame%d.png", i + 1);
-    flameImgs[i] = iLoadImage(path);
-    sprintf_s(path, "level3\\fire%d.png", i + 1);
-    fireImgs[i] = iLoadImage(path);
+    sprintf_s(path, sizeof(path), "level3\\hand%d.png", i + 1);
+    handImgs[i] = iLoadImage((char *)path);
+    sprintf_s(path, sizeof(path), "level3\\flame%d.png", i + 1);
+    flameImgs[i] = iLoadImage((char *)path);
+    sprintf_s(path, sizeof(path), "level3\\fire%d.png", i + 1);
+    fireImgs[i] = iLoadImage((char *)path);
+    sprintf_s(path, sizeof(path), "level3\\skull (%d).png", i + 1);
+    skullImgs[i] = iLoadImage((char *)path);
   }
 
   for (int i = 0; i < 9; i++) {
     char path[100];
-    sprintf_s(path, "l3images\\walkingnpc1\\frame_00%d.png", i);
-    npc1Walk[i] = iLoadImage(path);
-    sprintf_s(path, "l3images\\walkingnpc1\\attack\\frame_00%d.png", i);
-    npc1Attack[i] = iLoadImage(path);
-    sprintf_s(path, "l3images\\walkingnpc2\\frame_00%d.png", i);
-    npc2Walk[i] = iLoadImage(path);
-    sprintf_s(path, "l3images\\walkingnpc2\\green-fire-burning\\frame_00%d.png", i);
-    greenFireImgs[i] = iLoadImage(path);
+    sprintf_s(path, sizeof(path), "l3images\\walkingnpc1\\frame_00%d.png", i);
+    npc1Walk[i] = iLoadImage((char *)path);
+    sprintf_s(path, sizeof(path), "l3images\\walkingnpc1\\attack\\frame_00%d.png", i);
+    npc1Attack[i] = iLoadImage((char *)path);
+    sprintf_s(path, sizeof(path), "l3images\\walkingnpc2\\frame_00%d.png", i);
+    npc2Walk[i] = iLoadImage((char *)path);
+    sprintf_s(path, sizeof(path), "l3images\\walkingnpc2\\green-fire-burning\\frame_00%d.png",
+              i);
+    greenFireImgs[i] = iLoadImage((char *)path);
   }
 }
 
@@ -260,6 +282,11 @@ inline void initObstacles() {
     bombs[i].active = false;
     explosions[i].active = false;
   }
+  for (int i = 0; i < 3; i++) {
+    skulls[i].active = false;
+  }
+  skullSpawnTimer = 0;
+  skullsKilled = 0;
   isCharFrozen = false;
   freezeTimer = 0;
   sharksSpawnedInLevel = 0;
@@ -624,7 +651,8 @@ inline void updateObstaclePhysics() {
             fallVel = -1; // Gentle pull effect
             hitBridgeIndex = i;
 
-            // Damage logic: double if hand is still there, single if flame hit ground
+            // Damage logic: double if hand is still there, single if flame hit
+            // ground
             if (!flamesHitGround[i]) {
               lives -= 2; // Double damage from hand
             } else {
@@ -705,7 +733,7 @@ inline void updateObstaclePhysics() {
     for (int i = 0; i < MAX_NPCS; i++) {
       if (npcList[i].active) {
         if (npcList[i].state == 0) { // Walking
-          npcList[i].x -= 4.0f; // Walk left
+          npcList[i].x -= 4.0f;      // Walk left
           npcList[i].animCounter++;
           if (npcList[i].animCounter >= 4) {
             npcList[i].animCounter = 0;
@@ -728,7 +756,7 @@ inline void updateObstaclePhysics() {
               for (int j = 0; j < MAX_FIRES; j++) {
                 if (!fireList[j].active) {
                   fireList[j].active = true;
-                  fireList[j].x = npcList[i].x - 30; 
+                  fireList[j].x = npcList[i].x - 30;
                   fireList[j].y = npcList[i].y + 30; // Height for 100x100 NPC
                   fireList[j].animFrame = 0;
                   fireList[j].animCounter = 0;
@@ -740,22 +768,24 @@ inline void updateObstaclePhysics() {
           }
 
         } else if (npcList[i].state == 1) { // Attacking (NPC1 only)
-          npcList[i].x -= SCROLL_SPD; // Fix: Keep NPC positioned relative to scrolling background
+          npcList[i].x -= SCROLL_SPD; // Fix: Keep NPC positioned relative to
+                                      // scrolling background
           npcList[i].attackTimer++;
           if (npcList[i].attackTimer % 4 == 0) {
             npcList[i].animFrame++;
           }
           // The attack lands around frame 5/6
           if (!npcList[i].hasAttacked && npcList[i].animFrame >= 5) {
-             if (charX + charWidth > npcList[i].x - 30 && charX < npcList[i].x + 30 &&
-                 charY + charHeight > groundY && charY < groundY + 100) {
-                 if (!isInvincible && !isFallingSequence) {
-                     lives--;
-                     isInvincible = true;
-                     invincibilityTimer = 60;
-                 }
-             }
-             npcList[i].hasAttacked = true;
+            if (charX + charWidth > npcList[i].x - 30 &&
+                charX < npcList[i].x + 30 && charY + charHeight > groundY &&
+                charY < groundY + 100) {
+              if (!isInvincible && !isFallingSequence) {
+                lives--;
+                isInvincible = true;
+                invincibilityTimer = 60;
+              }
+            }
+            npcList[i].hasAttacked = true;
           }
 
           if (npcList[i].animFrame >= 9) {
@@ -776,26 +806,99 @@ inline void updateObstaclePhysics() {
     // Spawn every 5 to 15 seconds (approx 150 to 450 frames @ 30fps)
     static int nextNpcGap = 150 + (rand() % 300);
     if (npcSpawnTimer >= nextNpcGap) {
-        npcSpawnTimer = 0;
-        nextNpcGap = 150 + (rand() % 300);
-        for (int i = 0; i < MAX_NPCS; i++) {
-            if (!npcList[i].active) {
-                npcList[i].active = true;
-                npcList[i].x = SCREEN_W + 100;
-                npcList[i].y = groundY;
-                npcList[i].type = (rand() % 2) + 1; // 1 or 2
-                npcList[i].state = 0;
-                npcList[i].life = 2; // Fixed: 2 hits to kill
-                npcList[i].animFrame = 0;
-                npcList[i].animCounter = 0;
-                npcList[i].fireCooldown = 90 + (rand() % 90); // Init cooldown
-                break;
-            }
+      npcSpawnTimer = 0;
+      nextNpcGap = 150 + (rand() % 300);
+      for (int i = 0; i < MAX_NPCS; i++) {
+        if (!npcList[i].active) {
+          npcList[i].active = true;
+          npcList[i].x = SCREEN_W + 100;
+          npcList[i].y = groundY;
+          npcList[i].type = (rand() % 2) + 1; // 1 or 2
+          npcList[i].state = 0;
+          npcList[i].life = 2; // Fixed: 2 hits to kill
+          npcList[i].animFrame = 0;
+          npcList[i].animCounter = 0;
+          npcList[i].fireCooldown = 90 + (rand() % 90); // Init cooldown
+          break;
         }
+      }
+    }
+
+    // ---- LEVEL 3 SKULL LOGIC ----
+    skullSpawnTimer++;
+    if (skullSpawnTimer > 300) { // 10 seconds (approx 30 frames * 10)
+      skullSpawnTimer = 0;
+      for (int i = 0; i < 3; i++) {
+        if (!skulls[i].active) {
+          skulls[i].active = true;
+          skulls[i].isVanishing = false;
+          skulls[i].animFrame = 0;
+          skulls[i].animCounter = 0;
+
+          // Spawn from any side except bottom
+          int side = rand() % 3; // 0: Top, 1: Left, 2: Right
+          if (side == 0) {
+            skulls[i].x = (float)(rand() % SCREEN_W);
+            skulls[i].y = (float)(SCREEN_H + 50);
+          } else if (side == 1) {
+            skulls[i].x = -150.0f;
+            skulls[i].y =
+                (float)(groundY + 50 + rand() % 280);
+          } else {
+            skulls[i].x = (float)(SCREEN_W + 50);
+            skulls[i].y =
+                (float)(groundY + 50 + rand() % 280);
+          }
+
+          // direction towards character
+          float targetX = charX + (float)charWidth / 2.0f;
+          float targetY = charY + (float)charHeight / 2.0f;
+          float dx = targetX - (skulls[i].x + 50.0f);
+          float dy = targetY - (skulls[i].y + 50.0f);
+          float dist = (float)sqrt((double)(dx * dx + dy * dy));
+          float speed = 4.0f; // Slowed from 8.0f
+          if (dist > 0) {
+            skulls[i].velX = (dx / dist) * speed;
+            skulls[i].velY = (dy / dist) * speed;
+          } else {
+            skulls[i].velX = 0;
+            skulls[i].velY = -speed;
+          }
+          break;
+        }
+      }
+    }
+
+    for (int i = 0; i < 3; i++) {
+      if (skulls[i].active) {
+        if (skulls[i].isVanishing) {
+          skulls[i].vanishingTimer--;
+          if (skulls[i].vanishingTimer <= 0) {
+            skulls[i].active = false;
+          }
+        } else {
+          skulls[i].x += skulls[i].velX;
+          skulls[i].y += skulls[i].velY;
+
+          skulls[i].animCounter++;
+          if (skulls[i].animCounter > 3) {
+            skulls[i].animCounter = 0;
+            skulls[i].animFrame = (skulls[i].animFrame + 1) % 4;
+          }
+
+          // if out of bounds, make inactive
+          if (skulls[i].x < -300 || skulls[i].x > SCREEN_W + 300 ||
+              skulls[i].y < -300 || skulls[i].y > SCREEN_H + 300) {
+            skulls[i].active = false;
+          }
+        }
+      }
     }
 
     return;
   }
+
+  if (currentLevel == 4) return;
 
   // ---- STANDARD OBSTACLE LOGIC (Level 1) ----
   int activeCount = 0;
@@ -834,11 +937,13 @@ inline void drawObstacles() {
   if (currentLevel == 2) {
     for (int i = 0; i < 2; i++) {
       if (sharks[i].active) {
-        if (sharks[i].hitFlashTimer > 0) sharks[i].hitFlashTimer--;
-        
+        if (sharks[i].hitFlashTimer > 0)
+          sharks[i].hitFlashTimer--;
+
         // Blink logic: skip drawing every 2nd frame when hitFlash is active
-        if (sharks[i].hitFlashTimer > 0 && (sharks[i].hitFlashTimer / 2) % 2 == 0) {
-            continue;
+        if (sharks[i].hitFlashTimer > 0 &&
+            (sharks[i].hitFlashTimer / 2) % 2 == 0) {
+          continue;
         }
 
         int img = 0;
@@ -952,7 +1057,7 @@ inline void drawObstacles() {
         }
         int wW = 150;
         int wH = 120;
-        
+
         // Rotated/Flipped when retreating so they face opposite directon
         bool shouldFlip = sharks[i].isRetreating;
 
@@ -980,7 +1085,8 @@ inline void drawObstacles() {
         if (!isFlameFalling[i]) {
           // Exactly on pillar top
           float fY = (float)bridges[i].y - 30 + pH;
-          // Reverted size to 50x60, centered on pillar (pX - 80, pW 80 -> center at -40)
+          // Reverted size to 50x60, centered on pillar (pX - 80, pW 80 ->
+          // center at -40)
           iShowImage((int)bridges[i].x - 40 - 25, (int)fY, 50, 60,
                      flameImgs[flameFrame / 10]);
         } else {
@@ -989,7 +1095,8 @@ inline void drawObstacles() {
           float totalDistY = startY - (float)groundY;
           if (totalDistY < 1)
             totalDistY = 1;
-          float progress = 1.0f - ((flameYPos[i] - (float)groundY) / totalDistY);
+          float progress =
+              1.0f - ((flameYPos[i] - (float)groundY) / totalDistY);
           if (progress < 0)
             progress = 0;
           if (progress > 1)
@@ -1011,57 +1118,82 @@ inline void drawObstacles() {
 
       // Hole and Hands
       // Always render Hole
-      iShowImage((int)bridges[i].x - 50, (int)bridges[i].y - 70, 550, 100, l3HoleImg);
-      
-      // Render Hand on top of hole if flame didn't hit ground FOR THIS SPECIFIC HOLE
+      iShowImage((int)bridges[i].x - 50, (int)bridges[i].y - 70, 550, 100,
+                 l3HoleImg);
+
+      // Render Hand on top of hole if flame didn't hit ground FOR THIS SPECIFIC
+      // HOLE
       if (!flamesHitGround[i]) {
-          // Hand Y lowered by 10 as requested (now at y - 70)
-          // Size 300x160, centered over hole
-          iShowImage((int)bridges[i].x + 75, (int)bridges[i].y - 70, 300, 160,
-                     handImgs[handFrame / 10]);
+        // Hand Y lowered by 10 as requested (now at y - 70)
+        // Size 300x160, centered over hole
+        iShowImage((int)bridges[i].x + 75, (int)bridges[i].y - 70, 300, 160,
+                   handImgs[handFrame / 10]);
       }
     } // End of Hole & Hands loop
 
     // Render Green Fire Projectiles
     for (int i = 0; i < MAX_FIRES; i++) {
-        if (fireList[i].active) {
-            iShowImage((int)fireList[i].x, (int)fireList[i].y, 100, 100, greenFireImgs[fireList[i].animFrame]);
-        }
+      if (fireList[i].active) {
+        iShowImage((int)fireList[i].x, (int)fireList[i].y, 100, 100,
+                   greenFireImgs[fireList[i].animFrame]);
+      }
     }
 
     // Render Walking NPCs
     for (int i = 0; i < MAX_NPCS; i++) {
-        if (npcList[i].active) {
-            if (npcList[i].hitFlashTimer > 0) npcList[i].hitFlashTimer--;
-            
-            // Blink logic
-            if (npcList[i].hitFlashTimer > 0 && (npcList[i].hitFlashTimer / 2) % 2 == 0) {
-                continue;
-            }
+      if (npcList[i].active) {
+        if (npcList[i].hitFlashTimer > 0)
+          npcList[i].hitFlashTimer--;
 
-            int currentImg = 0;
-            if (npcList[i].type == 1) { // Melee
-                if (npcList[i].state == 0) // Walking
-                    currentImg = npc1Walk[npcList[i].animFrame];
-                else if (npcList[i].state == 1) // Attacking
-                    currentImg = npc1Attack[npcList[i].animFrame];
-            } else if (npcList[i].type == 2) { // Ranged
-                currentImg = npc2Walk[npcList[i].animFrame];
-            }
-
-            if (currentImg != 0) {
-                int drawW = 100, drawH = 100;
-                if (npcList[i].type == 1 && npcList[i].state == 0) {
-                    drawW = 85; 
-                    drawH = 85;
-                }
-                iShowImage((int)npcList[i].x, (int)npcList[i].y, drawW, drawH, currentImg);
-            }
+        // Blink logic
+        if (npcList[i].hitFlashTimer > 0 &&
+            (npcList[i].hitFlashTimer / 2) % 2 == 0) {
+          continue;
         }
+
+        int currentImg = 0;
+        if (npcList[i].type == 1) {  // Melee
+          if (npcList[i].state == 0) // Walking
+            currentImg = npc1Walk[npcList[i].animFrame];
+          else if (npcList[i].state == 1) // Attacking
+            currentImg = npc1Attack[npcList[i].animFrame];
+        } else if (npcList[i].type == 2) { // Ranged
+          currentImg = npc2Walk[npcList[i].animFrame];
+        }
+
+        if (currentImg != 0) {
+          int drawW = 100, drawH = 100;
+          if (npcList[i].type == 1 && npcList[i].state == 0) {
+            drawW = 85;
+            drawH = 85;
+          }
+          iShowImage((int)npcList[i].x, (int)npcList[i].y, drawW, drawH,
+                     currentImg);
+        }
+      }
+    }
+
+    // Render Skulls
+    for (int i = 0; i < 3; i++) {
+      if (skulls[i].active) {
+        if (skulls[i].isVanishing) {
+          if ((skulls[i].vanishingTimer / 2) % 2 ==
+              0) { // Blink effect when vanishing
+            iShowImage((int)skulls[i].x, (int)skulls[i].y, 60, 60,
+                       skullImgs[skulls[i].animFrame]);
+          }
+        } else {
+          // Normal drawing
+          iShowImage((int)skulls[i].x, (int)skulls[i].y, 60, 60,
+                     skullImgs[skulls[i].animFrame]);
+        }
+      }
     }
 
     return;
   }
+
+  if (currentLevel == 4) return;
 
   // Level 1 logic
   for (int i = 0; i < 3; i++) {
@@ -1081,8 +1213,8 @@ inline void drawExplosions() {
     for (int i = 0; i < 3; i++) {
       if (explosions[i].active) {
         // Draw explosion centered on impact - 250x250 for MAX IMPACT
-        iShowImage((int)explosions[i].x - 125, (int)explosions[i].y - 125, 250, 250,
-                   explosionImgs[explosions[i].frame]);
+        iShowImage((int)explosions[i].x - 125, (int)explosions[i].y - 125, 250,
+                   250, explosionImgs[explosions[i].frame]);
       }
     }
   }

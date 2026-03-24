@@ -55,14 +55,23 @@ inline void loadCaveAssets() {
 }
 
 inline void initCaveState() {
-  wizardX = 1000; // Start off-screen right
-  wizardY = 100;  // Adjust Y position as needed
-
   // Character setup
   charX = -200;     // Start off-screen left
-  charY = 100;      // Same Y coordinate as wizard
+  charY = (currentLevel == 3) ? 80 : 30; // Decreased by 70 as requested (80 from 150, 30 from 100)
   charHeight = 250; // Ensure normal size
   charWidth = 200;  // Ensure normal size
+
+  // Reset character states to ensure walking motion
+  isJumping = false;
+  isBending = false;
+  isAttacking = false;
+  isFallingSequence = false;
+  verticalVelocity = 0;
+  isRightArrowPressed = false;
+  isLeftArrowPressed = false;
+
+  wizardX = 800; // Start partially on-screen so they both appear
+  wizardY = charY; // Same Y axis for both character and wizard
 
   wizardIndex = 0;
   isWizardMoving = false;     // Wizard waits for character
@@ -154,17 +163,26 @@ inline void updateWizardLogic() {
 
 inline void drawCave() {
   if (isLevelTransitioning) {
+    // Render scene background, character, and wizard beneath the splash screen
+    if (currentLevel == 3) {
+      iShowImage(0, 0, 1000, 600, caveImgL3);
+    } else if (currentLevel == 2) {
+      iShowImage(0, 0, 1000, 600, caveSceneBgL2);
+    } else {
+      iShowImage(0, 0, 1000, 600, caveSceneBg);
+    }
+    drawCharacter();
+    if (currentLevel == 3) {
+      iShowImage(wizardX, wizardY, 200, 200, wizardL3Img);
+    } else if (currentLevel == 2) {
+      iShowImage(wizardX, wizardY, 200, 200, wizardL2Img);
+    } else {
+      iShowImage(wizardX, wizardY, 200, 200, wizardImgs[wizardIndex]);
+    }
+
     if (transitionPhase == 1) {
       iShowImage(0, 0, 1000, 600, levelChange1);
     } else if (transitionPhase == 2) {
-      // Background: cave
-      if (currentLevel == 3) {
-        iShowImage(0, 0, 1000, 600, caveImgL3);
-      } else if (currentLevel == 2) {
-        iShowImage(0, 0, 1000, 600, caveSceneBgL2);
-      } else {
-        iShowImage(0, 0, 1000, 600, caveSceneBg);
-      }
       // Explain image centered in the middle of the screen
       int imgW = 700;
       int imgH = 350;
@@ -230,7 +248,7 @@ inline void drawCave() {
 
     // Title: "Item Claimed" centered
     iText(boxX + 110, boxY + 95, (char *)"Item Claimed",
-          GLUT_BITMAP_TIMES_ROMAN_24);
+          (void *)GLUT_BITMAP_TIMES_ROMAN_24);
 
     // Draw Next Button at bottom right (Bigger)
     iShowImage(750, 50, 220, 70, imgNextLevel);
@@ -267,33 +285,33 @@ inline void drawCave() {
 
     if (currentLevel == 3) {
       if (wizardDialogueIndex == 1) {
-        iText(textX + 20, textY, (char *)"Show me your agility!", GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX + 20, textY, (char *)"Show me your agility!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 2) {
-        iText(textX + 10, textY, (char *)"Catch the floating shard!", GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX + 10, textY, (char *)"Catch the floating shard!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 3) {
-        iText(textX + 60, textY, (char *)"Begin!", GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX + 60, textY, (char *)"Begin!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     } else if (currentLevel == 2) {
       if (wizardDialogueIndex == 1) {
         iText(textX + 20, textY, (char *)"You have proven your worth.",
-              GLUT_BITMAP_TIMES_ROMAN_24);
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 2) {
         iText(textX + 20, textY, (char *)"Time to wield a weapon of power.",
-              GLUT_BITMAP_TIMES_ROMAN_24);
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 3) {
         iText(textX + 20, textY, (char *)"But first, prove your mind!",
-              GLUT_BITMAP_TIMES_ROMAN_24);
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     } else {
       if (wizardDialogueIndex == 1) {
         iText(textX + 20, textY, (char *)"Speak the truth, traveler",
-              GLUT_BITMAP_TIMES_ROMAN_24);
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 2) {
         iText(textX + 10, textY, (char *)"Only wisdom shall unlock it",
-              GLUT_BITMAP_TIMES_ROMAN_24);
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 3) {
         iText(textX + 60, textY, (char *)"Answer or perish!",
-              GLUT_BITMAP_TIMES_ROMAN_24);
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     }
   }

@@ -20,26 +20,26 @@ inline void loadCharacter2Assets() {
 
   // Load Aryn Run (aryn(run)1.png to aryn(run)9.png) in aryn folder
   for (int i = 0; i < 9; i++) {
-    sprintf_s(filename, "aryn\\aryn(run)%d.png", i + 1);
-    arynRun[i] = iLoadImage(filename);
-    sprintf_s(filename, "aryn\\arynback(1)%d.png", i + 1);
-    arynRunBack[i] = iLoadImage(filename);
+    sprintf_s(filename, sizeof(filename), "aryn\\aryn(run)%d.png", i + 1);
+    arynRun[i] = iLoadImage((char *)filename);
+    sprintf_s(filename, sizeof(filename), "aryn\\arynback(1)%d.png", i + 1);
+    arynRunBack[i] = iLoadImage((char *)filename);
   }
 
   // Load Kaero Run (kaero(run)1.png to kaero(run)8.png) in Character folder
   for (int i = 0; i < 8; i++) {
-    sprintf_s(filename, "Character\\kaero(run)%d.png", i + 1);
-    kaeroRun[i] = iLoadImage(filename);
-    sprintf_s(filename, "Character\\kaeroback(1)%d.png", i + 1);
-    kaeroRunBack[i] = iLoadImage(filename);
+    sprintf_s(filename, sizeof(filename), "Character\\kaero(run)%d.png", i + 1);
+    kaeroRun[i] = iLoadImage((char *)filename);
+    sprintf_s(filename, sizeof(filename), "Character\\kaeroback(1)%d.png", i + 1);
+    kaeroRunBack[i] = iLoadImage((char *)filename);
   }
 
   // Load Leora Run (leora(run)1.png to leora(run)7.png) in Leora folder
   for (int i = 0; i < 7; i++) {
-    sprintf_s(filename, "Leora\\leora(run)%d.png", i + 1);
-    leoraRun[i] = iLoadImage(filename);
-    sprintf_s(filename, "Leora\\leoraback(1)%d.png", i + 1);
-    leoraRunBack[i] = iLoadImage(filename);
+    sprintf_s(filename, sizeof(filename), "Leora\\leora(run)%d.png", i + 1);
+    leoraRun[i] = iLoadImage((char *)filename);
+    sprintf_s(filename, sizeof(filename), "Leora\\leoraback(1)%d.png", i + 1);
+    leoraRunBack[i] = iLoadImage((char *)filename);
   }
 }
 

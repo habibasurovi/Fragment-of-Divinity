@@ -69,6 +69,7 @@
   <ItemGroup>
     <ClInclude Include="AppleHandler.h" />
     <ClInclude Include="BackgroundHandler.h" />
+    <ClInclude Include="Boss.h" />
     <ClInclude Include="cave.h" />
     <ClInclude Include="Character.h" />
     <ClInclude Include="character 2.h" />

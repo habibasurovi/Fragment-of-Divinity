@@ -18,39 +18,47 @@ extern bool isGamePaused;
 extern GameState gameState;
 extern unsigned int keyPressed[512];
 
+extern int dragonFlyImgs[3][3];
+extern int dragonAttackImgs[3][2];
+extern int dragonBackFlyImgs[3][3];
+extern int dragonBackAttackImgs[3][2];
+
 struct Dragon {
   float x, y;
   int type; // 1, 2, or 3
-  int frameIndex;
   bool active;
   bool isAttacking;
+  bool facingRight; 
+
   int animCounter;
   float speed;
+  int flyFrameIndex;    
+  int attackFrameIndex; 
 
   // Vanishing mechanics
   bool isVanishing;
   int vanishingTimer;
   int holdATimer;
+  int cooldownTimer;
 };
 
 extern Dragon dragons[5];
-extern int dragon1Imgs[9];
-extern int dragon2Imgs[10];
-extern int dragon3Imgs[6];
 
 inline void loadDragonAssets() {
   char filename[100];
-  for (int i = 0; i < 9; i++) {
-    sprintf_s(filename, "Dragons\\Dragon(1)%d.png", i + 1);
-    dragon1Imgs[i] = iLoadImage(filename);
-  }
-  for (int i = 0; i < 10; i++) {
-    sprintf_s(filename, "Dragons\\Dragon(2)%d.png", i + 1);
-    dragon2Imgs[i] = iLoadImage(filename);
-  }
-  for (int i = 0; i < 6; i++) {
-    sprintf_s(filename, "Dragons\\Dragon(3)%d.png", i + 1);
-    dragon3Imgs[i] = iLoadImage(filename);
+  for (int d = 0; d < 3; d++) {
+    for (int i = 0; i < 3; i++) {
+      sprintf_s(filename, sizeof(filename), "Dragons\\Dragon(%d)%d.png", d + 1, i + 1);
+      dragonFlyImgs[d][i] = iLoadImage((char *)filename);
+      sprintf_s(filename, sizeof(filename), "Dragons\\Dragon(%d)back%d.png", d + 1, i + 1);
+      dragonBackFlyImgs[d][i] = iLoadImage((char *)filename);
+    }
+    for (int i = 0; i < 2; i++) {
+      sprintf_s(filename, sizeof(filename), "Dragons\\Dragon(%d)attack%d.png", d + 1, i + 1);
+      dragonAttackImgs[d][i] = iLoadImage((char *)filename);
+      sprintf_s(filename, sizeof(filename), "Dragons\\Dragon(%d)backattack%d.png", d + 1, i + 1);
+      dragonBackAttackImgs[d][i] = iLoadImage((char *)filename);
+    }
   }
 }
 
@@ -60,6 +68,9 @@ inline void initDragons() {
     dragons[i].isVanishing = false;
     dragons[i].vanishingTimer = 0;
     dragons[i].holdATimer = 0;
+    dragons[i].cooldownTimer = 0;
+    dragons[i].flyFrameIndex = 0;
+    dragons[i].attackFrameIndex = 0;
   }
 }
 
@@ -67,22 +78,26 @@ inline void spawnDragon() {
   for (int i = 0; i < 5; i++) {
     if (!dragons[i].active) {
       dragons[i].active = true;
-      dragons[i].type = (rand() % 3) + 1;
+      dragons[i].type = (rand() % 3) + 1; // 1, 2, or 3
 
       if (dragons[i].type == 1) {
         dragons[i].x = SCREEN_W + 200; // Come from Right
+        dragons[i].facingRight = false;
       } else {
         dragons[i].x = -350; // Come from Left (2 and 3)
+        dragons[i].facingRight = true;
       }
 
       dragons[i].y = 450 + rand() % 100; // Come from higher up
-      dragons[i].frameIndex = 0;
       dragons[i].isAttacking = false;
       dragons[i].animCounter = 0;
       dragons[i].speed = 2.0f + (rand() % 4); // Chase speed
       dragons[i].isVanishing = false;
       dragons[i].vanishingTimer = 0;
       dragons[i].holdATimer = 0;
+      dragons[i].cooldownTimer = 0;
+      dragons[i].flyFrameIndex = 0;
+      dragons[i].attackFrameIndex = 0;
       break;
     }
   }
@@ -92,7 +107,6 @@ inline void updateDragonPhysics() {
   if (isGamePaused || gameState != GAME || (currentLevel != 2))
     return;
 
-  // Only one dragon at a time, coming after 10 seconds (333 ticks at 30ms)
   static int spawnTicks = 0;
   bool anyActive = false;
   for (int i = 0; i < 5; i++) {
@@ -121,66 +135,71 @@ inline void updateDragonPhysics() {
         continue;
       }
 
-      // Chase character center
+      if (dragons[i].cooldownTimer > 0) dragons[i].cooldownTimer--;
+
       float targetX = (float)(charX + (float)charWidth / 2.0f);
       float targetY = (float)(charY + (float)charHeight / 2.0f);
+      float dxCenter = targetX - (dragons[i].x + 100.0f);
+      float dyCenter = targetY - (dragons[i].y + 100.0f);
+      float trueDist = (float)sqrt((double)(dxCenter * dxCenter + dyCenter * dyCenter));
+      
+      dragons[i].facingRight = (dxCenter > 0);
 
-      // Dragon center is x+150, y+150 (for 300x300 size)
-      float dx = targetX - (dragons[i].x + 150.0f);
-      float dy = targetY - (dragons[i].y + 150.0f);
-      float dist = (float)sqrt((double)(dx * dx + dy * dy));
-
-      // Chasing Logic: Move toward character
-      if (dist > 10.0f) {
-        // Vertical chase (descend to match character)
-        float absDy = (dy > 0) ? dy : -dy;
-        if (absDy > 5.0f) {
-          dragons[i].y += (dy / dist) * dragons[i].speed;
-        }
-
-        // Horizontal chase
-        float absDx = (dx > 0) ? dx : -dx;
-        if (absDx > 120.0f) { // Maintain a slight distance before attacking
-          dragons[i].x += (dx / dist) * dragons[i].speed;
-        }
-      }
-
-      // Attack proximity check
-      if (dist < 200.0f) {
-        dragons[i].isAttacking = true;
-
-        // Space button causes the dragon to vanish
-        // Space button causes the dragon to vanish
-        if (keyPressed[' ']) {
-          dragons[i].isVanishing = true;
-          dragons[i].vanishingTimer = 60; // 2 seconds of blinking
-          dragons[i].holdATimer = 0;
-        }
+      if (!dragons[i].isAttacking) {
+          if (dragons[i].cooldownTimer > 0) {
+              // Hover above player
+              float targetAltitude = charY + 250.0f;
+              float dyUp = targetAltitude - (dragons[i].y + 100.0f);
+              if (trueDist > 0.0f) {
+                  dragons[i].x += (dxCenter / trueDist) * dragons[i].speed;
+                  float moveY = dragons[i].speed * 0.8f;
+                  if (fabs(dyUp) <= moveY) dragons[i].y += dyUp;
+                  else dragons[i].y += (dyUp > 0 ? 1 : -1) * moveY;
+              }
+          } else {
+              // Swoop down directly towards character
+              if (trueDist > 0.0f) {
+                  dragons[i].x += (dxCenter / trueDist) * dragons[i].speed;
+                  dragons[i].y += (dyCenter / trueDist) * dragons[i].speed;
+              }
+              if (trueDist < 120.0f) {
+                  dragons[i].isAttacking = true;
+                  dragons[i].attackFrameIndex = 0;
+              }
+          }
       } else {
-        dragons[i].isAttacking = false;
-        dragons[i].holdATimer = 0;
+          // Track slowly while attacking
+          float atkSpeed = 1.5f;
+          if (trueDist > 0.0f) {
+              float actSpeed = trueDist < atkSpeed ? trueDist : atkSpeed;
+              dragons[i].x += (dxCenter / trueDist) * actSpeed;
+              dragons[i].y += (dyCenter / trueDist) * actSpeed;
+          }
+          
+          if (keyPressed[' ']) {
+              dragons[i].isVanishing = true;
+              dragons[i].vanishingTimer = 60; 
+              dragons[i].holdATimer = 0;
+          }
+          
+          if (trueDist > 250.0f) {
+              dragons[i].isAttacking = false;
+              dragons[i].cooldownTimer = 120;
+          }
       }
 
-      // Animation
       dragons[i].animCounter++;
-      if (dragons[i].animCounter >= 4) { // Animation speed
+      if (dragons[i].animCounter >= 4) { 
         dragons[i].animCounter = 0;
         if (dragons[i].isAttacking) {
-          if (dragons[i].type == 1) {
-            dragons[i].frameIndex++;
-            if (dragons[i].frameIndex < 3 || dragons[i].frameIndex >= 9)
-              dragons[i].frameIndex = 3;
-          } else if (dragons[i].type == 3) {
-            dragons[i].frameIndex++;
-            if (dragons[i].frameIndex < 3 || dragons[i].frameIndex >= 6)
-              dragons[i].frameIndex = 3;
-          } else {
-            // Dragon 2 or non-attacking
-            dragons[i].frameIndex = (dragons[i].frameIndex + 1) % 3;
+          dragons[i].attackFrameIndex++;
+          if (dragons[i].attackFrameIndex >= 2) {
+              dragons[i].isAttacking = false;
+              dragons[i].cooldownTimer = 90;
+              dragons[i].attackFrameIndex = 0;
           }
         } else {
-          // Constant flying frames (1-3)
-          dragons[i].frameIndex = (dragons[i].frameIndex + 1) % 3;
+          dragons[i].flyFrameIndex = (dragons[i].flyFrameIndex + 1) % 3;
         }
       }
     }
@@ -192,25 +211,32 @@ inline void drawDragons() {
     return;
   for (int i = 0; i < 5; i++) {
     if (dragons[i].active) {
-      // Blinking effect when vanishing
       if (dragons[i].isVanishing && (dragons[i].vanishingTimer / 5) % 2 == 0) {
         continue;
       }
 
       int img = -1;
-      if (dragons[i].type == 1)
-        img = dragon1Imgs[dragons[i].frameIndex];
-      else if (dragons[i].type == 2)
-        img = dragon2Imgs[dragons[i].frameIndex];
-      else if (dragons[i].type == 3)
-        img = dragon3Imgs[dragons[i].frameIndex];
+      int dIndex = dragons[i].type - 1; // 0, 1, or 2
+      if (dragons[i].isAttacking) {
+          if (dragons[i].facingRight) {
+              img = dragonAttackImgs[dIndex][dragons[i].attackFrameIndex];
+          } else {
+              img = dragonBackAttackImgs[dIndex][dragons[i].attackFrameIndex];
+          }
+      } else {
+          if (dragons[i].facingRight) {
+              img = dragonFlyImgs[dIndex][dragons[i].flyFrameIndex];
+          } else {
+              img = dragonBackFlyImgs[dIndex][dragons[i].flyFrameIndex];
+          }
+      }
 
       if (img != -1) {
-        // Increased size (previous 250*250, now 300*300)
-        iShowImage((int)dragons[i].x, (int)dragons[i].y, 300, 300, img);
+        iShowImage((int)dragons[i].x, (int)dragons[i].y, 200, 200, img);
       }
     }
   }
 }
 
 #endif
+

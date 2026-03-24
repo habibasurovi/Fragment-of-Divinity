@@ -39,13 +39,13 @@ extern SelectButton selChar[3], selWeather[3];
 
 inline void loadCustomizationAssets() {
   // LOAD IMAGES
-  customMenuBG = iLoadImage("images fod\\menu\\Custom menu\\custm_bg.png");
-  imgCharSubBG = iLoadImage("images fod\\menu\\Custom menu\\char_custom.png");
-  imgWeatherSubBG = iLoadImage("images fod\\menu\\Custom menu\\weather.bmp");
+  customMenuBG = iLoadImage((char *)"images fod\\menu\\Custom menu\\custm_bg.png");
+  imgCharSubBG = iLoadImage((char *)"images fod\\menu\\Custom menu\\char_custom.png");
+  imgWeatherSubBG = iLoadImage((char *)"images fod\\menu\\Custom menu\\weather.bmp");
 
-  btnCharCstm = iLoadImage("images fod\\menu\\Custom menu\\char_cstm_btn.png");
+  btnCharCstm = iLoadImage((char *)"images fod\\menu\\Custom menu\\char_cstm_btn.png");
   btnWeatherCstm =
-      iLoadImage("images fod\\menu\\Custom menu\\weather_cstm_btn.png");
+      iLoadImage((char *)"images fod\\menu\\Custom menu\\weather_cstm_btn.png");
 
   // BUTTON POSITIONS
 
@@ -94,8 +94,8 @@ inline void loadCustomizationAssets() {
 inline void drawSelectBtn(int x, int y, int w, int h, bool isSelected) {
 
   iSetColor(0, 0, 0);
-  iText(x + 10, y + 8, isSelected ? "SELECTED" : " SELECT ",
-        GLUT_BITMAP_HELVETICA_18);
+  iText(x + 10, y + 8, isSelected ? (char*)"SELECTED" : (char*)" SELECT ",
+        (void*)GLUT_BITMAP_HELVETICA_18);
 }
 
 #define DRAW_CSTM_BTN(btn, img, code) \
@@ -121,7 +121,7 @@ inline void drawCustomizationMenu() {
 
     // Back to Main Menu
     iSetColor(255, 255, 255);
-    iText(bBack.x, bBack.y, "BACK", GLUT_BITMAP_HELVETICA_18);
+    iText(bBack.x, bBack.y, (char*)"BACK", (void*)GLUT_BITMAP_HELVETICA_18);
   } else if (customSubState == 1) { // Character Customization
     iShowImage(0, 0, 1000, 600, imgCharSubBG);
 
@@ -133,7 +133,7 @@ inline void drawCustomizationMenu() {
 
     // Back to Custom Main
     iSetColor(255, 255, 255);
-    iText(bBack.x, bBack.y, "BACK", GLUT_BITMAP_HELVETICA_18);
+    iText(bBack.x, bBack.y, (char*)"BACK", (void*)GLUT_BITMAP_HELVETICA_18);
   } else if (customSubState == 2) { // Weather Customization
     iShowImage(0, 0, 1000, 600, imgWeatherSubBG);
 
@@ -145,7 +145,7 @@ inline void drawCustomizationMenu() {
 
     // Back to Custom Main
     iSetColor(0, 0, 0); // Black text for contrast on weather? or White?
-    iText(bBack.x, bBack.y, "BACK", GLUT_BITMAP_HELVETICA_18);
+    iText(bBack.x, bBack.y, (char*)"BACK", (void*)GLUT_BITMAP_HELVETICA_18);
   }
 }
 
