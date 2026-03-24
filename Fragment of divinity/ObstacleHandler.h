@@ -8,6 +8,9 @@
 
 // Variables
 extern int obs1, obs2, obs3;
+extern int obs1Imgs[7];
+extern int obs2Imgs[10];
+extern int obs3Imgs[9];
 extern int obstacleSpawnTimer;
 extern bool isCaveActive;
 extern int bombImgs[4];
@@ -109,6 +112,9 @@ struct Obstacle {
   int x, y;
   int type; // 1, 2, 3
   bool active;
+  int animFrame;
+  int animCounter;
+  int animDir; // 1 or -1
 };
 
 struct Shark {
@@ -179,6 +185,7 @@ extern int nextSpawnGap;
 // Counter for total sharks in Level 2
 
 inline void loadObstacleAssets() {
+  char animPath[100];
   static bool obstaclesLoaded = false;
   if (obstaclesLoaded) return;
   obstaclesLoaded = true;
@@ -186,6 +193,19 @@ inline void loadObstacleAssets() {
   obs1 = iLoadImage((char *)"obs img\\obs1.bmp");
   obs2 = iLoadImage((char *)"obs img\\obs2.bmp");
   obs3 = iLoadImage((char *)"obs img\\obs3.bmp");
+
+  for (int i = 0; i < 7; i++) {
+    sprintf_s(animPath, sizeof(animPath), "obs img\\obs1 (%d).png", i + 1);
+    obs1Imgs[i] = iLoadImage((char *)animPath);
+  }
+  for (int i = 0; i < 10; i++) {
+    sprintf_s(animPath, sizeof(animPath), "obs img\\obs2 (%d).png", i + 1);
+    obs2Imgs[i] = iLoadImage((char *)animPath);
+  }
+  for (int i = 0; i < 9; i++) {
+    sprintf_s(animPath, sizeof(animPath), "obs img\\obs3 (%d).png", i + 1);
+    obs3Imgs[i] = iLoadImage((char *)animPath);
+  }
 
   // Level 2 Shark Assets
   shark11 = iLoadImage((char *)"obs img\\shark11.png");
@@ -263,6 +283,9 @@ inline void loadObstacleAssets() {
 inline void initObstacles() {
   for (int i = 0; i < 3; i++) {
     obstacles[i].active = false;
+    obstacles[i].animFrame = 0;
+    obstacles[i].animCounter = 0;
+    obstacles[i].animDir = 1;
   }
   for (int i = 0; i < 2; i++) {
     sharks[i].active = false;
@@ -906,6 +929,26 @@ inline void updateObstaclePhysics() {
     if (obstacles[i].active) {
       obstacles[i].x -= SCROLL_SPD;
       activeCount++;
+      
+      obstacles[i].animCounter++;
+      if (obstacles[i].animCounter > 3) {
+        int maxFrameIdx = 0;
+        obstacles[i].animCounter = 0;
+        obstacles[i].animFrame += obstacles[i].animDir;
+        
+        if (obstacles[i].type == 1) maxFrameIdx = 6; 
+        else if (obstacles[i].type == 2) maxFrameIdx = 9; 
+        else maxFrameIdx = 8; 
+        
+        if (obstacles[i].animFrame > maxFrameIdx) {
+            obstacles[i].animFrame = maxFrameIdx - 1;
+            obstacles[i].animDir = -1;
+        } else if (obstacles[i].animFrame < 0) {
+            obstacles[i].animFrame = 1;
+            obstacles[i].animDir = 1;
+        }
+      }
+
       if (obstacles[i].x < -150) {
         obstacles[i].active = false;
       }
@@ -924,6 +967,9 @@ inline void updateObstaclePhysics() {
           obstacles[i].x = SCREEN_W;
           obstacles[i].type = (rand() % 3) + 1;
           obstacles[i].y = (obstacles[i].type == 1) ? obsHighY : obsLowY;
+          obstacles[i].animFrame = 0;
+          obstacles[i].animCounter = 0;
+          obstacles[i].animDir = 1;
           distSinceLast_L1 = 0;
           nextSpawnGap_L1 = obsGapMin + rand() % (obsGapMax - obsGapMin + 1);
           break;
@@ -1199,11 +1245,11 @@ inline void drawObstacles() {
   for (int i = 0; i < 3; i++) {
     if (obstacles[i].active) {
       if (obstacles[i].type == 1)
-        iShowImage(obstacles[i].x, obstacles[i].y, 120, 120, obs1);
+        iShowImage(obstacles[i].x, obstacles[i].y, 120, 120, obs1Imgs[obstacles[i].animFrame]);
       else if (obstacles[i].type == 2)
-        iShowImage(obstacles[i].x, obstacles[i].y, 120, 80, obs2);
+        iShowImage(obstacles[i].x, obstacles[i].y, 120, 80, obs2Imgs[obstacles[i].animFrame]);
       else
-        iShowImage(obstacles[i].x, obstacles[i].y, 120, 120, obs3);
+        iShowImage(obstacles[i].x, obstacles[i].y, 120, 120, obs3Imgs[obstacles[i].animFrame]);
     }
   }
 } // Adding the brace for the end of drawObstacles()

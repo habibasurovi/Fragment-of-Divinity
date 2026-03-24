@@ -279,6 +279,9 @@ int highScores[4] = {0, 0, 0, 0};
 
 // ObstacleHandler.h variables
 int obs1, obs2, obs3;
+int obs1Imgs[7];
+int obs2Imgs[10];
+int obs3Imgs[9];
 int shark11, shark12, shark13;
 int shark21, shark22, shark23;
 int obsBrokenBridge;
@@ -332,8 +335,8 @@ float fallVel = 0;
 int hitBridgeIndex = -1;
 int obsGapMin = 400;
 int obsGapMax = 700;
-int obsHighY = 120;
-int obsLowY = 30;
+int obsHighY = 110;
+int obsLowY = 20;
 int level2SpawnDist = 0;
 int bombSpawnTimer = 0;
 int distSinceLast = 0;
@@ -1036,12 +1039,9 @@ void globalTimerLogic() {
   }
 
   if (gameState == GAME && !isGamePaused && !levelOneComplete) {
+    int transitionTime = 30; // 30 seconds for game timer
     gameRunTimeSeconds++;
 
-    int transitionTime = 30; // 30 seconds for game timer
-    if (currentLevel == 2 || currentLevel == 3) {
-      transitionTime = 120;
-    }
 
     if (currentLevel != 4 && gameRunTimeSeconds >= transitionTime &&
         !isCaveActive) {
@@ -2348,7 +2348,7 @@ void iSpecialKeyboardUp(unsigned char key) { specialKeyPressed[key] = 0; }
 void drawTimer() {
   if (gameState == GAME && !levelOneComplete && currentLevel != 4) {
     char timeStr[32];
-    int transitionTime = (currentLevel == 3) ? 120 : 30;
+    int transitionTime = 30;
     int remaining = transitionTime - gameRunTimeSeconds;
     if (remaining < 0)
       remaining = 0;

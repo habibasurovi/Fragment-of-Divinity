@@ -30,6 +30,7 @@ SELECTANY int bossSmashImgs[10];
 SELECTANY int bossPullImgs[6];
 SELECTANY int bossPullDanceImgs[4];
 SELECTANY int bossPushImgs[8];
+SELECTANY int bossPushActiveImgs[8];
 SELECTANY int bossHighImgs[9];
 SELECTANY int bossThunderImgs[4];
 SELECTANY int bossRestSkillImgs[7];
@@ -264,6 +265,11 @@ inline void loadBossAssets() {
     for (int i = 0; i < 8; i++) {
         sprintf_s(path, sizeof(path), "Boss\\push%d.png", i + 11);
         bossPushImgs[i] = iLoadImage((char *)path);
+    }
+
+    for (int i = 0; i < 8; i++) {
+        sprintf_s(path, sizeof(path), "Boss\\pushactive (%d).png", i + 2);
+        bossPushActiveImgs[i] = iLoadImage((char *)path);
     }
     
     for (int i = 0; i < 9; i++) {
@@ -811,11 +817,11 @@ inline void updateFinalBossLogic() {
                     
                     if (charX > boss4Obj.x) {
                         boss4Obj.pushDir = 1; 
-                        boss4Obj.pushTargetX = charX + 150.0f;
+                        boss4Obj.pushTargetX = charX + 30.0f;
                         boss4Obj.facingLeft = false;
                     } else {
                         boss4Obj.pushDir = -1; 
-                        boss4Obj.pushTargetX = charX - 150.0f;
+                        boss4Obj.pushTargetX = charX - 30.0f;
                         boss4Obj.facingLeft = true;
                     }
                 }
@@ -852,15 +858,28 @@ inline void updateFinalBossLogic() {
                     else { isInvincible = true; invincibilityTimer = 60; }
                 }
                 
-                boss4Obj.pushCount++;
-                if (boss4Obj.pushCount >= boss4Obj.pushTargetCount) {
-                    boss4Obj.pushSkillState = 4; // Return
-                } else {
-                    boss4Obj.pushSkillState = 1; // Repeat
-                    boss4Obj.pushSkillTimer = 0;
-                    boss4Obj.pushJumpCount = 0;
-                }
+                boss4Obj.pushSkillState = 5; // Transition to pushactive action
                 boss4Obj.pushSkillTimer = 0;
+                boss4Obj.pushFrameIndex = 0;
+            }
+        }
+        else if (boss4Obj.pushSkillState == 5) {
+            // State 5: Push Action
+            boss4Obj.pushSkillTimer++;
+            if (boss4Obj.pushSkillTimer % 4 == 0) {
+                boss4Obj.pushFrameIndex++;
+                if (boss4Obj.pushFrameIndex >= 8) {
+                    // Action complete
+                    boss4Obj.pushCount++;
+                    if (boss4Obj.pushCount >= boss4Obj.pushTargetCount) {
+                        boss4Obj.pushSkillState = 4; // Return
+                    } else {
+                        boss4Obj.pushSkillState = 1; // Repeat
+                        boss4Obj.pushSkillTimer = 0;
+                        boss4Obj.pushJumpCount = 0;
+                    }
+                    boss4Obj.pushSkillTimer = 0;
+                }
             }
         }
         else if (boss4Obj.pushSkillState == 4) {
@@ -944,6 +963,10 @@ inline void updateFinalBossLogic() {
         }
         else if (boss4Obj.enemySkillState == 4 || boss4Obj.enemySkillState == 5) {
             boss4Obj.enemySkillTimer++;
+            
+            // Animation continues even when waiting for enemies to die
+            if (boss4Obj.enemySkillTimer % 5 == 0) boss4Obj.enemyFrameIndex = (boss4Obj.enemyFrameIndex + 1) % 6;
+            
             if (boss4Obj.enemySkillState == 4) {
                 boss4Obj.enemySpawnTimer++;
                 if (boss4Obj.enemySpawnTimer > 40) {
@@ -960,7 +983,6 @@ inline void updateFinalBossLogic() {
                         }
                     }
                 }
-                if (boss4Obj.enemySkillTimer % 5 == 0) boss4Obj.enemyFrameIndex = (boss4Obj.enemyFrameIndex + 1) % 6;
                 if (boss4Obj.enemySkillTimer > 495) boss4Obj.enemySkillState = 5;
             }
             
@@ -1082,7 +1104,7 @@ inline void updateFinalBossLogic() {
 
         if (boss4Obj.fireSkillState == 1) {
             boss4Obj.fireSkillTimer++;
-            if (boss4Obj.fireSkillTimer >= 4) {
+            if (boss4Obj.fireSkillTimer >= 2) {
                 boss4Obj.fireSkillTimer = 0;
                 boss4Obj.fireFrameIndex++;
                 if (boss4Obj.fireFrameIndex >= 10) {
@@ -1362,6 +1384,10 @@ inline void drawBoss() {
                     iDrawBossImage((int)boss4Obj.x, (int)boss4Obj.y, BOSS_WIDTH, BOSS_HEIGHT, bossStandImgs[boss4Obj.frameIndex]);
                 } else if (boss4Obj.pushSkillState == 2 || boss4Obj.pushSkillState == 3) {
                     iDrawBossImage((int)boss4Obj.x, (int)boss4Obj.y, BOSS_WIDTH, BOSS_HEIGHT, bossPushImgs[boss4Obj.pushFrameIndex]);
+                } else if (boss4Obj.pushSkillState == 5) {
+                    int renderIdx = boss4Obj.pushFrameIndex;
+                    if (renderIdx > 7) renderIdx = 7;
+                    iDrawBossImage((int)boss4Obj.x, (int)boss4Obj.y, BOSS_WIDTH, BOSS_HEIGHT, bossPushActiveImgs[renderIdx]);
                 } else if (boss4Obj.pushSkillState == 4) {
                     iDrawBossImage((int)boss4Obj.x, (int)boss4Obj.y, BOSS_WIDTH, BOSS_HEIGHT, bossWalkImgs[boss4Obj.frameIndex]);
                 }
