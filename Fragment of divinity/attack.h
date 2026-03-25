@@ -81,7 +81,7 @@ inline void loadTeleportAttackAssets() {
                 fclose(f);
                 arynMeteroidImgs[i] = iLoadImage((char*)p);
                 if (arynMeteroidImgs[i] > 0) {
-                    printf("[Attack] Aryn Meteroid %d loaded via: %s -> ID %u\n", i + 1, p, (unsigned int)arynMeteroidImgs[i]);
+
                     arynLoaded = true;
                     break;
                 }
@@ -89,7 +89,7 @@ inline void loadTeleportAttackAssets() {
         }
         if (!arynLoaded) {
             arynMeteroidImgs[i] = 0;
-            printf("[Attack] FAILED all paths for Aryn Meteroid %d\n", i + 1);
+
         }
 
         // --- KAERO ---
