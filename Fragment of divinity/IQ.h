@@ -149,10 +149,10 @@ inline void updateIQLogic() {
   if (currentLevel == 3 && !iqAnswered) {
     miniGameTargetX += miniGameTargetSpeedX;
     miniGameTargetY += miniGameTargetSpeedY;
-    if (miniGameTargetX <= 0 || miniGameTargetX >= 900) {
+    if (miniGameTargetX <= 0 || miniGameTargetX >= 850) {
       miniGameTargetSpeedX *= -1;
     }
-    if (miniGameTargetY <= 150 || miniGameTargetY >= 500) {
+    if (miniGameTargetY <= 150 || miniGameTargetY >= 450) {
       miniGameTargetSpeedY *= -1;
     }
   }
@@ -189,7 +189,7 @@ inline void drawIQ() {
         iText(wizBoxX + 60, wizBoxY + 85, (char *)"Click it 3 times.", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
         
         iSetColor(255, 255, 255);
-        iShowImage(miniGameTargetX, miniGameTargetY, 80, 80, shardImg);
+        iShowImage(miniGameTargetX, miniGameTargetY, 150, 150, shardImg);
       } else {
         iSetColor(0, 0, 0);
         if (postAnswerIndex == 1) {
@@ -291,7 +291,7 @@ inline void drawIQ() {
 inline void handleIQClick(int mx, int my) {
   if (currentLevel == 3) {
     if (!isWizardMoving && !isCharacterEntering && !iqAnswered && !isWizardTalking) {
-      if (mx >= miniGameTargetX && mx <= miniGameTargetX + 80 && my >= miniGameTargetY && my <= miniGameTargetY + 80) {
+      if (mx >= miniGameTargetX && mx <= miniGameTargetX + 150 && my >= miniGameTargetY && my <= miniGameTargetY + 150) {
         miniGameClicks++;
         if (miniGameTargetSpeedX > 0) miniGameTargetSpeedX += 3;
         else miniGameTargetSpeedX -= 3;

@@ -15,6 +15,7 @@ extern int heartImg;
 extern int gameRunTimeSeconds; // Defined in iMain.cpp
 extern int charX, charY;       // From Character.h
 extern int charWidth, charHeight;
+extern int currentLevel;
 
 extern int heartItemImg;
 struct HeartItem {
@@ -42,6 +43,17 @@ extern int heart2SpawnTime;
 extern bool heart1Queued;
 extern bool heart2Queued;
 
+inline void spawnHeartLevel4() {
+  for (int i = 0; i < 2; i++) {
+    if (!heartItems[i].active) {
+      heartItems[i].active = true;
+      heartItems[i].x = 100 + rand() % 800; // falling from above
+      heartItems[i].y = 650;
+      break;
+    }
+  }
+}
+
 inline void updateHeartLogic() {
   // Initialize spawn times once
   if (heart1SpawnTime == 0) {
@@ -49,53 +61,57 @@ inline void updateHeartLogic() {
     heart2SpawnTime = 50 + rand() % 16; // 50-65s
   }
 
-  // Spawn Heart 1
-  if (gameRunTimeSeconds >= heart1SpawnTime && !heart1Queued && heartsSpawnedCount < 1) {
-    for (int i = 0; i < 2; i++) {
-      if (!heartItems[i].active) {
-        heartItems[i].active = true;
-        heartItems[i].x = 1000;
-        heartItems[i].y = 50 + rand() % 131; // 50-180 (reachable)
-        heart1Queued = true;
-        heartsSpawnedCount++;
-        break;
+  // Spawn Heart 1 & 2 (Level 1,2,3 logic)
+  if (currentLevel != 4) {
+    if (gameRunTimeSeconds >= heart1SpawnTime && !heart1Queued && heartsSpawnedCount < 1) {
+      for (int i = 0; i < 2; i++) {
+        if (!heartItems[i].active) {
+          heartItems[i].active = true;
+          heartItems[i].x = 1000;
+          heartItems[i].y = 50 + rand() % 131; // 50-180 (reachable)
+          heart1Queued = true;
+          heartsSpawnedCount++;
+          break;
+        }
+      }
+    }
+    if (gameRunTimeSeconds >= heart2SpawnTime && !heart2Queued && heartsSpawnedCount < 2) {
+      for (int i = 0; i < 2; i++) {
+        if (!heartItems[i].active) {
+          heartItems[i].active = true;
+          heartItems[i].x = 1000;
+          heartItems[i].y = 50 + rand() % 131; // 50-180 (reachable)
+          heart2Queued = true;
+          heartsSpawnedCount++;
+          break;
+        }
       }
     }
   }
 
-  // Spawn Heart 2
-  if (gameRunTimeSeconds >= heart2SpawnTime && !heart2Queued && heartsSpawnedCount < 2) {
-    for (int i = 0; i < 2; i++) {
-      if (!heartItems[i].active) {
-        heartItems[i].active = true;
-        heartItems[i].x = 1000;
-        heartItems[i].y = 50 + rand() % 131; // 50-180 (reachable)
-        heart2Queued = true;
-        heartsSpawnedCount++;
-        break;
-      }
-    }
-  }
-
-  // Move hearts
+  // Move hearts (ALL levels)
   for (int i = 0; i < 2; i++) {
     if (heartItems[i].active) {
-      heartItems[i].x -= 5; // Move left
-      if (heartItems[i].x < -50) {
-        heartItems[i].active = false;
+      if (currentLevel == 4) {
+        heartItems[i].y -= 4; // Move down
+        if (heartItems[i].y < -50) {
+          heartItems[i].active = false;
+        }
+      } else {
+        heartItems[i].x -= 5; // Move left
+        if (heartItems[i].x < -50) {
+          heartItems[i].active = false;
+        }
       }
 
       // Collision Detection
-      // Using standard bounding box (assuming 40x40 heart)
-      // Character vars: charX, charY, charWidth, charHeight (externs needed)
       if (charX + charWidth > heartItems[i].x &&
           charX < heartItems[i].x + 40 &&
           charY + charHeight > heartItems[i].y &&
           charY < heartItems[i].y + 40) {
 
         heartItems[i].active = false;
-        if (lives < 5)
-          lives++;
+        lives++; 
       }
     }
   }
@@ -107,17 +123,15 @@ inline void drawLivesUI() {
   int heartSize = 40;
   int spacing = 5;
 
-  for (int i = 0; i < 5; i++) {
-    if (i < lives) {
-      if (heartImg > 0) {
-        iShowImage(startX + i * (heartSize + spacing), startY, heartSize,
-                   heartSize, heartImg);
-      } else {
-        // Fallback circle if image fails
-        iSetColor(255, 0, 0);
-        iFilledCircle(startX + i * (heartSize + spacing) + heartSize / 2.0,
-                      startY + heartSize / 2.0, heartSize / 2.0);
-      }
+  for (int i = 0; i < lives; i++) {
+    if (heartImg > 0) {
+      iShowImage(startX + i * (heartSize + spacing), startY, heartSize,
+                 heartSize, heartImg);
+    } else {
+      // Fallback circle if image fails
+      iSetColor(255, 0, 0);
+      iFilledCircle(startX + i * (heartSize + spacing) + heartSize / 2.0,
+                    startY + heartSize / 2.0, heartSize / 2.0);
     }
   }
 

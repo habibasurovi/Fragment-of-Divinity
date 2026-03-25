@@ -53,32 +53,32 @@ inline void loadGunAttackAssets() {
     // Load Aryn Gun (3 frames)
     for (int i = 0; i < 3; i++) {
         sprintf_s(filename, sizeof(filename), "aryn\\aryngun%d.png", i + 1);
-        arynGun[i] = iLoadImage(filename);
+        arynGun[i] = iLoadImage((char*)filename);
     }
     
     // Load Kaero Gun (3 frames)
     for (int i = 0; i < 3; i++) {
         sprintf_s(filename, sizeof(filename), "Character\\kaerogun%d.png", i + 1);
-        kaeroGun[i] = iLoadImage(filename);
+        kaeroGun[i] = iLoadImage((char*)filename);
     }
     
     // Load Leora Gun (3 frames)
     for (int i = 0; i < 3; i++) {
         sprintf_s(filename, sizeof(filename), "Leora\\leoragun%d(1).png", i + 1);
-        leoraGun[i] = iLoadImage(filename);
+        leoraGun[i] = iLoadImage((char*)filename);
     }
 
     // Load Fireballs (3 frames each)
     for (int i = 0; i < 3; i++) {
         sprintf_s(filename, sizeof(filename), "Character\\blue%d.png", i + 1);
-        blueFireball[i] = iLoadImage(filename);
+        blueFireball[i] = iLoadImage((char*)filename);
         sprintf_s(filename, sizeof(filename), "Character\\blueback%d.png", i + 1);
-        blueFireballBack[i] = iLoadImage(filename);
+        blueFireballBack[i] = iLoadImage((char*)filename);
         
         sprintf_s(filename, sizeof(filename), "aryn\\redfireball%d.png", i + 1);
-        redFireball[i] = iLoadImage(filename);
+        redFireball[i] = iLoadImage((char*)filename);
         sprintf_s(filename, sizeof(filename), "aryn\\redfireballback%d.png", i + 1);
-        redFireballBack[i] = iLoadImage(filename);
+        redFireballBack[i] = iLoadImage((char*)filename);
     }
 }
 

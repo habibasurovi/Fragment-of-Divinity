@@ -239,7 +239,6 @@ inline void loadObstacleAssets() {
     explosionImgs[i] = iLoadImage((char *)expPath);
   }
 
-  // Level 3 Assets
   worm11 = iLoadImage((char *)"level3\\worm11.png");
   worm12 = iLoadImage((char *)"level3\\worm12.png");
   worm13 = iLoadImage((char *)"level3\\worm13.png");
@@ -346,6 +345,40 @@ extern int obsLowY;
 // From iMain
 
 inline void updateObstaclePhysics() {
+  if (currentLevel == 4) return;
+
+  // ---- STANDARD OBSTACLE UPDATE (All Levels) ----
+  int activeCount = 0;
+  for (int i = 0; i < 3; i++) {
+    if (obstacles[i].active) {
+      obstacles[i].x -= SCROLL_SPD;
+      activeCount++;
+      
+      obstacles[i].animCounter++;
+      if (obstacles[i].animCounter > 3) {
+        int maxFrameIdx = 0;
+        obstacles[i].animCounter = 0;
+        obstacles[i].animFrame += obstacles[i].animDir;
+        
+        if (obstacles[i].type == 1) maxFrameIdx = 6; 
+        else if (obstacles[i].type == 2) maxFrameIdx = 9; 
+        else maxFrameIdx = 8; 
+        
+        if (obstacles[i].animFrame > maxFrameIdx) {
+            obstacles[i].animFrame = maxFrameIdx - 1;
+            obstacles[i].animDir = -1;
+        } else if (obstacles[i].animFrame < 0) {
+            obstacles[i].animFrame = 1;
+            obstacles[i].animDir = 1;
+        }
+      }
+
+      if (obstacles[i].x < -250) { // Increased bound for larger size
+        obstacles[i].active = false;
+      }
+    }
+  }
+
   if (currentLevel == 2) {
     // ---- SHARK LOGIC for Level 2 ----
     for (int i = 0; i < 2; i++) {
@@ -499,7 +532,7 @@ inline void updateObstaclePhysics() {
 
     if (level2SpawnDist > 800 &&
         !isCaveActive) { // Reduced distance for testing
-      int choice = rand() % 2;
+      int choice = rand() % 2; // Choice 0: Shark, 1: Bridge (Standard removed)
       if (choice == 0) {
         // Spawn Shark
         for (int i = 0; i < 2; i++) {
@@ -521,11 +554,10 @@ inline void updateObstaclePhysics() {
             sharks[i].jumpState = 0;
             sharks[i].velocityY = 0;
             sharks[i].isDying = false;
-            level2SpawnDist = 0;
             break;
           }
         }
-      } else {
+      } else if (choice == 1) {
         // Spawn Bridge
         for (int i = 0; i < 2; i++) {
           if (!bridges[i].active) {
@@ -921,45 +953,13 @@ inline void updateObstaclePhysics() {
     return;
   }
 
-  if (currentLevel == 4) return;
-
-  // ---- STANDARD OBSTACLE LOGIC (Level 1) ----
-  int activeCount = 0;
-  for (int i = 0; i < 3; i++) {
-    if (obstacles[i].active) {
-      obstacles[i].x -= SCROLL_SPD;
-      activeCount++;
-      
-      obstacles[i].animCounter++;
-      if (obstacles[i].animCounter > 3) {
-        int maxFrameIdx = 0;
-        obstacles[i].animCounter = 0;
-        obstacles[i].animFrame += obstacles[i].animDir;
-        
-        if (obstacles[i].type == 1) maxFrameIdx = 6; 
-        else if (obstacles[i].type == 2) maxFrameIdx = 9; 
-        else maxFrameIdx = 8; 
-        
-        if (obstacles[i].animFrame > maxFrameIdx) {
-            obstacles[i].animFrame = maxFrameIdx - 1;
-            obstacles[i].animDir = -1;
-        } else if (obstacles[i].animFrame < 0) {
-            obstacles[i].animFrame = 1;
-            obstacles[i].animDir = 1;
-        }
-      }
-
-      if (obstacles[i].x < -150) {
-        obstacles[i].active = false;
-      }
-    }
-  }
-  if (isCaveActive)
+  // Standard obstacle movement moved to top
+  if (isCaveActive || currentLevel != 1)
     return;
   static int distSinceLast_L1 = 0;
   static int nextSpawnGap_L1 = 300;
   distSinceLast_L1 += SCROLL_SPD;
-  if (activeCount < 3 && !isCaveActive) {
+  if (activeCount < 3) {
     if (distSinceLast_L1 > nextSpawnGap_L1) {
       for (int i = 0; i < 3; i++) {
         if (!obstacles[i].active) {
@@ -980,6 +980,20 @@ inline void updateObstaclePhysics() {
 }
 
 inline void drawObstacles() {
+  if (currentLevel == 4) return;
+
+  // Draw standard obstacles for all levels
+  for (int i = 0; i < 3; i++) {
+    if (obstacles[i].active) {
+      if (obstacles[i].type == 1)
+        iShowImage(obstacles[i].x, obstacles[i].y, 150, 150, obs1Imgs[obstacles[i].animFrame]); // Reduced size
+      else if (obstacles[i].type == 2)
+        iShowImage(obstacles[i].x, obstacles[i].y, 150, 100, obs2Imgs[obstacles[i].animFrame]); // Reduced size
+      else
+        iShowImage(obstacles[i].x, obstacles[i].y, 120, 120, obs3Imgs[obstacles[i].animFrame]);
+    }
+  }
+
   if (currentLevel == 2) {
     for (int i = 0; i < 2; i++) {
       if (sharks[i].active) {
@@ -1237,20 +1251,6 @@ inline void drawObstacles() {
     }
 
     return;
-  }
-
-  if (currentLevel == 4) return;
-
-  // Level 1 logic
-  for (int i = 0; i < 3; i++) {
-    if (obstacles[i].active) {
-      if (obstacles[i].type == 1)
-        iShowImage(obstacles[i].x, obstacles[i].y, 120, 120, obs1Imgs[obstacles[i].animFrame]);
-      else if (obstacles[i].type == 2)
-        iShowImage(obstacles[i].x, obstacles[i].y, 120, 80, obs2Imgs[obstacles[i].animFrame]);
-      else
-        iShowImage(obstacles[i].x, obstacles[i].y, 120, 120, obs3Imgs[obstacles[i].animFrame]);
-    }
   }
 } // Adding the brace for the end of drawObstacles()
 

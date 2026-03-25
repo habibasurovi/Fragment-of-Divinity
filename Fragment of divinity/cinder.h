@@ -22,10 +22,16 @@ extern GameState gameState;
 extern bool isShiftPressed; // From iMain.cpp
 extern bool npcSlashDone; // From iMain.cpp
 
-int cinderFlyImgs[CINDER_FLY_FRAMES];
-int cinderAttackImgs[CINDER_ATTACK_FRAMES];
-int cinderBackFlyImgs[CINDER_FLY_FRAMES];
-int cinderBackAttackImgs[CINDER_ATTACK_FRAMES];
+#ifdef _MSC_VER
+#define SELECTANY __declspec(selectany)
+#else
+#define SELECTANY __attribute__((weak))
+#endif
+
+SELECTANY int cinderFlyImgs[CINDER_FLY_FRAMES];
+SELECTANY int cinderAttackImgs[CINDER_ATTACK_FRAMES];
+SELECTANY int cinderBackFlyImgs[CINDER_FLY_FRAMES];
+SELECTANY int cinderBackAttackImgs[CINDER_ATTACK_FRAMES];
 
 struct CinderEnemy {
     float x, y;
@@ -46,31 +52,31 @@ struct CinderEnemy {
     int hitFlashTimer;
 };
 
-CinderEnemy cinderEnemy;
+SELECTANY CinderEnemy cinderEnemy;
 
-void loadCinderAssets() {
-    cinderFlyImgs[0] = iLoadImage("Cinder\\cinder1.png");
-    cinderFlyImgs[1] = iLoadImage("Cinder\\cinder2.png");
-    cinderFlyImgs[2] = iLoadImage("Cinder\\cinder3.png");
-    cinderFlyImgs[3] = iLoadImage("Cinder\\cinder4.png");
+inline void loadCinderAssets() {
+    cinderFlyImgs[0] = iLoadImage((char*)"Cinder\\cinder1.png");
+    cinderFlyImgs[1] = iLoadImage((char*)"Cinder\\cinder2.png");
+    cinderFlyImgs[2] = iLoadImage((char*)"Cinder\\cinder3.png");
+    cinderFlyImgs[3] = iLoadImage((char*)"Cinder\\cinder4.png");
     
-    cinderAttackImgs[0] = iLoadImage("Cinder\\cinderattack1.png");
-    cinderAttackImgs[1] = iLoadImage("Cinder\\cinderattack2.png");
-    cinderAttackImgs[2] = iLoadImage("Cinder\\cinderattack3.png");
-    cinderAttackImgs[3] = iLoadImage("Cinder\\cinderattack4.png");
+    cinderAttackImgs[0] = iLoadImage((char*)"Cinder\\cinderattack1.png");
+    cinderAttackImgs[1] = iLoadImage((char*)"Cinder\\cinderattack2.png");
+    cinderAttackImgs[2] = iLoadImage((char*)"Cinder\\cinderattack3.png");
+    cinderAttackImgs[3] = iLoadImage((char*)"Cinder\\cinderattack4.png");
 
-    cinderBackFlyImgs[0] = iLoadImage("Cinder\\cinderback1.png");
-    cinderBackFlyImgs[1] = iLoadImage("Cinder\\cinderback2.png");
-    cinderBackFlyImgs[2] = iLoadImage("Cinder\\cinderback3.png");
-    cinderBackFlyImgs[3] = iLoadImage("Cinder\\cinderback4.png");
+    cinderBackFlyImgs[0] = iLoadImage((char*)"Cinder\\cinderback1.png");
+    cinderBackFlyImgs[1] = iLoadImage((char*)"Cinder\\cinderback2.png");
+    cinderBackFlyImgs[2] = iLoadImage((char*)"Cinder\\cinderback3.png");
+    cinderBackFlyImgs[3] = iLoadImage((char*)"Cinder\\cinderback4.png");
     
-    cinderBackAttackImgs[0] = iLoadImage("Cinder\\cinderbackattack1.png");
-    cinderBackAttackImgs[1] = iLoadImage("Cinder\\cinderbackattack2.png");
-    cinderBackAttackImgs[2] = iLoadImage("Cinder\\cinderbackattack3.png");
-    cinderBackAttackImgs[3] = iLoadImage("Cinder\\cinderbackattack4.png");
+    cinderBackAttackImgs[0] = iLoadImage((char*)"Cinder\\cinderbackattack1.png");
+    cinderBackAttackImgs[1] = iLoadImage((char*)"Cinder\\cinderbackattack2.png");
+    cinderBackAttackImgs[2] = iLoadImage((char*)"Cinder\\cinderbackattack3.png");
+    cinderBackAttackImgs[3] = iLoadImage((char*)"Cinder\\cinderbackattack4.png");
 }
 
-void initCinder() {
+inline void initCinder() {
     cinderEnemy.active = false;
     cinderEnemy.isVanishing = false;
     cinderEnemy.state = 0;
@@ -87,7 +93,7 @@ void initCinder() {
     cinderEnemy.hitFlashTimer = 0;
 }
 
-void updateCinderPhysics() {
+inline void updateCinderPhysics() {
     if (!cinderEnemy.active && !cinderEnemy.isVanishing) {
         cinderEnemy.spawnTimer--;
         if (cinderEnemy.spawnTimer <= 0) {
@@ -117,11 +123,11 @@ void updateCinderPhysics() {
         if (cinderEnemy.hitFlashTimer <= 0) cinderEnemy.isHitFlash = false;
     }
     
-    float targetX = charX + charWidth / 2.0f;
-    float targetY = charY + charHeight / 2.0f;
+    float targetX = (float)charX + (float)charWidth / 2.0f;
+    float targetY = (float)charY + (float)charHeight / 2.0f;
     float dx = targetX - (cinderEnemy.x + 100.0f); // Half of 200x200
     float dy = targetY - (cinderEnemy.y + 100.0f);
-    float dist = sqrt(dx * dx + dy * dy);
+    float dist = (float)sqrt((double)(dx * dx + dy * dy));
     
     // Determine facing based on character X (if dx > 0, cinder needs to look right)
     cinderEnemy.facingRight = (dx > 0);
@@ -132,11 +138,11 @@ void updateCinderPhysics() {
         float speed = 6.0f;
         if (cinderEnemy.cooldownTimer > 0) {
             // Flies normally up high
-            float targetAltitude = charY + 300.0f;
+            float targetAltitude = (float)charY + 300.0f;
             float dyUp = targetAltitude - (cinderEnemy.y + 100.0f); // Use half of 200 size
             
             // Still follows character X but targets a high Y coordinate
-            if (dist > 0) {
+            if (dist > 0.1f) {
                 cinderEnemy.x += (dx / dist) * speed; 
                 float moveY = speed * 0.8f;
                 if (fabs(dyUp) <= moveY) cinderEnemy.y += dyUp;
@@ -144,7 +150,7 @@ void updateCinderPhysics() {
             }
         } else {
             // Normal chase
-            if (dist > 0) {
+            if (dist > 0.1f) {
                 cinderEnemy.x += (dx / dist) * speed;
                 cinderEnemy.y += (dy / dist) * speed;
             }
@@ -159,7 +165,7 @@ void updateCinderPhysics() {
     } else if (cinderEnemy.state == 1) {
         // Track slowly while attacking
         float speed = 3.0f; // Track slightly faster during attack
-        if (dist > 0) {
+        if (dist > 0.1f) {
             float actualSpeed = speed;
             if (dist < speed) actualSpeed = dist; // Prevent shaking
             cinderEnemy.x += (dx / dist) * actualSpeed;
@@ -206,19 +212,19 @@ void updateCinderPhysics() {
     }
 }
 
-void checkCinderHit() {
+inline void checkCinderHit() {
     if (!cinderEnemy.active || cinderEnemy.isVanishing) return;
     
     // When character hits cinder using the attack slash
     if (isAttacking && attackFrameIndex == 3 && !npcSlashDone) { 
-        float playerReachRight = charX + charWidth + 100;
-        float playerReachLeft = charX - 20;
+        float playerReachRight = (float)charX + (float)charWidth + 100.0f;
+        float playerReachLeft = (float)charX - 20.0f;
         float targetX = cinderEnemy.x + 100.0f; // Half of 200x200 
         float targetY = cinderEnemy.y + 100.0f;
         
         // Exact bounding box to easily hit Cinder
         if (targetX > playerReachLeft && targetX < playerReachRight && 
-            targetY > charY - 50 && targetY < charY + charHeight + 150) {
+            targetY > (float)charY - 50.0f && targetY < (float)charY + (float)charHeight + 150.0f) {
             
             cinderEnemy.hitCount++;
             if (cinderEnemy.hitCount >= 2) {
@@ -237,7 +243,7 @@ void checkCinderHit() {
     }
 }
 
-void drawCinder() {
+inline void drawCinder() {
     if (!cinderEnemy.active) return;
     
     // Blinking effect when dying
@@ -251,15 +257,15 @@ void drawCinder() {
     // Draw logic
     if (cinderEnemy.state == 1) {
         if (cinderEnemy.facingRight) {
-            iShowImage(cinderEnemy.x, cinderEnemy.y, 200, 200, cinderAttackImgs[cinderEnemy.attackFrameIndex]);
+            iShowImage((int)cinderEnemy.x, (int)cinderEnemy.y, 200, 200, cinderAttackImgs[cinderEnemy.attackFrameIndex]);
         } else {
-            iShowImage(cinderEnemy.x, cinderEnemy.y, 200, 200, cinderBackAttackImgs[cinderEnemy.attackFrameIndex]);
+            iShowImage((int)cinderEnemy.x, (int)cinderEnemy.y, 200, 200, cinderBackAttackImgs[cinderEnemy.attackFrameIndex]);
         }
     } else {
         if (cinderEnemy.facingRight) {
-            iShowImage(cinderEnemy.x, cinderEnemy.y, 200, 200, cinderFlyImgs[cinderEnemy.flyFrameIndex]);
+            iShowImage((int)cinderEnemy.x, (int)cinderEnemy.y, 200, 200, cinderFlyImgs[cinderEnemy.flyFrameIndex]);
         } else {
-            iShowImage(cinderEnemy.x, cinderEnemy.y, 200, 200, cinderBackFlyImgs[cinderEnemy.flyFrameIndex]);
+            iShowImage((int)cinderEnemy.x, (int)cinderEnemy.y, 200, 200, cinderBackFlyImgs[cinderEnemy.flyFrameIndex]);
         }
     }
 }

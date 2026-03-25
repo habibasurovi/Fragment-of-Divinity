@@ -9,13 +9,39 @@
 unsigned int keyPressed[512];
 unsigned int specialKeyPressed[512];
 
-#include "Boss.h"
+#include "GameState.h"
+
+// ---- Global Game Variables ----
+int currentLevel = 1;
+GameState gameState = INTRO;
+int previousState = MENU; // Changed to int to match header
+bool isGamePaused = false;
+int lives = 5;
+int charX = 100, charY = 30;
+int charWidth = 125, charHeight = 125;
+int applesCollected = 0;
+int gameRunTimeSeconds = 0;
+int storyTimerCount = 0;
+int level4HeartTimer = 0; // Timer for Level 4 heart drops (every 60s)
+// bossLifeFrameImg is defined in Boss.h with SELECTANY - DO NOT REDEFINE HERE
+// -------------------------------
+
+// ---- Button Animation Variables ----
+bool btnAnimActive = false;
+int btnAnimTimer = 0;
+int btnAnimCode = -1;
+int btnAnimContext = -1;
+int pendingAction = -1;
+GameState pendingState = MENU;
+// ------------------------------------
+
+
+
 #include "AppleHandler.h"
 #include "BackgroundHandler.h"
 #include "Character.h"
 #include "CharacterCustomization.h"
 #include "CustomizationMenu.h"
-#include "GameState.h"
 #include "GunBarHandler.h"
 #include "HighScoreHandler.h"
 #include "IQ.h"
@@ -23,6 +49,7 @@ unsigned int specialKeyPressed[512];
 #include "LifeHandler.h"
 #include "MainMenu.h"
 #include "ObstacleHandler.h"
+#include "Boss.h" // Move Boss.h here so it can see Worms and other sprites
 #include "PauseMenu.h"
 #include "SettingsMenu.h"
 #include "ShardHandler.h"
@@ -39,6 +66,10 @@ unsigned int specialKeyPressed[512];
 
 #pragma comment(lib, "winmm.lib")
 
+
+// --- Redundant re-declarations removed below... ---
+
+
 /* -------------------- CONSTANTS -------------------- */
 #define screenWidth 1000
 #define screenHeight 600
@@ -52,7 +83,7 @@ void drawTimer();
 
 /* -------------------- GLOBAL VARIABLES -------------------- */
 // Game States (Moved to GameState.h)
-GameState gameState = INTRO; // Reset to INTRO for production
+
 
 int iScreenHeight, iScreenWidth;
 int iMouseX, iMouseY;
@@ -86,7 +117,7 @@ int cave2StoryImages[3];
 int cave2StoryIndex = 0;
 int gunImg;
 int gunExplainImg;
-int storyTimerCount = 0;
+
 
 // Level 1 Riddles (6 Questions - Defined here to avoid ODR redefinition)
 Riddle riddlesLevel1[6] = {
@@ -138,12 +169,11 @@ struct Ghost ghosts[MAX_GHOSTS];
 int ghostSpawnTimer = 0;
 
 // Game Timer (Task 1 & 3)
-int gameRunTimeSeconds = 0;
+
 
 // Cave (Task 3)
 int caveImg;
 int caveX = -1000;
-bool isCaveActive = false;
 bool levelOneComplete = false;
 
 // Level Complete & IQ Screen (Task Updated)
@@ -188,18 +218,6 @@ int transitionPhase = 0;
 int caveImgL2, caveSceneBgL2, wizardL2Img;
 int caveImgL3, wizardL3Img;
 
-// BackgroundHandler.h variables
-int bG1, bG2, bG3, bG4;
-int sbG1, sbG2, sbG3, sbG4;
-int wbG1, wbG2, wbG3, wbG4;
-
-// Level 2 background assets
-int s2bG1, s2bG2, s2bG3, s2bG4;
-int w2bG1, w2bG2, w2bG3, w2bG4;
-int r2bG1, r2bG2, r2bG3, r2bG4;
-int currentLevel = 1; // Start with level 1
-int bGX = 0;
-
 // Level 3 background assets
 int l3bG1, l3bG2, l3bG2_1, l3bG2_2;
 bool isL3Changed = false;
@@ -225,14 +243,8 @@ int postAnswerIndex = 0; // 0: None, 1: First Line, 2: Second Line
 IQButton iqOptions[3] = {
     {150, 480, 250, 60, ""}, {150, 410, 250, 60, ""}, {150, 340, 250, 60, ""}};
 
-// Character.h variables
-int charX = 100;
-int charY = 30;
-int charWidth = 125;
-int charHeight = 125;
 int charFrameIndex = 1; // Start at frame 2 (Index 1)
 bool isCharMoving = false;
-int lives = 5;
 bool isInvincible = false;
 int invincibilityTimer = 0;
 int charAnimSpeed = 4;
@@ -270,7 +282,7 @@ int redFireballBack[3];
 
 // AppleHandler.h variables
 Apple apples[20];
-int applesCollected = 0;
+// int applesCollected = 0;
 int appleImg;
 int appleSpawnTimer = 0;
 
@@ -282,12 +294,36 @@ int obs1, obs2, obs3;
 int obs1Imgs[7];
 int obs2Imgs[10];
 int obs3Imgs[9];
+
 int shark11, shark12, shark13;
 int shark21, shark22, shark23;
 int obsBrokenBridge;
+
 int obs221, obs222, obs223;
 int imgBroken;
-int imgRLL, imgGLL, imgRBL, imgGBL;
+int imgRLL, imgGLL;
+int imgRBL, imgGBL;
+
+int hitBridgeIndex = -1;
+
+bool isCaveActive = false;
+
+// BackgroundHandler.h variables
+int bG1, bG2, bG3, bG4;
+int sbG1, sbG2, sbG3, sbG4;
+int wbG1, wbG2, wbG3, wbG4;
+int s2bG1, s2bG2, s2bG3, s2bG4;
+int w2bG1, w2bG2, w2bG3, w2bG4;
+int r2bG1, r2bG2, r2bG3, r2bG4;
+int bGX = 0;
+
+// PauseMenu.h variables
+int pauseBtnImage;
+int pauseFrameImage;
+int btnContinue, btnRestart, btnSettingsPause, btnExitPause;
+PauseButton bPause, bContinue, bRestart, bSettingsP, bExitP;
+int frameX, frameY, frameW, frameH;
+
 int obstacleSpawnTimer = 0;
 
 // Level 3 Assets
@@ -332,7 +368,6 @@ int freezeTimer = 0;
 bool isFallingSequence = false;
 float fallY = 0;
 float fallVel = 0;
-int hitBridgeIndex = -1;
 int obsGapMin = 400;
 int obsGapMax = 700;
 int obsHighY = 110;
@@ -358,25 +393,8 @@ int btnStart, btnSettings, btnCustomization, btnExit, btnHighscore;
 Button bStart, bSettings, bCustomization, bExit, bHighscore;
 
 // Button Click Animation globals
-bool btnAnimActive = false;
-int btnAnimTimer = 0;          // counts down in seconds (1-second delay)
-int btnAnimCode = -1;          // which button is animating
-int btnAnimContext = -1;       // 0=MainMenu, 1=Custom, 2=Story
-int pendingAction = -1;        // action to execute when timer fires
-GameState pendingState = MENU; // state to switch to on action 0 (direct)
-
-// PauseMenu.h variables
-bool isGamePaused = false;
-int pauseBtnImage;
-int pauseFrameImage;
-int btnContinue, btnRestart, btnSettingsPause, btnExitPause;
-PauseButton bPause, bContinue, bRestart, bSettingsP, bExitP;
-int frameX, frameY, frameW, frameH;
-
-// SettingsMenu.h variables
 bool isMusicOn = true;
 bool isSoundOn = true;
-int previousState = -1;
 int settingsBG, settingsFrame, crossImage;
 int btnMusic, btnSound, btnExitSettings;
 int sFrameW = 600;
@@ -734,7 +752,7 @@ void updateCavePhysics() {
     }
 
     // Character stops before passing the cave, moves to middle instead.
-    if (charX < caveMid) {
+    if (charX + charWidth / 2 < caveMid) {
       charX += 5;
 
       // Basic animation while moving automatically
@@ -1038,6 +1056,14 @@ void globalTimerLogic() {
     }
   }
 
+  if (currentLevel == 4 && gameState == GAME && !isGamePaused) {
+    level4HeartTimer++;
+    // Spawn heart every 60 seconds
+    if (level4HeartTimer >= 60) {
+      level4HeartTimer = 0;
+      spawnHeartLevel4();
+    }
+  }
   if (gameState == GAME && !isGamePaused && !levelOneComplete) {
     int transitionTime = 30; // 30 seconds for game timer
     gameRunTimeSeconds++;
@@ -1069,11 +1095,19 @@ void globalTimerLogic() {
       for (int i = 0; i < MAX_GHOSTS; i++) {
         ghosts[i].active = false;
       }
+      for (int i = 0; i < MAX_NPCS; i++) {
+        npcList[i].active = false;
+      }
+      for (int i = 0; i < 3; i++) {
+        skulls[i].active = false;
+      }
     }
   }
 }
 
 void checkCollision() {
+  int obsHitW = 0, obsHitH = 0; // Declarations at top for VS2013 compatibility
+
   if (gameState != GAME || isGamePaused)
     return;
   if (levelOneComplete && currentLevel == 1)
@@ -1122,6 +1156,7 @@ void checkCollision() {
           float dx = targetX - (dragons[i].x + 150.0f);
           float dy = targetY - (dragons[i].y + 150.0f);
           float dist = (float)sqrt((double)(dx * dx + dy * dy));
+
 
           if (dist < 150.0f) {
             if (keyPressed[' ']) { // Space allows killing
@@ -1319,10 +1354,9 @@ void checkCollision() {
         }
       }
     }
-    return;
   }
 
-  // Level 1 logic
+  // Standard Obstacle Collision (Levels 1, 2, 3)
   if (currentLevel == 4) {
     handleBossHit();
     // Fix: Reset slash state for Level 4 Boss to allow subsequent attacks
@@ -1332,8 +1366,17 @@ void checkCollision() {
   }
   for (int i = 0; i < 3; i++) {
     if (obstacles[i].active) {
-      int obsHitW = 100;
-      int obsHitH = (obstacles[i].type == 2) ? 70 : 100;
+      if (obstacles[i].type == 1) {
+        obsHitW = 150; // Visual width
+        obsHitH = 150; // Visual height
+      } else if (obstacles[i].type == 2) {
+        obsHitW = 150; // Visual width
+        obsHitH = 100; // Visual height
+      } else {
+        obsHitW = 120; // Visual width
+        obsHitH = 120; // Visual height
+      }
+
       if (charX + charWidth - 85 > obstacles[i].x + 20 &&
           charX + 85 < obstacles[i].x + obsHitW &&
           charY + charHeight - 50 > obstacles[i].y &&
@@ -1418,8 +1461,7 @@ void updateWeatherWrapper() {
 }
 
 void updateHeartWrapper() {
-  if (!isGamePaused && gameState == GAME && currentLevel != 4 &&
-      (currentLevel == 2 || currentLevel == 3 || !levelOneComplete)) {
+  if (!isGamePaused && gameState == GAME) {
     updateHeartLogic();
   }
 }
@@ -2355,7 +2397,7 @@ void drawTimer() {
     sprintf_s(timeStr, sizeof(timeStr), "Time: %02d:%02d", remaining / 60,
               remaining % 60);
     iSetColor(255, 255, 255);
-    iText(screenWidth / 2.0 - 50.0, screenHeight - 60.0, (char *)timeStr,
+    iText((int)(iScreenWidth / 2.0 - 50.0), (int)(iScreenHeight - 60), (char *)timeStr,
           (void *)GLUT_BITMAP_TIMES_ROMAN_24);
   }
 }
