@@ -1177,27 +1177,12 @@ inline void updateFinalBossLogic() {
 
                 if (boss4Obj.topObstacles[i].active && boss4Obj.topObstacles[i].x + 40 > charX && boss4Obj.topObstacles[i].x < charX + 80 &&
                     boss4Obj.topObstacles[i].y + 40 > charY && boss4Obj.topObstacles[i].y < charY + 120) {
-                    if (!isInvincible) {
+                    if (!isInvincible && charAttackDamagelessTimer <= 0) {
                         lives--;
                         if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                         else { isInvincible = true; invincibilityTimer = 60; }
                         boss4Obj.topObstacles[i].active = false;
                     }
-<<<<<<< HEAD
-=======
-                    if (boss4Obj.topObstacles[i].y < -100) boss4Obj.topObstacles[i].active = false;
-                    
-                    if (boss4Obj.topObstacles[i].active && boss4Obj.topObstacles[i].x + 40 > charX && boss4Obj.topObstacles[i].x < charX + 80 &&
-                        boss4Obj.topObstacles[i].y + 40 > charY && boss4Obj.topObstacles[i].y < charY + 120) {
-                        if (!isInvincible && charAttackDamagelessTimer <= 0) {
-                            lives--;
-                            if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
-                            else { isInvincible = true; invincibilityTimer = 60; }
-                            boss4Obj.topObstacles[i].active = false;
-                        }
-                    }
-                    if (boss4Obj.topObstacles[i].active) anyActive = true;
->>>>>>> 72bf33bd24d23f6694954eeb81b34a979cef3867
                 }
             }
         }
