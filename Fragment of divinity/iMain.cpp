@@ -389,6 +389,7 @@ int l3CompanionImg;       // Companion splash image (Wizard\l3companion.png)
 int owlImg;               // Owl power-up icon (level4\owl\owl power up.png)
 int owlBulletImg;         // Owl bullet image (level4\owl\bullet.png)
 int owlFrames[9];         // Owl animation frames
+int owlStandingFrames[4]; // Owl standing frames
 bool owlReady = true;     // Whether owl is available to use
 int owlCooldownTimer = 0; // Seconds remaining (10 -> 0)
 
@@ -2554,6 +2555,10 @@ int main() {
   for (int i = 0; i < 9; i++) {
     sprintf_s(owlFramePath, sizeof(owlFramePath), "level4\\owl\\frame_%03d.png", i);
     owlFrames[i] = iLoadImage(owlFramePath);
+  }
+  for (int i = 0; i < 4; i++) {
+    sprintf_s(owlFramePath, sizeof(owlFramePath), "level4\\owl\\standing\\frame_%03d.png", i);
+    owlStandingFrames[i] = iLoadImage(owlFramePath);
   }
   loadCharacter2Assets();
   loadDragonAssets();
