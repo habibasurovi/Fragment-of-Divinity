@@ -373,8 +373,8 @@ inline void initFinalBoss() {
     boss4Obj.active = false;
     boss4Obj.x = 600.0f; // Positioned on the right side
     boss4Obj.y = 83.0f;  // Anchored to Level 4 ground
-    boss4Obj.life = 100;
-    boss4Obj.maxLife = 100;
+    boss4Obj.life = 170;
+    boss4Obj.maxLife = 170;
     boss4Obj.facingLeft = true; 
     boss4Obj.largeFlameScale = 0.0f;
     boss4Obj.largeFlamePhase = 0;
@@ -1392,12 +1392,12 @@ inline void updateFinalBossLogic() {
                     }
                 }
 
-                // NPC contact damage to player
+                // NPC contact damage to player (Restored with stun guard)
                 if (!isInvincible && !isFallingSequence && boss4Obj.restNpcs[i].active && boss4Obj.restNpcs[i].stunTimer <= 0) {
                     if (charX + charWidth - 40 > boss4Obj.restNpcs[i].x + 20 &&
                         charX + 40 < boss4Obj.restNpcs[i].x + 130 &&
                         charY + charHeight > boss4Obj.restNpcs[i].y &&
-                        charY < boss4Obj.restNpcs[i].y + 150) {
+                        charY < boss4Obj.restNpcs[i].y + 120) {
                         lives--;
                         if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                         else { isInvincible = true; invincibilityTimer = 60; }
@@ -1466,11 +1466,11 @@ inline void updateFinalBossLogic() {
                         boss4Obj.restBigNpc.animFrame++;
                     }
                     if (!boss4Obj.restBigNpc.hasAttacked && boss4Obj.restBigNpc.animFrame >= 5 && boss4Obj.restBigNpc.stunTimer <= 0) {
-                        // Deal damage
-                        if (charX + charWidth > boss4Obj.restBigNpc.x - 50 &&
-                            charX < boss4Obj.restBigNpc.x + 200 &&
+                        // Deal damage - Adjusted hitbox for 115x115 size
+                        if (charX + charWidth > boss4Obj.restBigNpc.x - 30 &&
+                            charX < boss4Obj.restBigNpc.x + 130 &&
                             charY + charHeight > boss4Obj.restBigNpc.y &&
-                            charY < boss4Obj.restBigNpc.y + 200) {
+                            charY < boss4Obj.restBigNpc.y + 115) {
                             if (!isInvincible && !isFallingSequence) {
                                 lives--;
                                 if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
@@ -1495,7 +1495,7 @@ inline void updateFinalBossLogic() {
                     else { reachMin = (float)(charX + charWidth + 10); reachMax = (float)(charX + charWidth + 160); }
 
                     if (bigCenterX > reachMin && bigCenterX < reachMax &&
-                        charY < boss4Obj.restBigNpc.y + 200 && charY + charHeight > boss4Obj.restBigNpc.y) {
+                        charY < boss4Obj.restBigNpc.y + 115 && charY + charHeight > boss4Obj.restBigNpc.y) {
                         boss4Obj.restBigNpc.life--;
                         boss4Obj.restBigNpc.stunTimer = 30; // 1-second stun
                         npcSlashDone = true;
@@ -1507,17 +1507,18 @@ inline void updateFinalBossLogic() {
                     }
                 }
 
-                // Big NPC contact damage
+                // Big NPC contact damage (Restored with stun guard)
                 if (!isInvincible && !isFallingSequence && boss4Obj.restBigNpc.active && boss4Obj.restBigNpc.stunTimer <= 0) {
                     if (charX + charWidth - 40 > boss4Obj.restBigNpc.x + 20 &&
-                        charX + 40 < boss4Obj.restBigNpc.x + 180 &&
+                        charX + 40 < boss4Obj.restBigNpc.x + 100 &&
                         charY + charHeight > boss4Obj.restBigNpc.y &&
-                        charY < boss4Obj.restBigNpc.y + 200) {
+                        charY < boss4Obj.restBigNpc.y + 115) {
                         lives--;
                         if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                         else { isInvincible = true; invincibilityTimer = 60; }
                     }
                 }
+                // Big NPC update loop ends
             }
 
             // 660 timer ticks = 20 seconds at 33fps
@@ -1816,7 +1817,7 @@ inline void drawBoss() {
                          } else {
                              bImg = bigNpcWalkImgs[boss4Obj.restBigNpc.animFrame % 9];
                          }
-                         iShowImage((int)boss4Obj.restBigNpc.x, (int)boss4Obj.restBigNpc.y, 200, 200, bImg);
+                         iShowImage((int)boss4Obj.restBigNpc.x, (int)boss4Obj.restBigNpc.y, 115, 115, bImg);
                      }
                  }
              }

@@ -32,7 +32,7 @@ struct OwlBullet {
 };
 
 // ---- Owl State ----
-#define OWL_MAX_BULLETS 10
+#define OWL_MAX_BULLETS 15
 #define OWL_WIDTH 120 // Enlarged from 93
 #define OWL_HEIGHT 80  // Enlarged from 62
 #define OWL_STATION_X 250.0f
@@ -48,6 +48,10 @@ struct OwlCompanion {
   int frameIndex;
   int animCounter;
   OwlBullet bullets[OWL_MAX_BULLETS];
+
+  int bulletsRemaining; // Limit to 12
+  bool dying;           // Flag for vanishing/dying
+  int deathTimer;       // Timer for blinking before deactivation
 
   // Per-NPC owlet hit counters (parallel to boss4Obj.restNpcs / restBigNpc)
   int npcOwlHits[3];
@@ -73,6 +77,9 @@ inline void initOwl() {
   owlCompanion.bulletTimer = 30; // fire first bullet 1 sec after stationing
   owlCompanion.frameIndex = 0;
   owlCompanion.animCounter = 0;
+  owlCompanion.bulletsRemaining = 12;
+  owlCompanion.dying = false;
+  owlCompanion.deathTimer = 0;
   for (int i = 0; i < OWL_MAX_BULLETS; i++)
     owlCompanion.bullets[i].active = false;
   for (int i = 0; i < 3; i++)
@@ -86,11 +93,13 @@ inline void initOwl() {
 
 // ---- Spawn a bullet ----
 inline void owlFireBullet() {
+  if (owlCompanion.bulletsRemaining <= 0) return;
   for (int i = 0; i < OWL_MAX_BULLETS; i++) {
     if (!owlCompanion.bullets[i].active) {
       owlCompanion.bullets[i].active = true;
       owlCompanion.bullets[i].x = owlCompanion.x + 55.0f; // Approx gunpoint
       owlCompanion.bullets[i].y = owlCompanion.y + 18.0f; // Align to gun
+      owlCompanion.bulletsRemaining--;
       break;
     }
   }
@@ -111,12 +120,14 @@ inline bool owlBodyAABB(float tx, float ty, float tw, float th) {
 
 // ---- Hit owl (reduces life) ----
 inline void owlTakeHit() {
-  if (owlCompanion.hitFlashTimer > 0)
-    return; // invincibility frames
+  if (owlCompanion.hitFlashTimer > 0 || owlCompanion.dying)
+    return; // invincibility frames or already dying
   owlCompanion.life--;
   owlCompanion.hitFlashTimer = 20;
   if (owlCompanion.life <= 0) {
-    owlCompanion.active = false;
+    owlCompanion.life = 0;
+    owlCompanion.dying = true;
+    owlCompanion.deathTimer = 40; // Blink for ~1.2s before vanishing
   }
 }
 
@@ -124,6 +135,17 @@ inline void owlTakeHit() {
 inline void updateOwl() {
   if (!owlCompanion.active)
     return;
+
+  // --- Dying / Vanishing state ---
+  if (owlCompanion.dying) {
+    owlCompanion.deathTimer--;
+    if (owlCompanion.deathTimer <= 0) {
+      // Check if all bullets are gone before fully deactivating if you want, 
+      // but usually the companion just vanishes.
+      owlCompanion.active = false;
+    }
+    return; // Stop other logic while dying
+  }
 
   // --- Fly in & Animate ---
   if (!owlCompanion.stationed) {
@@ -140,12 +162,17 @@ inline void updateOwl() {
     }
   }
 
-  // --- Fire bullets every 30 ticks (~1 sec) while stationed ---
-  if (owlCompanion.stationed) {
+  // --- Fire bullets every 60 ticks (2 sec) while stationed ---
+  if (owlCompanion.stationed && owlCompanion.bulletsRemaining > 0) {
     owlCompanion.bulletTimer--;
     if (owlCompanion.bulletTimer <= 0) {
-      owlCompanion.bulletTimer = 60; // 2 seconds (was 30)
+      owlCompanion.bulletTimer = 60; // 2 seconds
       owlFireBullet();
+      if (owlCompanion.bulletsRemaining <= 0) {
+        // Just fired the last bullet, start vanishing
+        owlCompanion.dying = true;
+        owlCompanion.deathTimer = 40;
+      }
     }
   }
 
@@ -304,9 +331,10 @@ inline void drawOwl() {
   if (!owlCompanion.active)
     return;
 
-  // Flash red when hit
-  if (owlCompanion.hitFlashTimer > 0 &&
-      (owlCompanion.hitFlashTimer / 3) % 2 == 1) {
+  // Flash red when hit or rapid blink when dying
+  if (owlCompanion.dying) {
+    if ((owlCompanion.deathTimer / 3) % 2 == 1) return; // Skip drawing for blinking
+  } else if (owlCompanion.hitFlashTimer > 0 && (owlCompanion.hitFlashTimer / 3) % 2 == 1) {
     iSetColor(255, 80, 80);
   } else {
     iSetColor(255, 255, 255);
