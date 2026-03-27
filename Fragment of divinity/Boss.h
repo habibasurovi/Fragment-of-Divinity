@@ -1,11 +1,14 @@
 #ifndef BOSS_HEADER_H
 #define BOSS_HEADER_H
 
-#include "iGraphics.h"
+#define _CRT_SECURE_NO_WARNINGS
+#include <windows.h>
+#include <mmsystem.h>
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
+#include "iGraphics.h"
 #include "GameState.h"
 #include "ObstacleHandler.h"
 

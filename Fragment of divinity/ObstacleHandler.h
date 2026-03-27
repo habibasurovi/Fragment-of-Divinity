@@ -1,6 +1,9 @@
-#ifndef OBSTACLEHANDLER_H
-#define OBSTACLEHANDLER_H
+#ifndef OBSTACLE_HANDLER_H
+#define OBSTACLE_HANDLER_H
 
+#define _CRT_SECURE_NO_WARNINGS
+#include <windows.h>
+#include <mmsystem.h>
 #include "iGraphics.h"
 #include <math.h>
 #include <stdio.h>
