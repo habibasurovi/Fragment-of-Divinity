@@ -33,6 +33,9 @@ int btnAnimCode = -1;
 int btnAnimContext = -1;
 int pendingAction = -1;
 GameState pendingState = MENU;
+// ---- Screen Shake Variables ----
+float globalScreenShakeX = 0.0f;
+float globalScreenShakeY = 0.0f;
 // ------------------------------------
 
 #include "AppleHandler.h"
@@ -1753,6 +1756,12 @@ void iDraw() {
   iClear();
   iSetColor(255, 255, 255); // Global color reset to prevent "orange box" ghosts
 
+  bool shaking = (globalScreenShakeX != 0.0f || globalScreenShakeY != 0.0f);
+  if (shaking) {
+      glPushMatrix();
+      glTranslatef(globalScreenShakeX, globalScreenShakeY, 0.0f);
+  }
+
   if (gameState == INTRO) {
     iShowImage(0, 0, screenWidth, screenHeight, introImage);
   } else if (gameState == MENU) {
@@ -2017,6 +2026,10 @@ void iDraw() {
     iText(screenWidth / 2.0 - 150.0, screenHeight / 2.0 - 50.0,
           (char *)"Press 'B' to Return to Selection",
           (void *)GLUT_BITMAP_HELVETICA_18);
+  }
+
+  if (shaking) {
+      glPopMatrix();
   }
 }
 

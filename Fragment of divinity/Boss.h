@@ -31,13 +31,17 @@ SELECTANY int fireballImgs[10];
 SELECTANY int bossPreJumpImgs[6];
 SELECTANY int bossJumpImgs[8];
 SELECTANY int bossSmashImgs[10];
-SELECTANY int bossPullImgs[6];
-SELECTANY int bossPullDanceImgs[4];
+SELECTANY int bossPullImgs[5];
+SELECTANY int bossPullDanceImgs[7];
 SELECTANY int bossPushImgs[8];
 SELECTANY int bossPushActiveImgs[8];
 SELECTANY int bossHighImgs[9];
 SELECTANY int bossThunderImgs[4];
 SELECTANY int bossRestSkillImgs[7];
+SELECTANY int bossShoutImgs[11];
+SELECTANY int bossHitgroundImgs[11];
+SELECTANY int bossHoleImgs[10];
+
 SELECTANY int bigNpcWalkImgs[9];
 SELECTANY int bigNpcAttackImgs[9];
 SELECTANY int bg41, bg42;
@@ -55,6 +59,15 @@ struct BossEnemyObj {
     int type; // 0 for worm1, 1 for worm2
     int frame;
     int frameTimer;
+};
+
+struct BossHole {
+    float x, y;
+    bool active;
+    int state; // 1=appearing, 2=staying, 3=disappearing
+    int frame;
+    int frameTimer;
+    int stateTimer; // For 3 sec stay
 };
 
 struct BossTopObstacle {
@@ -178,12 +191,21 @@ struct BossLevel4 {
     int restNpcSpawnTimer;
     bool restBigNpcSpawned;
 
+    // Hitground Skill State (Skill 7)
+    int hitgroundSkillState; // 0=Idle, 1=Shout, 2=Hit start, 3=Hit loop
+    int hitgroundSkillTimer;
+    int hitgroundFrameIndex;
+    int hitgroundLoopTimer;
+    int hitgroundHoleCount;
+    int hitgroundHoleTimer;
+    BossHole bossHoles[4];
+
     // Skill Scheduler
-    int currentSkill;       // -1: Choosing, 0-7: Active
-    bool skillUsed[8];      // Track which skills have been used in current cycle
+    int currentSkill;       // -1: Choosing, 0-8: Active
+    bool skillUsed[9];      // Track which skills have been used in current cycle
     int skillsCompleted;    // Count of skills finished in current cycle
     int skillGapTimer;      // Delay between skills
-    int skillSequence[8];   // Shuffled array of indices 0-7
+    int skillSequence[9];   // Shuffled array of indices 0-8
     int sequenceIndex;      // Current position in shuffled sequence
     int safeguardTimer;     // Timeout to prevent "stuck" skills
 
@@ -283,13 +305,13 @@ inline void loadBossAssets() {
         bossSmashImgs[i] = iLoadImage((char *)path);
     }
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 5; i++) {
         sprintf_s(path, sizeof(path), "Boss\\pull (%d).png", i + 1);
         bossPullImgs[i] = iLoadImage((char *)path);
     }
 
-    for (int i = 0; i < 4; i++) {
-        sprintf_s(path, sizeof(path), "Boss\\pulldance (%d).png", i + 1);
+    for (int i = 0; i < 7; i++) {
+        sprintf_s(path, sizeof(path), "Boss\\pull (%d).png", i + 6);
         bossPullDanceImgs[i] = iLoadImage((char *)path);
     }
 
@@ -341,14 +363,37 @@ inline void loadBossAssets() {
         sprintf_s(path, sizeof(path), "level4\\highobs2\\frame_00%d.png", i);
         highobs2Imgs[i] = iLoadImage((char *)path);
     }
+    
+    // Skill 7 (Hitground) Assets
+    for (int i = 0; i < 11; i++) {
+        sprintf_s(path, sizeof(path), "Boss\\shout (%d).png", i + 1);
+        bossShoutImgs[i] = iLoadImage((char *)path);
+    }
+    for (int i = 0; i < 11; i++) {
+        sprintf_s(path, sizeof(path), "Boss\\hitground (%d).png", i + 1);
+        bossHitgroundImgs[i] = iLoadImage((char *)path);
+        // Fallback for potentially missing hitground (4).png (index 3)
+        if (i == 3) {
+            FILE* f;
+            if (fopen_s(&f, path, "rb") == 0) {
+                fclose(f);
+            } else {
+                bossHitgroundImgs[i] = bossHitgroundImgs[i - 1]; // fallback to hitground (3)
+            }
+        }
+    }
+    for (int i = 0; i < 10; i++) {
+        sprintf_s(path, sizeof(path), "Boss\\hole (%d).png", i + 1);
+        bossHoleImgs[i] = iLoadImage((char *)path);
+    }
 }
 
 /**
  * Shuffles the boss's skill sequence to ensure random but unique cycles.
  */
 inline void shuffleBossSkills() {
-    for (int i = 0; i < 8; i++) boss4Obj.skillSequence[i] = i;
-    for (int i = 7; i > 0; i--) {
+    for (int i = 0; i < 9; i++) boss4Obj.skillSequence[i] = i;
+    for (int i = 8; i > 0; i--) {
         int j = rand() % (i + 1);
         int temp = boss4Obj.skillSequence[i];
         boss4Obj.skillSequence[i] = boss4Obj.skillSequence[j];
@@ -521,6 +566,7 @@ inline void updateFinalBossLogic() {
                 else if (pick == 5) { boss4Obj.topSkillState = 1; boss4Obj.topSkillTimer = 0; }
                 else if (pick == 6) { boss4Obj.fireSkillState = 1; boss4Obj.fireAttackCount = 0; boss4Obj.fireSkillTimer = 0; boss4Obj.fireAttackTarget = 2 + rand() % 4; }
                 else if (pick == 7) { boss4Obj.restSkillState = 1; boss4Obj.restSkillTimer = 0; boss4Obj.restFrameIndex = 0; }
+                else if (pick == 8) { boss4Obj.hitgroundSkillState = 1; boss4Obj.hitgroundSkillTimer = 0; boss4Obj.hitgroundFrameIndex = 0; boss4Obj.hitgroundHoleCount = 0; }
             }
         }
     }
@@ -648,7 +694,7 @@ inline void updateFinalBossLogic() {
             boss4Obj.shakeX = (float)(rand() % 10 - 5);
             boss4Obj.shakeY = (float)(rand() % 10 - 5);
 
-            if (boss4Obj.jumpSkillTimer >= 5) { 
+            if (boss4Obj.jumpSkillTimer >= 3) { // Faster prep
                 boss4Obj.jumpSkillTimer = 0;
                 boss4Obj.jumpFrameIndex++;
                 if (boss4Obj.jumpFrameIndex >= 6) {
@@ -667,7 +713,7 @@ inline void updateFinalBossLogic() {
         else if (boss4Obj.jumpSkillState == 2) {
             // State 2: Parabolic Jump
             boss4Obj.jumpSkillTimer++;
-            float dur = 57.0f; 
+            float dur = 40.0f; // Faster jump (was 57)
             float t = boss4Obj.jumpSkillTimer / dur;
             
             // Face the character at all times while airborne
@@ -685,7 +731,7 @@ inline void updateFinalBossLogic() {
                 boss4Obj.jumpSkillState = 3; // Smash motion
                 boss4Obj.jumpSkillTimer = 0;
                 boss4Obj.jumpLandingFrame = 0;
-                boss4Obj.landingFlameTimer = 60; // Slightly reduced duration since aura is gone
+                boss4Obj.landingFlameTimer = 40; // Faster landing (was 60)
                 boss4Obj.shakeX = 15;
                 boss4Obj.shakeY = 15;
                 boss4Obj.largeFlamePhase = 1; // GROW flame on landing
@@ -695,7 +741,7 @@ inline void updateFinalBossLogic() {
             // State 3: SMASH Motion
             boss4Obj.jumpSkillTimer++;
             
-            if (boss4Obj.jumpSkillTimer >= 5) { 
+            if (boss4Obj.jumpSkillTimer >= 3) { // Faster smash anim
                 boss4Obj.jumpSkillTimer = 0;
                 boss4Obj.jumpLandingFrame++;
                 if (boss4Obj.jumpLandingFrame >= 10) boss4Obj.jumpLandingFrame = 9; 
@@ -790,7 +836,7 @@ inline void updateFinalBossLogic() {
             if (boss4Obj.pullSkillTimer >= 6) {
                 boss4Obj.pullSkillTimer = 0;
                 boss4Obj.pullFrameIndex++;
-                if (boss4Obj.pullFrameIndex >= 6) {
+                if (boss4Obj.pullFrameIndex >= 5) {
                     boss4Obj.pullSkillState = 3; // Pulling
                     boss4Obj.pullSkillTimer = 0;
                     boss4Obj.pullDanceFrame = 0;
@@ -801,11 +847,11 @@ inline void updateFinalBossLogic() {
             // State 3: Pulling Phase
             boss4Obj.pullSkillTimer++;
             if (boss4Obj.pullSkillTimer % 5 == 0) {
-                boss4Obj.pullDanceFrame = (boss4Obj.pullDanceFrame + 1) % 4;
+                boss4Obj.pullDanceFrame = (boss4Obj.pullDanceFrame + 1) % 7;
             }
 
             if (charX < boss4Obj.x + 50) {
-                charX += 6; 
+                charX += 12; 
             }
 
             for (int i = 0; i < 15; i++) {
@@ -986,6 +1032,52 @@ inline void updateFinalBossLogic() {
         extern GameState gameState;
         extern bool isAttacking;
 
+        // --- SHARED ENEMY SPAWN/UPDATE LOGIC ---
+        // Spawn starts immediately when the skill starts (States 1-4)
+        if (boss4Obj.enemySkillState >= 1 && boss4Obj.enemySkillState <= 4) {
+            boss4Obj.enemySpawnTimer++;
+            if (boss4Obj.enemySpawnTimer > 20) {
+                boss4Obj.enemySpawnTimer = 0;
+                for (int i = 0; i < 5; i++) {
+                    if (!boss4Obj.bossEnemies[i].active) {
+                        boss4Obj.bossEnemies[i].active = true;
+                        boss4Obj.bossEnemies[i].x = 1050;
+                        boss4Obj.bossEnemies[i].y = 50;
+                        boss4Obj.bossEnemies[i].type = rand() % 2;
+                        boss4Obj.bossEnemies[i].frame = 0;
+                        boss4Obj.bossEnemies[i].frameTimer = 0;
+                        break;
+                    }
+                }
+            }
+        }
+
+        bool anyEnemyActive = false;
+        for (int i = 0; i < 5; i++) {
+            if (boss4Obj.bossEnemies[i].active) {
+                anyEnemyActive = true;
+                boss4Obj.bossEnemies[i].x -= 7.0f;
+                boss4Obj.bossEnemies[i].frameTimer++;
+                if (boss4Obj.bossEnemies[i].frameTimer >= 5) {
+                    boss4Obj.bossEnemies[i].frameTimer = 0;
+                    boss4Obj.bossEnemies[i].frame = (boss4Obj.bossEnemies[i].frame + 1) % 4;
+                }
+                if (boss4Obj.bossEnemies[i].x < -150) boss4Obj.bossEnemies[i].active = false;
+
+                if (boss4Obj.bossEnemies[i].active && boss4Obj.bossEnemies[i].x < charX + 80 && boss4Obj.bossEnemies[i].x + 100 > charX &&
+                    boss4Obj.bossEnemies[i].y < charY + 120 && boss4Obj.bossEnemies[i].y + 40 > charY) {
+                    if (isAttacking) boss4Obj.bossEnemies[i].active = false;
+                    else if (!isInvincible) {
+                        lives--;
+                        if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                        else { isInvincible = true; invincibilityTimer = 60; }
+                        boss4Obj.bossEnemies[i].active = false;
+                    }
+                }
+            }
+        }
+
+        // --- STATE LOGIC ---
         if (boss4Obj.enemySkillState == 1) {
             boss4Obj.enemySkillTimer++;
             if (boss4Obj.enemySkillTimer < 5) boss4Obj.y += 8.0f;
@@ -1018,63 +1110,21 @@ inline void updateFinalBossLogic() {
                 boss4Obj.enemySkillTimer = 0;
                 boss4Obj.enemyFrameIndex++;
                 if (boss4Obj.enemyFrameIndex >= 6) {
-                    boss4Obj.enemySkillState = 4; // Spawning
+                    boss4Obj.enemySkillState = 4; // Main Spawning State
                     boss4Obj.enemySkillTimer = 0;
-                    boss4Obj.enemySpawnTimer = 0;
                     boss4Obj.enemyFrameIndex = 0;
                 }
             }
         }
-        else if (boss4Obj.enemySkillState == 4 || boss4Obj.enemySkillState == 5) {
+        else if (boss4Obj.enemySkillState == 4) {
             boss4Obj.enemySkillTimer++;
-            
-            // Animation continues even when waiting for enemies to die
             if (boss4Obj.enemySkillTimer % 5 == 0) boss4Obj.enemyFrameIndex = (boss4Obj.enemyFrameIndex + 1) % 6;
-            
-            if (boss4Obj.enemySkillState == 4) {
-                boss4Obj.enemySpawnTimer++;
-                if (boss4Obj.enemySpawnTimer > 20) {
-                    boss4Obj.enemySpawnTimer = 0;
-                    for (int i=0; i<5; i++) {
-                        if (!boss4Obj.bossEnemies[i].active) {
-                            boss4Obj.bossEnemies[i].active = true;
-                            boss4Obj.bossEnemies[i].x = 1050;
-                            boss4Obj.bossEnemies[i].y = 50;
-                            boss4Obj.bossEnemies[i].type = rand() % 2;
-                            boss4Obj.bossEnemies[i].frame = 0;
-                            boss4Obj.bossEnemies[i].frameTimer = 0;
-                            break;
-                        }
-                    }
-                }
-                if (boss4Obj.enemySkillTimer > 495) boss4Obj.enemySkillState = 5;
+            if (boss4Obj.enemySkillTimer > 400) { // Slightly faster skill duration
+                boss4Obj.enemySkillState = 5; // Wait for enemies screen-clear
             }
-            
-            bool anyActive = false;
-            for (int i=0; i<5; i++) {
-                if (boss4Obj.bossEnemies[i].active) {
-                    anyActive = true;
-                    boss4Obj.bossEnemies[i].x -= 15.0f;
-                    boss4Obj.bossEnemies[i].frameTimer++;
-                    if (boss4Obj.bossEnemies[i].frameTimer >= 5) {
-                        boss4Obj.bossEnemies[i].frameTimer = 0;
-                        boss4Obj.bossEnemies[i].frame = (boss4Obj.bossEnemies[i].frame + 1) % 4;
-                    }
-                    if (boss4Obj.bossEnemies[i].x < -150) boss4Obj.bossEnemies[i].active = false;
-
-                    if (boss4Obj.bossEnemies[i].active && boss4Obj.bossEnemies[i].x < charX + 80 && boss4Obj.bossEnemies[i].x + 100 > charX && 
-                        boss4Obj.bossEnemies[i].y < charY + 120 && boss4Obj.bossEnemies[i].y + 40 > charY) {
-                        if (isAttacking) boss4Obj.bossEnemies[i].active = false;
-                        else if (!isInvincible) {
-                            lives--;
-                            if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
-                            else { isInvincible = true; invincibilityTimer = 60; }
-                            boss4Obj.bossEnemies[i].active = false;
-                        }
-                    }
-                }
-            }
-            if (boss4Obj.enemySkillState == 5 && !anyActive) {
+        }
+        else if (boss4Obj.enemySkillState == 5) {
+            if (!anyEnemyActive) {
                 boss4Obj.enemySkillState = 0;
                 boss4Obj.enemySkillTimer = 0;
                 boss4Obj.currentSkill = -1;
@@ -1091,22 +1141,9 @@ inline void updateFinalBossLogic() {
         extern int invincibilityTimer;
         extern GameState gameState;
         
-        if (boss4Obj.topSkillState == 1) {
-            boss4Obj.topSkillTimer++;
-            if (boss4Obj.topSkillTimer >= 6) { 
-                boss4Obj.topSkillTimer = 0;
-                boss4Obj.topFrameIndex++;
-                if (boss4Obj.topFrameIndex >= 9) {
-                    boss4Obj.topSkillState = 2; // Thunder
-                    boss4Obj.topFrameIndex = 0;
-                    boss4Obj.topSkillTimer = 0;
-                }
-            }
-        }
-        else if (boss4Obj.topSkillState == 2) {
-            boss4Obj.topSkillTimer++;
-            if (boss4Obj.topSkillTimer % 5 == 0) boss4Obj.topFrameIndex = (boss4Obj.topFrameIndex + 1) % 4;
-            
+        // --- SHARED TOP SPAWN/UPDATE LOGIC ---
+        // Spawn starts immediately when the skill starts (States 1-2)
+        if (boss4Obj.topSkillState == 1 || boss4Obj.topSkillState == 2) {
             boss4Obj.topSpawnTimer++;
             if (boss4Obj.topSpawnTimer > 30) {
                 boss4Obj.topSpawnTimer = 0;
@@ -1123,33 +1160,51 @@ inline void updateFinalBossLogic() {
                     }
                 }
             }
-            
-            bool anyActive = false;
-            for (int i = 0; i < 10; i++) {
-                if (boss4Obj.topObstacles[i].active) {
-                    boss4Obj.topObstacles[i].y -= boss4Obj.topObstacles[i].speedY;
-                    boss4Obj.topObstacles[i].frameTimer++;
-                    if (boss4Obj.topObstacles[i].frameTimer >= 2) { // Faster animation
-                        boss4Obj.topObstacles[i].frameTimer = 0;
-                        boss4Obj.topObstacles[i].frame = (boss4Obj.topObstacles[i].frame + 1) % 4; // 4 frames
+        }
+
+        bool anyTopActive = false;
+        for (int i = 0; i < 10; i++) {
+            if (boss4Obj.topObstacles[i].active) {
+                anyTopActive = true;
+                boss4Obj.topObstacles[i].y -= boss4Obj.topObstacles[i].speedY;
+                boss4Obj.topObstacles[i].frameTimer++;
+                if (boss4Obj.topObstacles[i].frameTimer >= 2) {
+                    boss4Obj.topObstacles[i].frameTimer = 0;
+                    boss4Obj.topObstacles[i].frame = (boss4Obj.topObstacles[i].frame + 1) % 4;
+                }
+                if (boss4Obj.topObstacles[i].y < -100) boss4Obj.topObstacles[i].active = false;
+
+                if (boss4Obj.topObstacles[i].active && boss4Obj.topObstacles[i].x + 40 > charX && boss4Obj.topObstacles[i].x < charX + 80 &&
+                    boss4Obj.topObstacles[i].y + 40 > charY && boss4Obj.topObstacles[i].y < charY + 120) {
+                    if (!isInvincible) {
+                        lives--;
+                        if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                        else { isInvincible = true; invincibilityTimer = 60; }
+                        boss4Obj.topObstacles[i].active = false;
                     }
-                    if (boss4Obj.topObstacles[i].y < -100) boss4Obj.topObstacles[i].active = false;
-                    
-                    if (boss4Obj.topObstacles[i].active && boss4Obj.topObstacles[i].x + 40 > charX && boss4Obj.topObstacles[i].x < charX + 80 &&
-                        boss4Obj.topObstacles[i].y + 40 > charY && boss4Obj.topObstacles[i].y < charY + 120) {
-                        if (!isInvincible) {
-                            lives--;
-                            if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
-                            else { isInvincible = true; invincibilityTimer = 60; }
-                            boss4Obj.topObstacles[i].active = false;
-                        }
-                    }
-                    if (boss4Obj.topObstacles[i].active) anyActive = true;
                 }
             }
-            
-            if (boss4Obj.topSkillTimer > 495) {
-                if (!anyActive) {
+        }
+
+        // --- STATE LOGIC ---
+        if (boss4Obj.topSkillState == 1) {
+            boss4Obj.topSkillTimer++;
+            if (boss4Obj.topSkillTimer >= 6) {
+                boss4Obj.topSkillTimer = 0;
+                boss4Obj.topFrameIndex++;
+                if (boss4Obj.topFrameIndex >= 9) {
+                    boss4Obj.topSkillState = 2; // Thunder phase
+                    boss4Obj.topFrameIndex = 0;
+                    boss4Obj.topSkillTimer = 0;
+                }
+            }
+        }
+        else if (boss4Obj.topSkillState == 2) {
+            boss4Obj.topSkillTimer++;
+            if (boss4Obj.topSkillTimer % 5 == 0) boss4Obj.topFrameIndex = (boss4Obj.topFrameIndex + 1) % 4;
+
+            if (boss4Obj.topSkillTimer > 400) { // Slightly faster skill duration
+                if (!anyTopActive) {
                     boss4Obj.topSkillState = 0;
                     boss4Obj.topSkillTimer = 0;
                     boss4Obj.currentSkill = -1;
@@ -1540,6 +1595,133 @@ inline void updateFinalBossLogic() {
             }
         }
     }
+
+    // --- SKILL 8: HITGROUND ATTACK SKILL LOGIC ---
+    if (level4Phase == 3 && boss4Obj.currentSkill == 8) {
+        extern int charX, charY, charWidth, charHeight, lives, groundY;
+        extern bool isInvincible;
+        extern int invincibilityTimer;
+        extern GameState gameState;
+
+        if (boss4Obj.hitgroundSkillState == 1) { // Shout (11 frames)
+            extern float globalScreenShakeX, globalScreenShakeY;
+            globalScreenShakeX = (float)(rand() % 20 - 10); // Earthquake feeling
+            globalScreenShakeY = (float)(rand() % 20 - 10);
+            
+            boss4Obj.hitgroundSkillTimer++;
+            if (boss4Obj.hitgroundSkillTimer >= 6) {
+                boss4Obj.hitgroundSkillTimer = 0;
+                boss4Obj.hitgroundFrameIndex++;
+                if (boss4Obj.hitgroundFrameIndex >= 11) {
+                    boss4Obj.hitgroundSkillState = 2; // Hitground Start
+                    boss4Obj.hitgroundFrameIndex = 0;
+                    boss4Obj.hitgroundSkillTimer = 0;
+                    globalScreenShakeX = 0; 
+                    globalScreenShakeY = 0;
+                }
+            }
+        }
+        else if (boss4Obj.hitgroundSkillState == 2) { // Hitground (1-7)
+            boss4Obj.hitgroundSkillTimer++;
+            if (boss4Obj.hitgroundSkillTimer >= 6) {
+                boss4Obj.hitgroundSkillTimer = 0;
+                boss4Obj.hitgroundFrameIndex++;
+                if (boss4Obj.hitgroundFrameIndex >= 7) {
+                    boss4Obj.hitgroundSkillState = 3; // Hit loop (8-11)
+                    boss4Obj.hitgroundFrameIndex = 7; // indices 7,8,9,10
+                    boss4Obj.hitgroundLoopTimer = 0;
+                    boss4Obj.hitgroundSkillTimer = 0;
+                    boss4Obj.hitgroundHoleCount = 0;
+                    boss4Obj.hitgroundHoleTimer = 0;
+                }
+            }
+        }
+        else if (boss4Obj.hitgroundSkillState == 3) { // Hit Loop & Holes (20 sec)
+            boss4Obj.hitgroundLoopTimer++;
+            boss4Obj.hitgroundSkillTimer++;
+            
+            // Loop hitting images (indices 7 to 10)
+            if (boss4Obj.hitgroundSkillTimer >= 5) {
+                boss4Obj.hitgroundSkillTimer = 0;
+                boss4Obj.hitgroundFrameIndex++;
+                if (boss4Obj.hitgroundFrameIndex > 10) boss4Obj.hitgroundFrameIndex = 7;
+            }
+
+            // Hole Spawning logic (4 times over 660 ticks => ~every 165 ticks)
+            boss4Obj.hitgroundHoleTimer++;
+            if (boss4Obj.hitgroundHoleTimer > 165 && boss4Obj.hitgroundHoleCount < 4) {
+                boss4Obj.hitgroundHoleTimer = 0;
+                // Find inactive hole
+                for (int i = 0; i < 4; i++) {
+                    if (!boss4Obj.bossHoles[i].active) {
+                        boss4Obj.bossHoles[i].active = true;
+                        boss4Obj.bossHoles[i].x = (float)(charX + (rand() % 400 - 200)); 
+                        boss4Obj.bossHoles[i].y = (float)groundY - 18; // Decreased y axis by 8
+                        boss4Obj.bossHoles[i].state = 1;      // Appearing
+                        boss4Obj.bossHoles[i].frame = 0;      // 0 to 9
+                        boss4Obj.bossHoles[i].frameTimer = 0;
+                        boss4Obj.bossHoles[i].stateTimer = 0;
+                        boss4Obj.hitgroundHoleCount++;
+                        break;
+                    }
+                }
+            }
+
+            // Update all holes
+            for (int i = 0; i < 4; i++) {
+                if (boss4Obj.bossHoles[i].active) {
+                    if (boss4Obj.bossHoles[i].state == 1) { // Appearing
+                        boss4Obj.bossHoles[i].frameTimer++;
+                        if (boss4Obj.bossHoles[i].frameTimer >= 6) { // Slower creation
+                            boss4Obj.bossHoles[i].frameTimer = 0;
+                            boss4Obj.bossHoles[i].frame++;
+                            if (boss4Obj.bossHoles[i].frame >= 9) {
+                                boss4Obj.bossHoles[i].frame = 9;
+                                boss4Obj.bossHoles[i].state = 2; // Stay
+                            }
+                        }
+                    } else if (boss4Obj.bossHoles[i].state == 2) { // Staying
+                        boss4Obj.bossHoles[i].stateTimer++;
+                        if (boss4Obj.bossHoles[i].stateTimer >= 100) { // 3 seconds stay
+                            boss4Obj.bossHoles[i].state = 3; // Disappearing
+                        }
+                        
+                        // Collision check with hole when staying (the hole is open)
+                        // If character falls in it
+                        if (charX + charWidth - 40 > boss4Obj.bossHoles[i].x &&
+                            charX + 40 < boss4Obj.bossHoles[i].x + 180 &&
+                            charY < boss4Obj.bossHoles[i].y + 70) { 
+                            if (!isInvincible) {
+                                lives--;
+                                if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                                else { isInvincible = true; invincibilityTimer = 60; }
+                            }
+                        }
+                    } else if (boss4Obj.bossHoles[i].state == 3) { // Disappearing
+                        boss4Obj.bossHoles[i].frameTimer++;
+                        if (boss4Obj.bossHoles[i].frameTimer >= 6) { // Slower vanishing
+                            boss4Obj.bossHoles[i].frameTimer = 0;
+                            boss4Obj.bossHoles[i].frame--;
+                            if (boss4Obj.bossHoles[i].frame < 0) {
+                                boss4Obj.bossHoles[i].active = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // End of skill after 660 ticks (20s)
+            if (boss4Obj.hitgroundLoopTimer >= 660) {
+                // Ensure all holes are deactivated
+                for (int i = 0; i < 4; i++) boss4Obj.bossHoles[i].active = false;
+                boss4Obj.hitgroundSkillState = 0;
+                boss4Obj.currentSkill = -1;
+                boss4Obj.skillsCompleted++;
+                boss4Obj.skillGapTimer = 60;
+                boss4Obj.safeguardTimer = 0;
+            }
+        }
+    }
     
     if (boss4Obj.charOnFire) {
         boss4Obj.charFireTimer--;
@@ -1599,45 +1781,31 @@ inline void handleBossHit() {
     extern int charX, charY, charWidth, charHeight;
     extern bool isAttacking, npcSlashDone;
     extern int attackFrameIndex;
-    extern unsigned int specialKeyPressed[512];
-    extern bool isLeftArrowPressed;
 
     if (!boss4Obj.active || level4Phase < 2 || boss4Obj.life <= 0) return;
-    
-    // Check if boss is currently in an invulnerable state (e.g. Skill 0 Vanish hidden)
+
+    // Boss is invulnerable while vanishing (Skill 0 phases 1-3)
     if (boss4Obj.currentSkill == 0 && (boss4Obj.skillState >= 1 && boss4Obj.skillState <= 3)) return;
 
     if (isAttacking && attackFrameIndex == 3 && !npcSlashDone) {
-        bool facingBack = isLeftArrowPressed || (specialKeyPressed[GLUT_KEY_LEFT] != 0);
-        float weaponZoneMin, weaponZoneMax;
-        
-        if (facingBack) {
-            weaponZoneMin = (float)charX - 160;
-            weaponZoneMax = (float)charX - 10;
-        } else {
-            weaponZoneMin = (float)charX + charWidth + 10;
-            weaponZoneMax = (float)charX + charWidth + 160;
-        }
+        // Character's center
+        float charCenterX = (float)charX + (float)charWidth / 2.0f;
 
-        float bossL = boss4Obj.x;
-        float bossR = boss4Obj.x + (float)BOSS_WIDTH;
-        float bossBottom = boss4Obj.y;
-        float bossTop = boss4Obj.y + (float)BOSS_HEIGHT;
+        // Boss's horizontal middle point
+        float bossMidX = boss4Obj.x + (float)BOSS_WIDTH / 2.0f;
 
-        bool weaponHit = false;
-        if (((bossL >= weaponZoneMin && bossL <= weaponZoneMax) || 
-             (bossR >= weaponZoneMin && bossR <= weaponZoneMax) ||
-             (weaponZoneMin >= bossL && weaponZoneMin <= bossR))) {
-           weaponHit = true;
-        }
+        // Hit if character center is within 180px of boss middle point
+        float dist = charCenterX - bossMidX;
+        if (dist < 0) dist = -dist; // absolute distance
 
-        if (weaponHit && (float)charY < bossTop && (float)charY + (float)charHeight > bossBottom) {
+        if (dist <= 180.0f) {
             boss4Obj.life -= 5;
             npcSlashDone = true;
             boss4Obj.isHit = true;
             boss4Obj.hitTimer = 15;
-            
+
             if (boss4Obj.life <= 0) {
+                boss4Obj.life = 0;
                 level4Phase = 4; // Victory sequence
                 boss4Obj.dieFrameIndex = 0;
                 boss4Obj.dieAnimCounter = 0;
@@ -1645,6 +1813,7 @@ inline void handleBossHit() {
         }
     }
 }
+
 
 // Custom wrapper for flipping based on state
 inline void iDrawBossImage(int x, int y, int w, int h, int img) {
@@ -1818,6 +1987,22 @@ inline void drawBoss() {
                              bImg = bigNpcWalkImgs[boss4Obj.restBigNpc.animFrame % 9];
                          }
                          iShowImage((int)boss4Obj.restBigNpc.x, (int)boss4Obj.restBigNpc.y, 115, 115, bImg);
+                     }
+                 }
+             }
+
+             // SKILL 8: HITGROUND ATTACK RENDERING
+             if (boss4Obj.currentSkill == 8) {
+                 if (boss4Obj.hitgroundSkillState == 1) {
+                     iDrawBossImage((int)boss4Obj.x, (int)boss4Obj.y, BOSS_WIDTH, BOSS_HEIGHT, bossShoutImgs[boss4Obj.hitgroundFrameIndex]);
+                 } else if (boss4Obj.hitgroundSkillState >= 2) {
+                     iDrawBossImage((int)boss4Obj.x, (int)boss4Obj.y, BOSS_WIDTH, BOSS_HEIGHT, bossHitgroundImgs[boss4Obj.hitgroundFrameIndex]);
+                 }
+                 
+                 // Draw holes ON TOP of the background but arguably around boss feet level
+                 for (int i = 0; i < 4; i++) {
+                     if (boss4Obj.bossHoles[i].active) {
+                         iShowImage((int)boss4Obj.bossHoles[i].x, (int)boss4Obj.bossHoles[i].y, 180, 70, bossHoleImgs[boss4Obj.bossHoles[i].frame]);
                      }
                  }
              }

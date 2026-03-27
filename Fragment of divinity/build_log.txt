@@ -1,0 +1,15 @@
+1>------ Build started: Project: Fragment of divinity, Configuration: Debug Win32 ------
+1>  iMain.cpp
+1>LINK : fatal error LNK1209: program database 'C:\Users\shilp\Documents\GitHub\Fragment-of-Divinity\Debug\Fragment of divinity.pdb' differs from previous link; relink or rebuild
+========== Build: 0 succeeded, 1 failed, 0 up-to-date, 0 skipped ==========
+
+1>------ Rebuild All started: Project: Fragment of divinity, Configuration: Debug Win32 ------
+1>  iMain.cpp
+1>  Fragment of divinity.vcxproj -> C:\Users\shilp\Documents\GitHub\Fragment-of-Divinity\Debug\Fragment of divinity.exe
+========== Rebuild All: 1 succeeded, 0 failed, 0 skipped ==========
+
+1>------ Rebuild All started: Project: Fragment of divinity, Configuration: Debug Win32 ------
+1>  iMain.cpp
+1>  Fragment of divinity.vcxproj -> C:\Users\shilp\Documents\GitHub\Fragment-of-Divinity\Debug\Fragment of divinity.exe
+========== Rebuild All: 1 succeeded, 0 failed, 0 skipped ==========
+
