@@ -163,6 +163,7 @@ extern int imgRBL, imgGBL;         // Right lever
 extern int selectedWeather;
 extern int charX, charY, charWidth, charHeight;
 extern int lives;
+extern int charAttackDamagelessTimer;
 extern bool isInvincible;
 extern int invincibilityTimer;
 extern int groundY;
@@ -464,7 +465,9 @@ inline void updateObstaclePhysics() {
             fallY = (float)charY;
             fallVel = -2; // Initial fall velocity
             hitBridgeIndex = i;
-            lives--;
+            if (charAttackDamagelessTimer <= 0) {
+              lives--;
+            }
             isInvincible = true;
             invincibilityTimer = 120; // Longer invincibility for the sequence
             bridges[i].damaged = true;
@@ -842,7 +845,9 @@ inline void updateObstaclePhysics() {
                 charX < npcList[i].x + 30 && charY + charHeight > groundY &&
                 charY < groundY + 100) {
               if (!isInvincible && !isFallingSequence) {
-                lives--;
+                if (charAttackDamagelessTimer <= 0) {
+              lives--;
+            }
                 isInvincible = true;
                 invincibilityTimer = 60;
               }

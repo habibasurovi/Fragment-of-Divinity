@@ -8,6 +8,7 @@
 #include <string.h>
 
 extern int currentLevel;
+extern bool isGamePaused;
 // External Dialog variable
 extern bool isWizardTalking;
 extern bool isWizardMoving;
@@ -147,6 +148,7 @@ inline void initIQ() {
 }
 
 inline void updateIQLogic() {
+  if (isGamePaused) return;
   if (currentLevel == 3 && !iqAnswered) {
     miniGameTargetX += miniGameTargetSpeedX;
     miniGameTargetY += miniGameTargetSpeedY;
@@ -290,6 +292,7 @@ inline void drawIQ() {
 }
 
 inline void handleIQClick(int mx, int my) {
+  if (isGamePaused) return;
   if (currentLevel == 3) {
     if (!isWizardMoving && !isCharacterEntering && !iqAnswered && !isWizardTalking) {
       if (mx >= miniGameTargetX && mx <= miniGameTargetX + 150 && my >= miniGameTargetY && my <= miniGameTargetY + 150) {

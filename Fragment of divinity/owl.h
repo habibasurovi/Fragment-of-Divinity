@@ -14,6 +14,7 @@
 extern int owlImg;
 extern int owlBulletImg;
 extern int owlFrames[9];
+extern int owlStandingFrames[4];
 extern bool owlReady;
 extern int owlCooldownTimer;
 extern bool hasCompanion;
@@ -164,6 +165,12 @@ inline void updateOwl() {
 
   // --- Fire bullets every 60 ticks (2 sec) while stationed ---
   if (owlCompanion.stationed && owlCompanion.bulletsRemaining > 0) {
+    owlCompanion.animCounter++;
+    if (owlCompanion.animCounter >= 5) {
+      owlCompanion.animCounter = 0;
+      owlCompanion.frameIndex = (owlCompanion.frameIndex + 1) % 4; // 4 standing frames
+    }
+
     owlCompanion.bulletTimer--;
     if (owlCompanion.bulletTimer <= 0) {
       owlCompanion.bulletTimer = 60; // 2 seconds
@@ -241,7 +248,7 @@ inline void updateOwlCollisions() {
     // -- BigNPC --
     if (!hit && boss4Obj.restBigNpc.active) {
       if (owlBulletAABB(owlCompanion.bullets[i], boss4Obj.restBigNpc.x,
-                        boss4Obj.restBigNpc.y, 200.0f, 200.0f)) {
+                        boss4Obj.restBigNpc.y, 125.0f, 125.0f)) {
         owlCompanion.bullets[i].active = false;
         owlCompanion.bigNpcOwlHits++;
         boss4Obj.restBigNpc.hitFlashTimer = 10;
@@ -319,8 +326,8 @@ inline void updateOwlCollisions() {
 
   // BigNPC
   if (boss4Obj.restBigNpc.active) {
-    if (owlBodyAABB(boss4Obj.restBigNpc.x, boss4Obj.restBigNpc.y, 200.0f,
-                    200.0f)) {
+    if (owlBodyAABB(boss4Obj.restBigNpc.x, boss4Obj.restBigNpc.y, 125.0f,
+                    125.0f)) {
       owlTakeHit();
     }
   }
@@ -339,8 +346,14 @@ inline void drawOwl() {
   } else {
     iSetColor(255, 255, 255);
   }
-  iShowImage((int)owlCompanion.x, (int)owlCompanion.y, OWL_WIDTH, OWL_HEIGHT,
-             owlFrames[owlCompanion.frameIndex]);
+
+  if (owlCompanion.stationed) {
+    iShowImage((int)owlCompanion.x, (int)owlCompanion.y, OWL_WIDTH, OWL_HEIGHT,
+               owlStandingFrames[owlCompanion.frameIndex]);
+  } else {
+    iShowImage((int)owlCompanion.x, (int)owlCompanion.y, OWL_WIDTH, OWL_HEIGHT,
+               owlFrames[owlCompanion.frameIndex]);
+  }
 
   // Draw bullets (3:1 ratio: 60x20)
   for (int i = 0; i < OWL_MAX_BULLETS; i++) {

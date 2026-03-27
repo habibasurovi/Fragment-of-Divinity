@@ -16,6 +16,7 @@ extern int charHeight;
 extern bool isAttacking;
 extern int attackFrameIndex;
 extern int lives;
+extern int charAttackDamagelessTimer;
 extern bool isInvincible;
 extern int invincibilityTimer;
 extern GameState gameState;
@@ -176,7 +177,9 @@ inline void updateCinderPhysics() {
         if (cinderEnemy.attackFrameIndex == 3 && !cinderEnemy.hasDamaged) {
             // Require it to be virtually touching the player
             if (!isInvincible && dist < 120.0f) { 
-                lives--;
+                if (charAttackDamagelessTimer <= 0) {
+                    lives--;
+                }
                 if (lives <= 0) {
                     gameState = GAME_OVER;
                 } else {
