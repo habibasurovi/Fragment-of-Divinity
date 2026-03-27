@@ -1250,6 +1250,7 @@ void checkCollision() {
             if (npcCenterX > playerReachLeft && npcCenterX < playerReachRight &&
                 charY < npcTop && charY + charHeight > npcBottom) {
               npcList[i].life--;
+              npcList[i].stunTimer = 30; // 1-second stun
               npcSlashDone = true; // prevent double-hit in same frame
               if (npcList[i].life <= 0) {
                 npcList[i].active = false;
@@ -1269,7 +1270,7 @@ void checkCollision() {
           }
 
           // NPC contact damage
-          if (!isInvincible && !isFallingSequence) {
+          if (!isInvincible && !isFallingSequence && npcList[i].stunTimer <= 0) {
             if (charX + charWidth - 40 > npcList[i].x + 20 &&
                 charX + 40 < npcList[i].x + 130 &&
                 charY + charHeight > npcList[i].y &&
@@ -1829,7 +1830,7 @@ void iDraw() {
     drawTimer();
 
     // --- Level 4 Owl Power-up UI (bottom-left) ---
-    if (currentLevel == 4 && (hasCompanion || true) && gameState == GAME) { // TEMPORARY: Allow without companion
+    if (currentLevel == 4 && hasCompanion && gameState == GAME) {
       // Draw owl icon (visible always, no grey box)
       iSetColor(255, 255, 255);
       iShowImage(10, 10, 120, 120, owlImg);
@@ -2031,7 +2032,7 @@ void iMouse(int button, int state, int mx, int my) {
 
     if (gameState == GAME) {
       // Owl trigger in Level 4
-      if (currentLevel == 4 && (hasCompanion || true) && owlReady && // TEMPORARY: Allow without companion
+      if (currentLevel == 4 && hasCompanion && owlReady &&
           !owlCompanion.active) {
         if (mx >= 10 && mx <= 130 && my >= 10 && my <= 130) {
           initOwl();

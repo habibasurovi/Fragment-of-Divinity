@@ -74,6 +74,7 @@ struct BigNPC {
     int attackTimer;
     bool hasAttacked;
     int hitFlashTimer;
+    int stunTimer; // 1-second stun after being hit (30 frames)
 };
 
 // Boss State Structure
@@ -1306,6 +1307,9 @@ inline void updateFinalBossLogic() {
                 if (boss4Obj.restNpcs[i].hitFlashTimer > 0)
                     boss4Obj.restNpcs[i].hitFlashTimer--;
 
+                if (boss4Obj.restNpcs[i].stunTimer > 0)
+                    boss4Obj.restNpcs[i].stunTimer--;
+
                 if (boss4Obj.restNpcs[i].state == 0) { // Walking
                     boss4Obj.restNpcs[i].x -= 4.0f;
                     boss4Obj.restNpcs[i].animCounter++;
@@ -1323,7 +1327,7 @@ inline void updateFinalBossLogic() {
                         }
                     } else { // Ranged
                         boss4Obj.restNpcs[i].fireCooldown--;
-                        if (boss4Obj.restNpcs[i].fireCooldown <= 0) {
+                        if (boss4Obj.restNpcs[i].fireCooldown <= 0 && boss4Obj.restNpcs[i].stunTimer <= 0) {
                             for (int j = 0; j < 3; j++) {
                                 if (!boss4Obj.restFires[j].active) {
                                     boss4Obj.restFires[j].active = true;
@@ -1342,7 +1346,7 @@ inline void updateFinalBossLogic() {
                     if (boss4Obj.restNpcs[i].attackTimer % 4 == 0) {
                         boss4Obj.restNpcs[i].animFrame++;
                     }
-                    if (!boss4Obj.restNpcs[i].hasAttacked && boss4Obj.restNpcs[i].animFrame >= 5) {
+                    if (!boss4Obj.restNpcs[i].hasAttacked && boss4Obj.restNpcs[i].animFrame >= 5 && boss4Obj.restNpcs[i].stunTimer <= 0) {
                         if (charX + charWidth > boss4Obj.restNpcs[i].x - 30 &&
                             charX < boss4Obj.restNpcs[i].x + 30 &&
                             charY + charHeight > groundY && charY < groundY + 100) {
@@ -1375,6 +1379,7 @@ inline void updateFinalBossLogic() {
                     if (npcCenterX > reachMin && npcCenterX < reachMax &&
                         charY < boss4Obj.restNpcs[i].y + 120 && charY + charHeight > boss4Obj.restNpcs[i].y) {
                         boss4Obj.restNpcs[i].life--;
+                        boss4Obj.restNpcs[i].stunTimer = 30; // 1-second stun
                         npcSlashDone = true;
                         if (boss4Obj.restNpcs[i].life <= 0) {
                             boss4Obj.restNpcs[i].active = false;
@@ -1385,7 +1390,7 @@ inline void updateFinalBossLogic() {
                 }
 
                 // NPC contact damage to player
-                if (!isInvincible && !isFallingSequence && boss4Obj.restNpcs[i].active) {
+                if (!isInvincible && !isFallingSequence && boss4Obj.restNpcs[i].active && boss4Obj.restNpcs[i].stunTimer <= 0) {
                     if (charX + charWidth - 40 > boss4Obj.restNpcs[i].x + 20 &&
                         charX + 40 < boss4Obj.restNpcs[i].x + 130 &&
                         charY + charHeight > boss4Obj.restNpcs[i].y &&
@@ -1429,6 +1434,9 @@ inline void updateFinalBossLogic() {
                 if (boss4Obj.restBigNpc.hitFlashTimer > 0)
                     boss4Obj.restBigNpc.hitFlashTimer--;
 
+                if (boss4Obj.restBigNpc.stunTimer > 0)
+                    boss4Obj.restBigNpc.stunTimer--;
+
                 if (boss4Obj.restBigNpc.state == 0) { // Following player
                     float speed = 3.0f;
                     if (boss4Obj.restBigNpc.x > charX + 50) boss4Obj.restBigNpc.x -= speed;
@@ -1454,7 +1462,7 @@ inline void updateFinalBossLogic() {
                     if (boss4Obj.restBigNpc.attackTimer % 4 == 0) {
                         boss4Obj.restBigNpc.animFrame++;
                     }
-                    if (!boss4Obj.restBigNpc.hasAttacked && boss4Obj.restBigNpc.animFrame >= 5) {
+                    if (!boss4Obj.restBigNpc.hasAttacked && boss4Obj.restBigNpc.animFrame >= 5 && boss4Obj.restBigNpc.stunTimer <= 0) {
                         // Deal damage
                         if (charX + charWidth > boss4Obj.restBigNpc.x - 50 &&
                             charX < boss4Obj.restBigNpc.x + 200 &&
@@ -1486,6 +1494,7 @@ inline void updateFinalBossLogic() {
                     if (bigCenterX > reachMin && bigCenterX < reachMax &&
                         charY < boss4Obj.restBigNpc.y + 200 && charY + charHeight > boss4Obj.restBigNpc.y) {
                         boss4Obj.restBigNpc.life--;
+                        boss4Obj.restBigNpc.stunTimer = 30; // 1-second stun
                         npcSlashDone = true;
                         if (boss4Obj.restBigNpc.life <= 0) {
                             boss4Obj.restBigNpc.active = false;
@@ -1496,7 +1505,7 @@ inline void updateFinalBossLogic() {
                 }
 
                 // Big NPC contact damage
-                if (!isInvincible && !isFallingSequence && boss4Obj.restBigNpc.active) {
+                if (!isInvincible && !isFallingSequence && boss4Obj.restBigNpc.active && boss4Obj.restBigNpc.stunTimer <= 0) {
                     if (charX + charWidth - 40 > boss4Obj.restBigNpc.x + 20 &&
                         charX + 40 < boss4Obj.restBigNpc.x + 180 &&
                         charY + charHeight > boss4Obj.restBigNpc.y &&

@@ -80,6 +80,7 @@ struct WalkingNPC {
   int fireCooldown;  // For NPC2
   bool hasAttacked;  // To apply damage once per attack animation
   int hitFlashTimer; // Frames for flashing on hit
+  int stunTimer;     // 1-second stun after being hit (30 frames)
 };
 
 struct GreenFire {
@@ -787,6 +788,9 @@ inline void updateObstaclePhysics() {
     // Update Walking NPCs
     for (int i = 0; i < MAX_NPCS; i++) {
       if (npcList[i].active) {
+        if (npcList[i].stunTimer > 0)
+          npcList[i].stunTimer--;
+
         if (npcList[i].state == 0) { // Walking
           npcList[i].x -= 4.0f;      // Walk left
           npcList[i].animCounter++;
@@ -806,7 +810,7 @@ inline void updateObstaclePhysics() {
           } else if (npcList[i].type == 2) { // Ranged NPC
             // Shoot green fire roughly every 3-6 seconds (90 to 180 frames)
             npcList[i].fireCooldown--;
-            if (npcList[i].fireCooldown <= 0) {
+            if (npcList[i].fireCooldown <= 0 && npcList[i].stunTimer <= 0) {
               // Spawn fire
               for (int j = 0; j < MAX_FIRES; j++) {
                 if (!fireList[j].active) {
@@ -830,7 +834,7 @@ inline void updateObstaclePhysics() {
             npcList[i].animFrame++;
           }
           // The attack lands around frame 5/6
-          if (!npcList[i].hasAttacked && npcList[i].animFrame >= 5) {
+          if (!npcList[i].hasAttacked && npcList[i].animFrame >= 5 && npcList[i].stunTimer <= 0) {
             if (charX + charWidth > npcList[i].x - 30 &&
                 charX < npcList[i].x + 30 && charY + charHeight > groundY &&
                 charY < groundY + 100) {

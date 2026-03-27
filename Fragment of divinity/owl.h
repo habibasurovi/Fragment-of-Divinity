@@ -199,6 +199,7 @@ inline void updateOwlCollisions() {
             owlCompanion.bullets[i].active = false;
             owlCompanion.npcOwlHits[j]++;
             boss4Obj.restNpcs[j].hitFlashTimer = 10;
+            boss4Obj.restNpcs[j].stunTimer = 30; // 1-second stun
             if (owlCompanion.npcOwlHits[j] >= 4) {
               boss4Obj.restNpcs[j].active = false;
               owlCompanion.npcOwlHits[j] = 0;
@@ -217,6 +218,7 @@ inline void updateOwlCollisions() {
         owlCompanion.bullets[i].active = false;
         owlCompanion.bigNpcOwlHits++;
         boss4Obj.restBigNpc.hitFlashTimer = 10;
+        boss4Obj.restBigNpc.stunTimer = 30; // 1-second stun
         if (owlCompanion.bigNpcOwlHits >= 10) {
           boss4Obj.restBigNpc.active = false;
           owlCompanion.bigNpcOwlHits = 0;
