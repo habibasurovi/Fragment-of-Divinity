@@ -33,6 +33,7 @@ extern int caveImgL3, wizardL3Img;
 extern int currentLevel;
 extern int shardImg;
 extern int gunImg, gunExplainImg;
+extern int l3CompanionImg;
 
 // Forward Declaration
 void updateIQLogic();
@@ -194,6 +195,10 @@ inline void drawCave() {
       } else {
         iShowImage(imgX, imgY, imgW, imgH, levelChange2);
       }
+    } else if (transitionPhase == 3) {
+      // Level 3 companion unlock image (full-screen)
+      iSetColor(255, 255, 255);
+      iShowImage(0, 0, 1000, 600, l3CompanionImg);
     }
 
     // Draw Next Button at bottom right (Bigger)
@@ -236,19 +241,24 @@ inline void drawCave() {
     iSetColor(255, 255, 255);
     iShowImage(boxX, boxY, boxW, boxH, dialogueBoxImg);
 
-    // Draw Shard
+    // Draw Shard / Gun (not for level 3 - companion reward, no item picture)
     if (currentLevel == 2) {
       iShowImage(shardX, shardY, shardW, shardH, gunImg);
-    } else {
+    } else if (currentLevel != 3) {
       iShowImage(shardX, shardY, shardW, shardH, shardImg);
     }
 
     // Draw Info Text (Centered Title)
     iSetColor(0, 0, 0);
 
-    // Title: "Item Claimed" centered
-    iText(boxX + 110, boxY + 95, (char *)"Item Claimed",
-          (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+    // Title text
+    if (currentLevel == 3) {
+      iText(boxX + 85, boxY + 95, (char *)"Companion Gained!",
+            (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+    } else {
+      iText(boxX + 110, boxY + 95, (char *)"Item Claimed",
+            (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+    }
 
     // Draw Next Button at bottom right (Bigger)
     iShowImage(750, 50, 220, 70, imgNextLevel);
@@ -285,11 +295,11 @@ inline void drawCave() {
 
     if (currentLevel == 3) {
       if (wizardDialogueIndex == 1) {
-        iText(textX + 20, textY, (char *)"Show me your agility!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX + 10, textY, (char *)"You have passed every trial.", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 2) {
-        iText(textX + 10, textY, (char *)"Catch the floating shard!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX, textY, (char *)"A companion shall join you now.", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 3) {
-        iText(textX + 60, textY, (char *)"Begin!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX + 10, textY, (char *)"Aizen will fight by your side!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     } else if (currentLevel == 2) {
       if (wizardDialogueIndex == 1) {
@@ -327,16 +337,27 @@ inline int handleCaveTransitionClick(int mx, int my) {
         transitionPhase = 0;
         return 2; // Stay in NEXT_LEVEL_IQ state, but show cave
       } else if (transitionPhase == 2) {
-        // Finalize transition to Level 2
+        if (currentLevel == 3) {
+          // Level 3: show companion image before proceeding
+          transitionPhase = 3;
+          return 0;
+        } else {
+          // Levels 1 and 2: finalize transition immediately
+          isLevelTransitioning = false;
+          transitionPhase = 0;
+          return 1; // Transitions to next level intro in iMain.cpp
+        }
+      } else if (transitionPhase == 3) {
+        // Companion image acknowledged, proceed to Level 4
         isLevelTransitioning = false;
         transitionPhase = 0;
-        return 1; // Transitions to LEVEL2_INTRO in iMain.cpp
+        return 1;
       }
     } else {
       // In cave scene, check if can start exit transition
       if (iqCorrect && postAnswerIndex >= 3) {
         isLevelTransitioning = true;
-        transitionPhase = 2; // Show shardexplain.png
+        transitionPhase = 2; // Show companion text / shard explain
         return 0;
       }
     }

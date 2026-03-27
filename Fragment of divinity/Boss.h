@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "GameState.h"
+#include "ObstacleHandler.h"
 
 // --- BOSS GLOBAL VARIABLES (Using selectany for header-only consolidation) ---
 #ifdef _MSC_VER
@@ -34,11 +35,16 @@ SELECTANY int bossPushActiveImgs[8];
 SELECTANY int bossHighImgs[9];
 SELECTANY int bossThunderImgs[4];
 SELECTANY int bossRestSkillImgs[7];
+SELECTANY int bigNpcWalkImgs[9];
+SELECTANY int bigNpcAttackImgs[9];
 SELECTANY int bg41, bg42;
 SELECTANY int bossLifeFrameImg;
 
+SELECTANY int spiderImgs[4];
 SELECTANY int worm11, worm12, worm13, worm14;
 SELECTANY int worm21, worm22, worm23, worm24;
+SELECTANY int highobs1Imgs[4];
+SELECTANY int highobs2Imgs[4];
 
 struct BossEnemyObj {
     float x, y;
@@ -54,6 +60,20 @@ struct BossTopObstacle {
     bool active;
     int frame;
     int frameTimer;
+    int type; // 0 = highobs1, 1 = highobs2
+};
+
+// Big NPC that spawns during boss rest phase
+struct BigNPC {
+    float x, y;
+    bool active;
+    int life;        // 6 hits to kill
+    int state;       // 0: walking/following, 1: attacking
+    int animFrame;
+    int animCounter;
+    int attackTimer;
+    bool hasAttacked;
+    int hitFlashTimer;
 };
 
 // Boss State Structure
@@ -146,6 +166,13 @@ struct BossLevel4 {
     int restSkillState; // 0: Idle, 1: First motion (rest11-rest14), 2: Second motion (rest15-rest17)
     int restSkillTimer;
     int restFrameIndex;
+
+    // Rest Phase NPCs (walking NPCs + Big NPC that protect the boss)
+    WalkingNPC restNpcs[3];
+    GreenFire restFires[3];
+    BigNPC restBigNpc;
+    int restNpcSpawnTimer;
+    bool restBigNpcSpawned;
 
     // Skill Scheduler
     int currentSkill;       // -1: Choosing, 0-7: Active
@@ -288,6 +315,28 @@ inline void loadBossAssets() {
     }
     
     bossLifeFrameImg = iLoadImage((char*)"Boss\\showbosslife.png");
+
+    // Big NPC Assets for Level 4 rest phase
+    for (int i = 0; i < 9; i++) {
+        sprintf_s(path, sizeof(path), "level4\\bignpc walk\\frame_00%d.png", i);
+        bigNpcWalkImgs[i] = iLoadImage((char *)path);
+        sprintf_s(path, sizeof(path), "level4\\bignpc attack\\frame_00%d.png", i);
+        bigNpcAttackImgs[i] = iLoadImage((char *)path);
+    }
+    
+    // Level 4 Spiders
+    for (int i = 0; i < 4; i++) {
+        sprintf_s(path, sizeof(path), "level4\\spider\\frame_00%d.png", i);
+        spiderImgs[i] = iLoadImage((char *)path);
+    }
+
+    // Level 4 High Obstacles
+    for (int i = 0; i < 4; i++) {
+        sprintf_s(path, sizeof(path), "level4\\highobs1\\frame_00%d.png", i);
+        highobs1Imgs[i] = iLoadImage((char *)path);
+        sprintf_s(path, sizeof(path), "level4\\highobs2\\frame_00%d.png", i);
+        highobs2Imgs[i] = iLoadImage((char *)path);
+    }
 }
 
 /**
@@ -344,6 +393,17 @@ inline void initFinalBoss() {
     boss4Obj.skillGapTimer = 10;
     boss4Obj.safeguardTimer = 0;
     shuffleBossSkills();
+
+    // Reset Rest Phase NPCs
+    for (int i = 0; i < 3; i++) {
+        boss4Obj.restNpcs[i].active = false;
+        boss4Obj.restNpcs[i].hitFlashTimer = 0;
+        boss4Obj.restFires[i].active = false;
+    }
+    boss4Obj.restBigNpc.active = false;
+    boss4Obj.restBigNpc.hitFlashTimer = 0;
+    boss4Obj.restNpcSpawnTimer = 0;
+    boss4Obj.restBigNpcSpawned = false;
 }
 
 /**
@@ -969,7 +1029,7 @@ inline void updateFinalBossLogic() {
             
             if (boss4Obj.enemySkillState == 4) {
                 boss4Obj.enemySpawnTimer++;
-                if (boss4Obj.enemySpawnTimer > 40) {
+                if (boss4Obj.enemySpawnTimer > 20) {
                     boss4Obj.enemySpawnTimer = 0;
                     for (int i=0; i<5; i++) {
                         if (!boss4Obj.bossEnemies[i].active) {
@@ -990,7 +1050,7 @@ inline void updateFinalBossLogic() {
             for (int i=0; i<5; i++) {
                 if (boss4Obj.bossEnemies[i].active) {
                     anyActive = true;
-                    boss4Obj.bossEnemies[i].x -= 5.0f;
+                    boss4Obj.bossEnemies[i].x -= 15.0f;
                     boss4Obj.bossEnemies[i].frameTimer++;
                     if (boss4Obj.bossEnemies[i].frameTimer >= 5) {
                         boss4Obj.bossEnemies[i].frameTimer = 0;
@@ -1051,9 +1111,10 @@ inline void updateFinalBossLogic() {
                         boss4Obj.topObstacles[i].active = true;
                         boss4Obj.topObstacles[i].x = charX + 60.0f + (rand() % 400 - 200);
                         boss4Obj.topObstacles[i].y = 650.0f;
-                        boss4Obj.topObstacles[i].speedY = (float)((rand() % 5) + 12);
-                        boss4Obj.topObstacles[i].frame = rand() % 10;
+                        boss4Obj.topObstacles[i].speedY = (float)((rand() % 6) + 14); // Speed: 14-19
+                        boss4Obj.topObstacles[i].frame = 0;
                         boss4Obj.topObstacles[i].frameTimer = 0;
+                        boss4Obj.topObstacles[i].type = rand() % 2; // 0=highobs1, 1=highobs2
                         break;
                     }
                 }
@@ -1064,9 +1125,9 @@ inline void updateFinalBossLogic() {
                 if (boss4Obj.topObstacles[i].active) {
                     boss4Obj.topObstacles[i].y -= boss4Obj.topObstacles[i].speedY;
                     boss4Obj.topObstacles[i].frameTimer++;
-                    if (boss4Obj.topObstacles[i].frameTimer >= 4) {
+                    if (boss4Obj.topObstacles[i].frameTimer >= 2) { // Faster animation
                         boss4Obj.topObstacles[i].frameTimer = 0;
-                        boss4Obj.topObstacles[i].frame = (boss4Obj.topObstacles[i].frame + 1) % 10;
+                        boss4Obj.topObstacles[i].frame = (boss4Obj.topObstacles[i].frame + 1) % 4; // 4 frames
                     }
                     if (boss4Obj.topObstacles[i].y < -100) boss4Obj.topObstacles[i].active = false;
                     
@@ -1170,6 +1231,13 @@ inline void updateFinalBossLogic() {
 
     // --- SKILL 7: REST ATTACK SKILL LOGIC (NOW AT INDEX 7) ---
     if (level4Phase == 3 && boss4Obj.currentSkill == 7) {
+        extern int charX, charY, charWidth, charHeight, lives, groundY;
+        extern bool isInvincible, isAttacking, npcSlashDone, isFallingSequence;
+        extern int invincibilityTimer, attackFrameIndex;
+        extern GameState gameState;
+        extern bool isLeftArrowPressed;
+        extern unsigned int specialKeyPressed[512];
+
         if (boss4Obj.restSkillState == 1) {
             boss4Obj.restSkillTimer++;
             if (boss4Obj.restSkillTimer >= 5) {
@@ -1179,6 +1247,9 @@ inline void updateFinalBossLogic() {
                     boss4Obj.restSkillState = 2;
                     boss4Obj.restFrameIndex = 4;
                     boss4Obj.restSkillTimer = 0;
+                    // Initialize rest NPC spawning
+                    boss4Obj.restNpcSpawnTimer = 0;
+                    boss4Obj.restBigNpcSpawned = false;
                 }
             }
         }
@@ -1189,8 +1260,264 @@ inline void updateFinalBossLogic() {
                 boss4Obj.restFrameIndex++;
                 if (boss4Obj.restFrameIndex >= 7) boss4Obj.restFrameIndex = 4;
             }
+
+            // --- REST NPC SPAWNING ---
+            // Spawn walking NPCs every ~150 ticks
+            boss4Obj.restNpcSpawnTimer++;
+            if (boss4Obj.restNpcSpawnTimer >= 150) {
+                boss4Obj.restNpcSpawnTimer = 0;
+                for (int i = 0; i < 3; i++) {
+                    if (!boss4Obj.restNpcs[i].active) {
+                        boss4Obj.restNpcs[i].active = true;
+                        boss4Obj.restNpcs[i].x = 1100.0f;
+                        boss4Obj.restNpcs[i].y = (float)groundY;
+                        boss4Obj.restNpcs[i].type = (rand() % 2) + 1; // 1: Melee, 2: Ranged
+                        boss4Obj.restNpcs[i].state = 0;
+                        boss4Obj.restNpcs[i].life = 2;
+                        boss4Obj.restNpcs[i].animFrame = 0;
+                        boss4Obj.restNpcs[i].animCounter = 0;
+                        boss4Obj.restNpcs[i].fireCooldown = 90 + (rand() % 90);
+                        boss4Obj.restNpcs[i].hasAttacked = false;
+                        boss4Obj.restNpcs[i].hitFlashTimer = 0;
+                        break;
+                    }
+                }
+            }
+
+            // Spawn Big NPC after ~3 seconds (100 ticks)
+            if (!boss4Obj.restBigNpcSpawned && boss4Obj.restSkillTimer >= 100) {
+                boss4Obj.restBigNpcSpawned = true;
+                boss4Obj.restBigNpc.active = true;
+                boss4Obj.restBigNpc.x = 1100.0f;
+                boss4Obj.restBigNpc.y = (float)groundY;
+                boss4Obj.restBigNpc.life = 6;
+                boss4Obj.restBigNpc.state = 0;
+                boss4Obj.restBigNpc.animFrame = 0;
+                boss4Obj.restBigNpc.animCounter = 0;
+                boss4Obj.restBigNpc.attackTimer = 0;
+                boss4Obj.restBigNpc.hasAttacked = false;
+                boss4Obj.restBigNpc.hitFlashTimer = 0;
+            }
+
+            // --- UPDATE WALKING NPCs ---
+            for (int i = 0; i < 3; i++) {
+                if (!boss4Obj.restNpcs[i].active) continue;
+
+                if (boss4Obj.restNpcs[i].hitFlashTimer > 0)
+                    boss4Obj.restNpcs[i].hitFlashTimer--;
+
+                if (boss4Obj.restNpcs[i].state == 0) { // Walking
+                    boss4Obj.restNpcs[i].x -= 4.0f;
+                    boss4Obj.restNpcs[i].animCounter++;
+                    if (boss4Obj.restNpcs[i].animCounter >= 4) {
+                        boss4Obj.restNpcs[i].animCounter = 0;
+                        boss4Obj.restNpcs[i].animFrame = (boss4Obj.restNpcs[i].animFrame + 1) % 9;
+                    }
+
+                    if (boss4Obj.restNpcs[i].type == 1) { // Melee
+                        if (boss4Obj.restNpcs[i].x - charX < 150 && boss4Obj.restNpcs[i].x > charX - 50) {
+                            boss4Obj.restNpcs[i].state = 1;
+                            boss4Obj.restNpcs[i].animFrame = 0;
+                            boss4Obj.restNpcs[i].attackTimer = 0;
+                            boss4Obj.restNpcs[i].hasAttacked = false;
+                        }
+                    } else { // Ranged
+                        boss4Obj.restNpcs[i].fireCooldown--;
+                        if (boss4Obj.restNpcs[i].fireCooldown <= 0) {
+                            for (int j = 0; j < 3; j++) {
+                                if (!boss4Obj.restFires[j].active) {
+                                    boss4Obj.restFires[j].active = true;
+                                    boss4Obj.restFires[j].x = boss4Obj.restNpcs[i].x - 30;
+                                    boss4Obj.restFires[j].y = boss4Obj.restNpcs[i].y + 30;
+                                    boss4Obj.restFires[j].animFrame = 0;
+                                    boss4Obj.restFires[j].animCounter = 0;
+                                    break;
+                                }
+                            }
+                            boss4Obj.restNpcs[i].fireCooldown = 90 + (rand() % 90);
+                        }
+                    }
+                } else if (boss4Obj.restNpcs[i].state == 1) { // Attacking (Melee)
+                    boss4Obj.restNpcs[i].attackTimer++;
+                    if (boss4Obj.restNpcs[i].attackTimer % 4 == 0) {
+                        boss4Obj.restNpcs[i].animFrame++;
+                    }
+                    if (!boss4Obj.restNpcs[i].hasAttacked && boss4Obj.restNpcs[i].animFrame >= 5) {
+                        if (charX + charWidth > boss4Obj.restNpcs[i].x - 30 &&
+                            charX < boss4Obj.restNpcs[i].x + 30 &&
+                            charY + charHeight > groundY && charY < groundY + 100) {
+                            if (!isInvincible && !isFallingSequence) {
+                                lives--;
+                                if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                                else { isInvincible = true; invincibilityTimer = 60; }
+                            }
+                        }
+                        boss4Obj.restNpcs[i].hasAttacked = true;
+                    }
+                    if (boss4Obj.restNpcs[i].animFrame >= 9) {
+                        boss4Obj.restNpcs[i].state = 0;
+                        boss4Obj.restNpcs[i].animFrame = 0;
+                        boss4Obj.restNpcs[i].hasAttacked = false;
+                    }
+                }
+
+                if (boss4Obj.restNpcs[i].x < -200)
+                    boss4Obj.restNpcs[i].active = false;
+
+                // Player attacking walking NPC
+                if (isAttacking && attackFrameIndex == 3 && !npcSlashDone && boss4Obj.restNpcs[i].active) {
+                    float npcCenterX = boss4Obj.restNpcs[i].x + 50.0f;
+                    bool facingBack = isLeftArrowPressed || (specialKeyPressed[GLUT_KEY_LEFT] != 0);
+                    float reachMin, reachMax;
+                    if (facingBack) { reachMin = (float)charX - 160; reachMax = (float)charX - 10; }
+                    else { reachMin = (float)(charX + charWidth + 10); reachMax = (float)(charX + charWidth + 160); }
+
+                    if (npcCenterX > reachMin && npcCenterX < reachMax &&
+                        charY < boss4Obj.restNpcs[i].y + 120 && charY + charHeight > boss4Obj.restNpcs[i].y) {
+                        boss4Obj.restNpcs[i].life--;
+                        npcSlashDone = true;
+                        if (boss4Obj.restNpcs[i].life <= 0) {
+                            boss4Obj.restNpcs[i].active = false;
+                        } else {
+                            boss4Obj.restNpcs[i].hitFlashTimer = 10;
+                        }
+                    }
+                }
+
+                // NPC contact damage to player
+                if (!isInvincible && !isFallingSequence && boss4Obj.restNpcs[i].active) {
+                    if (charX + charWidth - 40 > boss4Obj.restNpcs[i].x + 20 &&
+                        charX + 40 < boss4Obj.restNpcs[i].x + 130 &&
+                        charY + charHeight > boss4Obj.restNpcs[i].y &&
+                        charY < boss4Obj.restNpcs[i].y + 150) {
+                        lives--;
+                        if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                        else { isInvincible = true; invincibilityTimer = 60; }
+                    }
+                }
+            }
+
+            // --- UPDATE GREEN FIRE PROJECTILES ---
+            for (int i = 0; i < 3; i++) {
+                if (boss4Obj.restFires[i].active) {
+                    boss4Obj.restFires[i].x -= 10.0f;
+                    boss4Obj.restFires[i].animCounter++;
+                    if (boss4Obj.restFires[i].animCounter >= 3) {
+                        boss4Obj.restFires[i].animCounter = 0;
+                        boss4Obj.restFires[i].animFrame = (boss4Obj.restFires[i].animFrame + 1) % 9;
+                    }
+                    if (boss4Obj.restFires[i].x < -100)
+                        boss4Obj.restFires[i].active = false;
+
+                    // Fire collision with player
+                    if (boss4Obj.restFires[i].active && !isInvincible && !isFallingSequence) {
+                        if (charX + charWidth - 40 > boss4Obj.restFires[i].x + 10 &&
+                            charX + 40 < boss4Obj.restFires[i].x + 90 &&
+                            charY + charHeight - 20 > boss4Obj.restFires[i].y + 10 &&
+                            charY + 20 < boss4Obj.restFires[i].y + 90) {
+                            boss4Obj.restFires[i].active = false;
+                            lives--;
+                            if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                            else { isInvincible = true; invincibilityTimer = 60; }
+                        }
+                    }
+                }
+            }
+
+            // --- UPDATE BIG NPC ---
+            if (boss4Obj.restBigNpc.active) {
+                if (boss4Obj.restBigNpc.hitFlashTimer > 0)
+                    boss4Obj.restBigNpc.hitFlashTimer--;
+
+                if (boss4Obj.restBigNpc.state == 0) { // Following player
+                    float speed = 3.0f;
+                    if (boss4Obj.restBigNpc.x > charX + 50) boss4Obj.restBigNpc.x -= speed;
+                    else if (boss4Obj.restBigNpc.x < charX - 50) boss4Obj.restBigNpc.x += speed;
+
+                    boss4Obj.restBigNpc.animCounter++;
+                    if (boss4Obj.restBigNpc.animCounter >= 5) {
+                        boss4Obj.restBigNpc.animCounter = 0;
+                        boss4Obj.restBigNpc.animFrame = (boss4Obj.restBigNpc.animFrame + 1) % 9;
+                    }
+
+                    // Switch to attack when close
+                    float dx = boss4Obj.restBigNpc.x - charX;
+                    if (dx < 0) dx = -dx;
+                    if (dx < 120) {
+                        boss4Obj.restBigNpc.state = 1;
+                        boss4Obj.restBigNpc.animFrame = 0;
+                        boss4Obj.restBigNpc.attackTimer = 0;
+                        boss4Obj.restBigNpc.hasAttacked = false;
+                    }
+                } else if (boss4Obj.restBigNpc.state == 1) { // Attacking
+                    boss4Obj.restBigNpc.attackTimer++;
+                    if (boss4Obj.restBigNpc.attackTimer % 4 == 0) {
+                        boss4Obj.restBigNpc.animFrame++;
+                    }
+                    if (!boss4Obj.restBigNpc.hasAttacked && boss4Obj.restBigNpc.animFrame >= 5) {
+                        // Deal damage
+                        if (charX + charWidth > boss4Obj.restBigNpc.x - 50 &&
+                            charX < boss4Obj.restBigNpc.x + 200 &&
+                            charY + charHeight > boss4Obj.restBigNpc.y &&
+                            charY < boss4Obj.restBigNpc.y + 200) {
+                            if (!isInvincible && !isFallingSequence) {
+                                lives--;
+                                if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                                else { isInvincible = true; invincibilityTimer = 60; }
+                            }
+                        }
+                        boss4Obj.restBigNpc.hasAttacked = true;
+                    }
+                    if (boss4Obj.restBigNpc.animFrame >= 9) {
+                        boss4Obj.restBigNpc.state = 0;
+                        boss4Obj.restBigNpc.animFrame = 0;
+                        boss4Obj.restBigNpc.hasAttacked = false;
+                    }
+                }
+
+                // Player attacking Big NPC
+                if (isAttacking && attackFrameIndex == 3 && !npcSlashDone) {
+                    float bigCenterX = boss4Obj.restBigNpc.x + 100.0f;
+                    bool facingBack = isLeftArrowPressed || (specialKeyPressed[GLUT_KEY_LEFT] != 0);
+                    float reachMin, reachMax;
+                    if (facingBack) { reachMin = (float)charX - 160; reachMax = (float)charX - 10; }
+                    else { reachMin = (float)(charX + charWidth + 10); reachMax = (float)(charX + charWidth + 160); }
+
+                    if (bigCenterX > reachMin && bigCenterX < reachMax &&
+                        charY < boss4Obj.restBigNpc.y + 200 && charY + charHeight > boss4Obj.restBigNpc.y) {
+                        boss4Obj.restBigNpc.life--;
+                        npcSlashDone = true;
+                        if (boss4Obj.restBigNpc.life <= 0) {
+                            boss4Obj.restBigNpc.active = false;
+                        } else {
+                            boss4Obj.restBigNpc.hitFlashTimer = 10;
+                        }
+                    }
+                }
+
+                // Big NPC contact damage
+                if (!isInvincible && !isFallingSequence && boss4Obj.restBigNpc.active) {
+                    if (charX + charWidth - 40 > boss4Obj.restBigNpc.x + 20 &&
+                        charX + 40 < boss4Obj.restBigNpc.x + 180 &&
+                        charY + charHeight > boss4Obj.restBigNpc.y &&
+                        charY < boss4Obj.restBigNpc.y + 200) {
+                        lives--;
+                        if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                        else { isInvincible = true; invincibilityTimer = 60; }
+                    }
+                }
+            }
+
             // 660 timer ticks = 20 seconds at 33fps
             if (boss4Obj.restSkillTimer > 660) { 
+                // Deactivate all rest NPCs
+                for (int i = 0; i < 3; i++) {
+                    boss4Obj.restNpcs[i].active = false;
+                    boss4Obj.restFires[i].active = false;
+                }
+                boss4Obj.restBigNpc.active = false;
+                boss4Obj.restBigNpcSpawned = false;
+
                 boss4Obj.restSkillState = 0;
                 boss4Obj.restSkillTimer = 0;
                 boss4Obj.currentSkill = -1;
@@ -1403,21 +1730,10 @@ inline void drawBoss() {
                     iDrawBossImage((int)boss4Obj.x, (int)boss4Obj.y, BOSS_WIDTH, BOSS_HEIGHT, bossPreJumpImgs[boss4Obj.enemyFrameIndex]);
                 }
                 
-                if (boss4Obj.enemySkillState >= 4) {
+                 if (boss4Obj.enemySkillState >= 4) {
                     for(int i=0; i<5; i++) {
                         if (boss4Obj.bossEnemies[i].active) {
-                            int eImg = worm11;
-                            if (boss4Obj.bossEnemies[i].type == 0) {
-                                if (boss4Obj.bossEnemies[i].frame == 0) eImg = worm11;
-                                else if (boss4Obj.bossEnemies[i].frame == 1) eImg = worm12;
-                                else if (boss4Obj.bossEnemies[i].frame == 2) eImg = worm13;
-                                else if (boss4Obj.bossEnemies[i].frame == 3) eImg = worm14;
-                            } else {
-                                if (boss4Obj.bossEnemies[i].frame == 0) eImg = worm21;
-                                else if (boss4Obj.bossEnemies[i].frame == 1) eImg = worm22;
-                                else if (boss4Obj.bossEnemies[i].frame == 2) eImg = worm23;
-                                else if (boss4Obj.bossEnemies[i].frame == 3) eImg = worm24;
-                            }
+                            int eImg = spiderImgs[boss4Obj.bossEnemies[i].frame];
                             iShowImage((int)boss4Obj.bossEnemies[i].x, (int)boss4Obj.bossEnemies[i].y, 100, 40, eImg);
                         }
                     }
@@ -1432,7 +1748,8 @@ inline void drawBoss() {
                      iDrawBossImage((int)boss4Obj.x, (int)boss4Obj.y, BOSS_WIDTH, BOSS_HEIGHT, bossThunderImgs[boss4Obj.topFrameIndex]);
                      for(int i = 0; i < 10; i++) {
                          if (boss4Obj.topObstacles[i].active) {
-                             iShowImage((int)boss4Obj.topObstacles[i].x, (int)boss4Obj.topObstacles[i].y, 50, 50, fireballImgs[boss4Obj.topObstacles[i].frame]);
+                             int* obsImgs = (boss4Obj.topObstacles[i].type == 0) ? highobs1Imgs : highobs2Imgs;
+                             iShowImage((int)boss4Obj.topObstacles[i].x, (int)boss4Obj.topObstacles[i].y, 90, 90, obsImgs[boss4Obj.topObstacles[i].frame]);
                          }
                      }
                  }
@@ -1453,6 +1770,43 @@ inline void drawBoss() {
              // SKILL 7: REST ATTACK RENDERING (Swapped)
              if (boss4Obj.currentSkill == 7) {
                  iDrawBossImage((int)boss4Obj.x, (int)boss4Obj.y, BOSS_WIDTH, BOSS_HEIGHT, bossRestSkillImgs[boss4Obj.restFrameIndex]);
+
+                 // Draw Walking NPCs
+                 extern int npc1Walk[9], npc1Attack[9], npc2Walk[9], greenFireImgs[9];
+                 for (int i = 0; i < 3; i++) {
+                     if (boss4Obj.restNpcs[i].active) {
+                         if (boss4Obj.restNpcs[i].hitFlashTimer > 0 && (boss4Obj.restNpcs[i].hitFlashTimer / 3) % 2 == 0) {
+                             // Blink on hit
+                         } else {
+                             int nImg;
+                             if (boss4Obj.restNpcs[i].type == 1) {
+                                 nImg = (boss4Obj.restNpcs[i].state == 1) ? npc1Attack[boss4Obj.restNpcs[i].animFrame % 9] : npc1Walk[boss4Obj.restNpcs[i].animFrame % 9];
+                             } else {
+                                 nImg = npc2Walk[boss4Obj.restNpcs[i].animFrame % 9];
+                             }
+                             iShowImage((int)boss4Obj.restNpcs[i].x, (int)boss4Obj.restNpcs[i].y, 100, 120, nImg);
+                         }
+                     }
+                     // Draw green fire projectiles
+                     if (boss4Obj.restFires[i].active) {
+                         iShowImage((int)boss4Obj.restFires[i].x, (int)boss4Obj.restFires[i].y, 100, 100, greenFireImgs[boss4Obj.restFires[i].animFrame % 9]);
+                     }
+                 }
+
+                 // Draw Big NPC
+                 if (boss4Obj.restBigNpc.active) {
+                     if (boss4Obj.restBigNpc.hitFlashTimer > 0 && (boss4Obj.restBigNpc.hitFlashTimer / 3) % 2 == 0) {
+                         // Blink on hit
+                     } else {
+                         int bImg;
+                         if (boss4Obj.restBigNpc.state == 1) {
+                             bImg = bigNpcAttackImgs[boss4Obj.restBigNpc.animFrame % 9];
+                         } else {
+                             bImg = bigNpcWalkImgs[boss4Obj.restBigNpc.animFrame % 9];
+                         }
+                         iShowImage((int)boss4Obj.restBigNpc.x, (int)boss4Obj.restBigNpc.y, 200, 200, bImg);
+                     }
+                 }
              }
         } else {
             // Normal phase animations

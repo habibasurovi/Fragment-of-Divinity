@@ -1,9 +1,9 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
 #include <mmsystem.h>
 #include <math.h>
 #include <stdio.h>
 #include <time.h>
-
 
 // iGraphics.h variables
 unsigned int keyPressed[512];
@@ -35,10 +35,9 @@ int pendingAction = -1;
 GameState pendingState = MENU;
 // ------------------------------------
 
-
-
 #include "AppleHandler.h"
 #include "BackgroundHandler.h"
+#include "Boss.h" // Move Boss.h here so it can see Worms and other sprites
 #include "Character.h"
 #include "CharacterCustomization.h"
 #include "CustomizationMenu.h"
@@ -49,26 +48,25 @@ GameState pendingState = MENU;
 #include "LifeHandler.h"
 #include "MainMenu.h"
 #include "ObstacleHandler.h"
-#include "Boss.h" // Move Boss.h here so it can see Worms and other sprites
 #include "PauseMenu.h"
 #include "SettingsMenu.h"
 #include "ShardHandler.h"
 #include "StoryHandler.h"
 #include "WeatherHandler.h"
+#include "attack.h"
 #include "cave.h"
 #include "character 2.h"
-#include "dragon.h"
-#include "iGraphics.h"
-#include "gunattack.h"
 #include "cinder.h"
 #include "cloneattack.h"
-#include "attack.h"
+#include "dragon.h"
+#include "gunattack.h"
+#include "iGraphics.h"
+#include "owl.h"
+
 
 #pragma comment(lib, "winmm.lib")
 
-
 // --- Redundant re-declarations removed below... ---
-
 
 /* -------------------- CONSTANTS -------------------- */
 #define screenWidth 1000
@@ -83,7 +81,6 @@ void drawTimer();
 
 /* -------------------- GLOBAL VARIABLES -------------------- */
 // Game States (Moved to GameState.h)
-
 
 int iScreenHeight, iScreenWidth;
 int iMouseX, iMouseY;
@@ -117,7 +114,6 @@ int cave2StoryImages[3];
 int cave2StoryIndex = 0;
 int gunImg;
 int gunExplainImg;
-
 
 // Level 1 Riddles (6 Questions - Defined here to avoid ODR redefinition)
 Riddle riddlesLevel1[6] = {
@@ -169,7 +165,6 @@ struct Ghost ghosts[MAX_GHOSTS];
 int ghostSpawnTimer = 0;
 
 // Game Timer (Task 1 & 3)
-
 
 // Cave (Task 3)
 int caveImg;
@@ -386,6 +381,15 @@ int haloTimer = 0;
 int haloImg;
 bool hasClaimedShard = false;
 bool hasClaimedGun = false;
+bool hasCompanion = false; // Set when Level 3 cave IQ is won correctly
+
+// Level 4 Owl Power-up
+int l3CompanionImg;       // Companion splash image (Wizard\l3companion.png)
+int owlImg;               // Owl power-up icon (level4\owl\owl power up.png)
+int owlBulletImg;         // Owl bullet image (level4\owl\bullet.png)
+int owlFrames[9];         // Owl animation frames
+bool owlReady = true;     // Whether owl is available to use
+int owlCooldownTimer = 0; // Seconds remaining (10 -> 0)
 
 // MainMenu.h variables
 int mainMenuBG;
@@ -461,7 +465,7 @@ int meteroidFrameIndex = 0;
 int meteroidAnimCounter = 0;
 
 // Clone Attack State
-ClonePhase clonePhase = CLONE_IDLE; 
+ClonePhase clonePhase = CLONE_IDLE;
 int cloneSummonFrame = 0;
 int cloneSummonCounter = 0;
 int cloneRunFrame = 0;
@@ -717,11 +721,18 @@ void resetGame() {
     level4Phase = 1;
     level4ScrollCount = 0;
     initFinalBoss();
-    
+
     // Reset Level 4 Special Attacks & Clones
     isTeleportAttacking = false;
     isMeteroidAttacking = false;
     clonePhase = CLONE_IDLE;
+
+    // Reset owl companion
+    owlCompanion.active = false;
+
+    // Start owl with 10s countdown automatically at Level 4 launch
+    owlReady = false;
+    owlCooldownTimer = 10;
   }
 }
 
@@ -737,7 +748,8 @@ void updateCavePhysics() {
     isLeftArrowPressed = false;
     if (charY > groundY) {
       charY -= 10;
-      if (charY < groundY) charY = groundY;
+      if (charY < groundY)
+        charY = groundY;
     } else if (charY < groundY) {
       charY = groundY;
     }
@@ -764,11 +776,8 @@ void updateCavePhysics() {
           charFrameIndex = 1;
       }
     } else {
-      // Once charX reaches caveMid, transition to next phase
-      gameState = NEXT_LEVEL_IQ;
-      initCaveState();
-      initIQ();
-      playMusicTrack(TRACK_CAVE);
+      // Once charX reaches caveMid, show level completion menu
+      gameState = LEVEL_COMPLETE;
     }
   }
 }
@@ -1063,11 +1072,19 @@ void globalTimerLogic() {
       level4HeartTimer = 0;
       spawnHeartLevel4();
     }
+
+    // Owl cooldown countdown (1 tick per globalTimerLogic call = 1 second)
+    if (!owlReady && owlCooldownTimer > 0) {
+      owlCooldownTimer--;
+      if (owlCooldownTimer <= 0) {
+        owlCooldownTimer = 0;
+        owlReady = true;
+      }
+    }
   }
   if (gameState == GAME && !isGamePaused && !levelOneComplete) {
-    int transitionTime = 30; // 30 seconds for game timer
+    int transitionTime = 80; // 80 seconds for game timer
     gameRunTimeSeconds++;
-
 
     if (currentLevel != 4 && gameRunTimeSeconds >= transitionTime &&
         !isCaveActive) {
@@ -1156,7 +1173,6 @@ void checkCollision() {
           float dx = targetX - (dragons[i].x + 150.0f);
           float dy = targetY - (dragons[i].y + 150.0f);
           float dist = (float)sqrt((double)(dx * dx + dy * dy));
-
 
           if (dist < 150.0f) {
             if (keyPressed[' ']) { // Space allows killing
@@ -1415,7 +1431,7 @@ void autoScrollRecursiveWrapper() {
             level4Phase = 2;      // Transition to boss appearance
             initFinalBoss();
             boss4Obj.active = true;
-            boss4Obj.x = SCREEN_W + 50; 
+            boss4Obj.x = SCREEN_W + 50;
           }
         }
       } else {
@@ -1479,7 +1495,7 @@ void updateLevel4Logic() {
       updateFinalBossLogic();
     } else {
       boss4Obj.x = 750;
-      level4Phase = 3;           // resting phase
+      level4Phase = 3;         // resting phase
       boss4Obj.frameIndex = 0; // Reset animation frame for standing
       boss4Obj.animCounter = 0;
     }
@@ -1500,8 +1516,10 @@ void updateAttackAnimation() {
     return;
 
   int maxFrames = 6;
-  if (selectedCharacter == 0) maxFrames = 4;
-  else if (selectedCharacter == 2) maxFrames = 3;
+  if (selectedCharacter == 0)
+    maxFrames = 4;
+  else if (selectedCharacter == 2)
+    maxFrames = 3;
 
   attackAnimCounter++;
   if (attackAnimCounter >= attackAnimSpeed) {
@@ -1659,6 +1677,8 @@ void masterGameLoop() {
   updateCloneAttackAnimation();
   updateTeleportAttackAnimation();
   updateMeteroidAttackAnimation();
+  updateOwl();
+  updateOwlCollisions();
 
   // Save high score when game ends (GAME_OVER)
   static bool gameOverScoreSaved = false;
@@ -1787,12 +1807,14 @@ void iDraw() {
 
     if (!(currentLevel == 4 && level4Phase == 5)) {
       if (!isTeleportAttacking && !isMeteroidAttacking) {
-          drawCharacter();
+        drawCharacter();
       }
       drawTeleportAttack(); // Teleport animation handles its own state check
       drawMeteroidAttack(); // Meteroid animation handles its own state check
-      drawCloneAttack();   // Clone animation drawn over character (Level 4 only)
-      drawCharFireFlame(); // Fireball on-fire flame: drawn AFTER char so it is in front
+      drawCloneAttack(); // Clone animation drawn over character (Level 4 only)
+      drawCharFireFlame(); // Fireball on-fire flame: drawn AFTER char so it is
+                           // in front
+      drawOwl();
     }
     drawFireballs();
     drawExplosions();
@@ -1805,6 +1827,21 @@ void iDraw() {
     }
     drawShardElements();
     drawTimer();
+
+    // --- Level 4 Owl Power-up UI (bottom-left) ---
+    if (currentLevel == 4 && (hasCompanion || true) && gameState == GAME) { // TEMPORARY: Allow without companion
+      // Draw owl icon (visible always, no grey box)
+      iSetColor(255, 255, 255);
+      iShowImage(10, 10, 120, 120, owlImg);
+
+      if (!owlReady) {
+        // Only draw the timer on top of the power up image
+        char cdStr[8];
+        sprintf_s(cdStr, sizeof(cdStr), "%d", owlCooldownTimer);
+        iSetColor(255, 220, 0);
+        iText(64, 62, (char *)cdStr, (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+      }
+    }
 
     if (currentLevel == 4 && level4Phase == 5) {
       // Victory Screen - Polished Ultra Bold centered text
@@ -1819,7 +1856,8 @@ void iDraw() {
         }
       }
       iSetColor(255, 255, 255);
-      iText(340, 350, (char *)"CONGRATULATIONS!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+      iText(340, 350, (char *)"CONGRATULATIONS!",
+            (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       iText(430, 300, (char *)"VICTORY", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       return; // Ensure no other UI elements (Shards, Timer, etc.) are drawn
               // over victory
@@ -1836,9 +1874,9 @@ void iDraw() {
       int b = (comboDisplayTimer % 20 < 10) ? 0 : 0;
 
       iSetColor(255, 255, 255);
-      iText(52, 348, (char*)comboText, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
+      iText(52, 348, (char *)comboText, (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       iSetColor(r, g, b);
-      iText(50, 350, (char*)comboText, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
+      iText(50, 350, (char *)comboText, (void *)GLUT_BITMAP_TIMES_ROMAN_24);
     }
 
     // Draw Score Popups
@@ -1847,11 +1885,11 @@ void iDraw() {
         char scoreStr[20];
         sprintf_s(scoreStr, sizeof(scoreStr), "+%d", scorePopups[i].amount);
 
-        iText(scorePopups[i].x + 1, scorePopups[i].y - 1, (char*)scoreStr,
-              (void*)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(scorePopups[i].x + 1, scorePopups[i].y - 1, (char *)scoreStr,
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
         iSetColor(50, 255, 50); // Neon Green
-        iText(scorePopups[i].x, scorePopups[i].y, (char*)scoreStr,
-              (void*)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(scorePopups[i].x, scorePopups[i].y, (char *)scoreStr,
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     }
 
@@ -1859,8 +1897,8 @@ void iDraw() {
     for (int i = 0; i < 15; i++) {
       if (appleScorePopups[i].active) {
         iSetColor(255, 255, 0); // Yellow
-        iText(appleScorePopups[i].x, appleScorePopups[i].y, (char*)"+1",
-              (void*)GLUT_BITMAP_HELVETICA_18);
+        iText(appleScorePopups[i].x, appleScorePopups[i].y, (char *)"+1",
+              (void *)GLUT_BITMAP_HELVETICA_18);
       }
     }
 
@@ -1876,11 +1914,13 @@ void iDraw() {
 
         // Shadow layer for depth
         iSetColor(80, 50, 20);
-        iText(textX + 1, popups[i].y - 1, (char*)phrase, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX + 1, popups[i].y - 1, (char *)phrase,
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
 
         // Main text - muted amber tone
         iSetColor(180, 140, 60);
-        iText(textX, popups[i].y, (char*)phrase, (void*)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX, popups[i].y, (char *)phrase,
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     }
 
@@ -1930,7 +1970,8 @@ void iDraw() {
     // Subtitle
     iSetColor(200, 200, 200);
     iText(screenWidth / 2.0 - 160.0, 450.0,
-          (char *)"Best Food Collected per Level", (void *)GLUT_BITMAP_HELVETICA_18);
+          (char *)"Best Food Collected per Level",
+          (void *)GLUT_BITMAP_HELVETICA_18);
 
     // Separator line
     iSetColor(180, 140, 60);
@@ -1962,16 +2003,19 @@ void iDraw() {
     iLine(screenWidth / 2.0 - 280.0, 165.0, screenWidth / 2.0 + 280.0, 165.0);
     iSetColor(200, 200, 200);
     iText(screenWidth / 2.0 - 120.0, 130.0,
-          (char *)"Press 'B' to Return to Menu", (void *)GLUT_BITMAP_HELVETICA_18);
+          (char *)"Press 'B' to Return to Menu",
+          (void *)GLUT_BITMAP_HELVETICA_18);
 
   } else if (gameState == LEVEL_NOT_READY) {
     iShowImage(0, 0, screenWidth, screenHeight, levelSelectionBG);
     iSetColor(255, 255, 255);
     iText(screenWidth / 2.0 - 180.0, screenHeight / 2.0,
-          (char *)"LEVEL GAMEPLAY NOT READY YET", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+          (char *)"LEVEL GAMEPLAY NOT READY YET",
+          (void *)GLUT_BITMAP_TIMES_ROMAN_24);
     iSetColor(200, 200, 200);
     iText(screenWidth / 2.0 - 150.0, screenHeight / 2.0 - 50.0,
-          (char *)"Press 'B' to Return to Selection", (void *)GLUT_BITMAP_HELVETICA_18);
+          (char *)"Press 'B' to Return to Selection",
+          (void *)GLUT_BITMAP_HELVETICA_18);
   }
 }
 
@@ -1986,6 +2030,15 @@ void iMouse(int button, int state, int mx, int my) {
       return;
 
     if (gameState == GAME) {
+      // Owl trigger in Level 4
+      if (currentLevel == 4 && (hasCompanion || true) && owlReady && // TEMPORARY: Allow without companion
+          !owlCompanion.active) {
+        if (mx >= 10 && mx <= 130 && my >= 10 && my <= 130) {
+          initOwl();
+          playClickSound();
+          return;
+        }
+      }
       if (handleGunBarClick(mx, my)) {
         // Gun equipped - character usage handled elsewhere
       }
@@ -2203,13 +2256,15 @@ void iMouse(int button, int state, int mx, int my) {
       if (iqAnswered && action == 4) {
         playClickSound();
         if (iqCorrect) {
-          // Correct answer: Show Shard Explanation Splash
+          // Correct answer: Show item/companion splash screen
           if (currentLevel == 1)
             hasClaimedShard = true;
           else if (currentLevel == 2)
             hasClaimedGun = true;
+          else if (currentLevel == 3)
+            hasCompanion = true; // Companion (Aizen) claimed!
           isLevelTransitioning = true;
-          transitionPhase = 2; // Show shardexplain.png
+          transitionPhase = 2; // Show shard/gun/companion explain screen
         } else {
           // Incorrect answer: Skip Explanation, proceed to next level intro
           playMusicTrack(TRACK_NONE);
@@ -2270,11 +2325,11 @@ void iKeyboard(unsigned char key) {
 
   if (gameState == GAME && (key == 'f' || key == 'F')) {
     if (currentLevel != 4) { // Disable F key in Level 4
-        if (!isGunAttacking) {
-          isGunAttacking = true;
-          gunAttackFrameIndex = 0;
-          gunAttackAnimCounter = 0;
-        }
+      if (!isGunAttacking) {
+        isGunAttacking = true;
+        gunAttackFrameIndex = 0;
+        gunAttackAnimCounter = 0;
+      }
     }
   }
 
@@ -2292,7 +2347,8 @@ void iKeyboard(unsigned char key) {
       jumpAttackAnimCounter = 0;
       verticalVelocity = 32; // Standard jump speed
       jumpHorizontalSpeed = 10;
-      currentJumpDirection = (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) ? -1 : 1;
+      currentJumpDirection =
+          (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) ? -1 : 1;
     }
   }
 
@@ -2390,15 +2446,15 @@ void iSpecialKeyboardUp(unsigned char key) { specialKeyPressed[key] = 0; }
 void drawTimer() {
   if (gameState == GAME && !levelOneComplete && currentLevel != 4) {
     char timeStr[32];
-    int transitionTime = 30;
+    int transitionTime = 80;
     int remaining = transitionTime - gameRunTimeSeconds;
     if (remaining < 0)
       remaining = 0;
     sprintf_s(timeStr, sizeof(timeStr), "Time: %02d:%02d", remaining / 60,
               remaining % 60);
     iSetColor(255, 255, 255);
-    iText((int)(iScreenWidth / 2.0 - 50.0), (int)(iScreenHeight - 60), (char *)timeStr,
-          (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+    iText((int)(iScreenWidth / 2.0 - 50.0), (int)(iScreenHeight - 60),
+          (char *)timeStr, (void *)GLUT_BITMAP_TIMES_ROMAN_24);
   }
 }
 void fixedUpdate() {}
@@ -2430,16 +2486,25 @@ int main() {
   wizardL2Img = iLoadImage((char *)"Wizard\\wizard2.0.png");
   caveImgL3 = iLoadImage((char *)"level3\\cave3.png");
   wizardL3Img = iLoadImage((char *)"level3\\wizard3.png");
+  l3CompanionImg = iLoadImage((char *)"Wizard\\l3companion.png");
+  owlImg = iLoadImage((char *)"level4\\owl\\owl power up.png");
+  owlBulletImg = iLoadImage((char *)"level4\\owl\\bullet.png");
+  char owlFramePath[50];
+  for (int i = 0; i < 9; i++) {
+    sprintf_s(owlFramePath, sizeof(owlFramePath), "level4\\owl\\frame_%03d.png", i);
+    owlFrames[i] = iLoadImage(owlFramePath);
+  }
   loadCharacter2Assets();
   loadDragonAssets();
   initDragons();
   initShard();
   haloImg = iLoadImage((char *)"scores and items\\halo.png");
-  loadGunBarAssets(); // Gun bar image
+  loadGunBarAssets();    // Gun bar image
   loadGunAttackAssets(); // Load Gun Attack and Fireball assets
   loadCinderAssets();
-  loadBossAssets();       // Preload boss assets at startup to eliminate skip-button delay
-  loadCloneAttackAssets(); // Preload clone images
+  loadBossAssets(); // Preload boss assets at startup to eliminate skip-button
+                    // delay
+  loadCloneAttackAssets();    // Preload clone images
   loadTeleportAttackAssets(); // Preload teleport attack images
   // loadBossAssets(); // Deferred to resetGame() to speed up startup
 
