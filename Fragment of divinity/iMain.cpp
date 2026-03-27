@@ -215,6 +215,7 @@ int caveImgL3, wizardL3Img;
 
 // Level 3 background assets
 int l3bG1, l3bG2, l3bG2_1, l3bG2_2;
+int charAttackDamagelessTimer = 0; // 1-second stun guard after attack
 bool isL3Changed = false;
 
 // Level 4 Boss variables moved to Boss.h
@@ -720,6 +721,7 @@ void resetGame() {
     loadBossAssets(); // Deferred loading to prevent slow startup
     level4Phase = 1;
     level4ScrollCount = 0;
+    bGX = 0;
     initFinalBoss();
 
     // Reset Level 4 Special Attacks & Clones
@@ -764,6 +766,20 @@ void updateCavePhysics() {
     }
 
     // Character stops before passing the cave, moves to middle instead.
+    // Move cave onto screen first
+    if (caveX > 700) {
+      caveX -= 5;
+      // Basic character animation while waiting for cave (optional but looks better)
+      charAnimCounter++;
+      if (charAnimCounter >= charAnimSpeed) {
+        charAnimCounter = 0;
+        charFrameIndex++;
+        if (charFrameIndex >= 9)
+          charFrameIndex = 1;
+      }
+      return;
+    }
+
     if (charX + charWidth / 2 < caveMid) {
       charX += 5;
 
@@ -894,6 +910,9 @@ static void firePendingAction() {
     } else if (gameState == LEVEL4_INTRO) {
       currentLevel = 4;
       resetGame();
+      level4Phase = 1;
+      bGX = 0;
+      level4ScrollCount = 0;
     }
     break;
   case 22: // Previous
@@ -969,6 +988,9 @@ static void firePendingAction() {
     currentLevel = 4;
     gameState = LEVEL4_INTRO;
     storyTimerCount = 0;
+    level4Phase = 1;
+    bGX = 0;
+    level4ScrollCount = 0;
     break;
   case 34:
     previousState = LEVEL_SELECTION;
@@ -1083,13 +1105,13 @@ void globalTimerLogic() {
     }
   }
   if (gameState == GAME && !isGamePaused && !levelOneComplete) {
-    int transitionTime = 80; // 80 seconds for game timer
+    int transitionTime = 30; // 30 seconds for game timer
     gameRunTimeSeconds++;
 
     if (currentLevel != 4 && gameRunTimeSeconds >= transitionTime &&
         !isCaveActive) {
       isCaveActive = true;
-      caveX = 700;
+      caveX = 1000;
       for (int i = 0; i < 3; i++) {
         obstacles[i].active = false;
         obstacles[i].x = -200;
@@ -1270,7 +1292,7 @@ void checkCollision() {
           }
 
           // NPC contact damage
-          if (!isInvincible && !isFallingSequence && npcList[i].stunTimer <= 0) {
+          if (!isInvincible && !isFallingSequence && npcList[i].stunTimer <= 0 && charAttackDamagelessTimer <= 0) {
             if (charX + charWidth - 40 > npcList[i].x + 20 &&
                 charX + 40 < npcList[i].x + 130 &&
                 charY + charHeight > npcList[i].y &&
@@ -1292,7 +1314,7 @@ void checkCollision() {
       // 2. Green Fire vs Player
       for (int i = 0; i < MAX_FIRES; i++) {
         if (fireList[i].active) {
-          if (!isInvincible && !isFallingSequence) {
+          if (!isInvincible && !isFallingSequence && charAttackDamagelessTimer <= 0) {
             // green-fire-burning frame size approx 100x100
             if (charX + charWidth - 40 > fireList[i].x + 10 &&
                 charX + 40 < fireList[i].x + 90 &&
@@ -1342,7 +1364,7 @@ void checkCollision() {
           }
 
           // Skull touching player
-          if (!isInvincible && !isFallingSequence) {
+          if (!isInvincible && !isFallingSequence && charAttackDamagelessTimer <= 0) {
             float charCx = charX + charWidth / 2.0f;
             float charCy = charY + charHeight / 2.0f;
             float sCx = skulls[i].x + 30.0f;
@@ -1398,7 +1420,7 @@ void checkCollision() {
           charX + 85 < obstacles[i].x + obsHitW &&
           charY + charHeight - 50 > obstacles[i].y &&
           charY < obstacles[i].y + obsHitH) {
-        if (!isInvincible) {
+        if (!isInvincible && charAttackDamagelessTimer <= 0) {
           lives--;
           if (lives <= 0) {
             gameState = GAME_OVER;
@@ -1666,6 +1688,7 @@ void masterGameLoop() {
   updateCavePhysics();
   updateWizardWrapper();
   updateRunAnimation();
+  if (charAttackDamagelessTimer > 0) charAttackDamagelessTimer--;
   updateDragonPhysics();
   if (currentLevel == 3 && gameState == GAME && !isGamePaused) {
     updateCinderPhysics();
@@ -1940,6 +1963,7 @@ void iDraw() {
     }
   } else if (gameState == NEXT_LEVEL_IQ) {
     drawCave();
+    drawPauseMenu();
     if (isLevelTransitioning)
       return;
     if (!isWizardMoving) {
@@ -2208,7 +2232,10 @@ void iMouse(int button, int state, int mx, int my) {
           playMusicTrack(
               TRACK_CAVE); // Start cave music during its story frames
         } else if (currentLevel == 3) {
-          gameState = LEVEL4_INTRO;
+          gameState = NEXT_LEVEL_IQ;
+          initCaveState();
+          initIQ();
+          playMusicTrack(TRACK_CAVE);
           storyTimerCount = 0;
         } else {
           gameState = NEXT_LEVEL_IQ;
@@ -2223,6 +2250,22 @@ void iMouse(int button, int state, int mx, int my) {
         playMusicTrack(TRACK_INTRO);
       }
     } else if (gameState == NEXT_LEVEL_IQ) {
+      int pauseAction = handlePauseMenuMouse(mx, my);
+      if (pauseAction != 0) {
+        playClickSound();
+        if (pauseAction == 2) {
+          resetGame();
+        } else if (pauseAction == 3) {
+          previousState = (int)gameState;
+          gameState = SETTINGS;
+        } else if (pauseAction == 4) {
+          gameState = MENU;
+        }
+        return;
+      }
+      if (isGamePaused)
+        return;
+
       if (isLevelTransitioning) {
         int result = handleCaveTransitionClick(mx, my);
         if (result == 1) {
@@ -2237,6 +2280,9 @@ void iMouse(int button, int state, int mx, int my) {
           } else if (currentLevel == 3) {
             gameState = LEVEL4_INTRO;
             currentLevel = 4; // Move to Next
+            level4Phase = 1;
+            bGX = 0;
+            level4ScrollCount = 0;
           }
           storyTimerCount = 0;
         } else if (result == 2) {
@@ -2273,8 +2319,13 @@ void iMouse(int button, int state, int mx, int my) {
             gameState = LEVEL2_INTRO;
           else if (currentLevel == 2)
             gameState = LEVEL3_INTRO;
-          else if (currentLevel == 3)
+          else if (currentLevel == 3) {
             gameState = LEVEL4_INTRO;
+            currentLevel = 4;
+            level4Phase = 1;
+            bGX = 0;
+            level4ScrollCount = 0;
+          }
           storyTimerCount = 0;
         }
         // Do NOT switch to LEVEL2_INTRO yet for correct answer. Wait for
@@ -2285,6 +2336,9 @@ void iMouse(int button, int state, int mx, int my) {
 }
 
 void iKeyboard(unsigned char key) {
+  if (key == 27 && (gameState == GAME || gameState == NEXT_LEVEL_IQ)) {
+    isGamePaused = !isGamePaused;
+  }
   if (gameState == INTRO && key == '\r') {
     loadMainMenuAssets();
     gameState = MENU;
@@ -2321,6 +2375,8 @@ void iKeyboard(unsigned char key) {
       isAttacking = true;
       attackFrameIndex = 0;
       attackAnimCounter = 0;
+      if (currentLevel == 3 || currentLevel == 4) 
+          charAttackDamagelessTimer = 30; // 1-second stun guard
     }
   }
 
@@ -2330,6 +2386,8 @@ void iKeyboard(unsigned char key) {
         isGunAttacking = true;
         gunAttackFrameIndex = 0;
         gunAttackAnimCounter = 0;
+        if (currentLevel == 3 || currentLevel == 4)
+            charAttackDamagelessTimer = 30; // 1-second stun guard
       }
     }
   }
@@ -2379,6 +2437,7 @@ void iSpecialKeyboard(unsigned char key) {
       gameState == LEVEL2_STORY || gameState == LEVEL3_INTRO ||
       gameState == LEVEL3_STORY || gameState == CAVE2_STORY ||
       gameState == LEVEL4_INTRO) {
+    if (isGamePaused) return;
     if (key == GLUT_KEY_RIGHT) {
       startBtnAnim(2, 20, 20); // Next
     } else if (key == GLUT_KEY_LEFT) {
@@ -2399,9 +2458,10 @@ void iSpecialKeyboard(unsigned char key) {
           storyTimerCount = 0;
           playMusicTrack(TRACK_CAVE);
         } else if (currentLevel == 3) {
-          gameState = LEVEL4_INTRO;
-          level4Phase = 1; // RESET Level 4 Phase
-          bGX = 0;         // RESET Background
+          gameState = NEXT_LEVEL_IQ;
+          initCaveState();
+          initIQ();
+          playMusicTrack(TRACK_CAVE);
           storyTimerCount = 0;
         } else {
           gameState = NEXT_LEVEL_IQ;
@@ -2447,7 +2507,7 @@ void iSpecialKeyboardUp(unsigned char key) { specialKeyPressed[key] = 0; }
 void drawTimer() {
   if (gameState == GAME && !levelOneComplete && currentLevel != 4) {
     char timeStr[32];
-    int transitionTime = 80;
+    int transitionTime = 30;
     int remaining = transitionTime - gameRunTimeSeconds;
     if (remaining < 0)
       remaining = 0;

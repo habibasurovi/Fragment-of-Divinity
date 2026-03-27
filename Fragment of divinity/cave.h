@@ -10,6 +10,7 @@ extern int wizardX;
 extern int wizardY;
 extern int wizardIndex;
 extern bool isWizardMoving;
+extern bool isGamePaused;
 extern int wizardTimer;
 extern bool isCharacterEntering;
 extern int levelChange1;
@@ -57,10 +58,13 @@ inline void loadCaveAssets() {
 
 inline void initCaveState() {
   // Character setup
-  charX = -200;     // Start off-screen left
-  charY = (currentLevel == 3) ? 80 : 30; // Decreased by 70 as requested (80 from 150, 30 from 100)
+  charX = -200; // Start off-screen left
+  charY = (currentLevel == 3)
+              ? 80
+              : 30; // Decreased by 70 as requested (80 from 150, 30 from 100)
   charHeight = 250; // Ensure normal size
   charWidth = 200;  // Ensure normal size
+  charFrameIndex = 0;
 
   // Reset character states to ensure walking motion
   isJumping = false;
@@ -71,7 +75,7 @@ inline void initCaveState() {
   isRightArrowPressed = false;
   isLeftArrowPressed = false;
 
-  wizardX = 800; // Start partially on-screen so they both appear
+  wizardX = 800;   // Start partially on-screen so they both appear
   wizardY = charY; // Same Y axis for both character and wizard
 
   wizardIndex = 0;
@@ -82,11 +86,11 @@ inline void initCaveState() {
   // Transition Logic - Start with entry splash screen (Phase 1)
   // Remove level 1 pages for level 2
   if (currentLevel == 2) {
-      isLevelTransitioning = false;
-      transitionPhase = 0;
+    isLevelTransitioning = false;
+    transitionPhase = 0;
   } else {
-      isLevelTransitioning = true;
-      transitionPhase = 1;
+    isLevelTransitioning = true;
+    transitionPhase = 1;
   }
   transitionTimer = 0;
 
@@ -97,10 +101,10 @@ inline void initCaveState() {
 }
 
 inline void updateWizardLogic() {
-  if (isLevelTransitioning) {
-    // Manual transition via button click handled in handleCaveTransitionClick
-    // transitionTimer logic removed
-  } else if (isCharacterEntering) {
+  if (isGamePaused)
+    return;
+
+  if (isCharacterEntering) {
     wizardTimer++;
     // Character Animation
     if (wizardTimer % 5 == 0) {
@@ -192,13 +196,11 @@ inline void drawCave() {
       iSetColor(255, 255, 255);
       if (currentLevel == 2) {
         iShowImage(imgX, imgY, imgW, imgH, gunExplainImg);
+      } else if (currentLevel == 3) {
+        iShowImage(imgX, imgY, imgW, imgH, l3CompanionImg);
       } else {
         iShowImage(imgX, imgY, imgW, imgH, levelChange2);
       }
-    } else if (transitionPhase == 3) {
-      // Level 3 companion unlock image (full-screen)
-      iSetColor(255, 255, 255);
-      iShowImage(0, 0, 1000, 600, l3CompanionImg);
     }
 
     // Draw Next Button at bottom right (Bigger)
@@ -295,11 +297,14 @@ inline void drawCave() {
 
     if (currentLevel == 3) {
       if (wizardDialogueIndex == 1) {
-        iText(textX + 10, textY, (char *)"You have passed every trial.", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX + 10, textY, (char *)"You have passed every trial.",
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 2) {
-        iText(textX, textY, (char *)"A companion shall join you now.", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX, textY, (char *)"A companion shall join you now.",
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       } else if (wizardDialogueIndex == 3) {
-        iText(textX + 10, textY, (char *)"Aizen will fight by your side!", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(textX + 10, textY, (char *)"Aizen will fight by your side!",
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       }
     } else if (currentLevel == 2) {
       if (wizardDialogueIndex == 1) {
@@ -337,21 +342,10 @@ inline int handleCaveTransitionClick(int mx, int my) {
         transitionPhase = 0;
         return 2; // Stay in NEXT_LEVEL_IQ state, but show cave
       } else if (transitionPhase == 2) {
-        if (currentLevel == 3) {
-          // Level 3: show companion image before proceeding
-          transitionPhase = 3;
-          return 0;
-        } else {
-          // Levels 1 and 2: finalize transition immediately
-          isLevelTransitioning = false;
-          transitionPhase = 0;
-          return 1; // Transitions to next level intro in iMain.cpp
-        }
-      } else if (transitionPhase == 3) {
-        // Companion image acknowledged, proceed to Level 4
+        // Finalize transition directly for all levels from Phase 2 (Explain/Reward)
         isLevelTransitioning = false;
         transitionPhase = 0;
-        return 1;
+        return 1; // Transitions to next level intro in iMain.cpp
       }
     } else {
       // In cave scene, check if can start exit transition

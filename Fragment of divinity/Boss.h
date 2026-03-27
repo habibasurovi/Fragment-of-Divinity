@@ -11,6 +11,7 @@
 #include "iGraphics.h"
 #include "GameState.h"
 #include "ObstacleHandler.h"
+extern int charAttackDamagelessTimer;
 
 // --- BOSS GLOBAL VARIABLES (Using selectany for header-only consolidation) ---
 #ifdef _MSC_VER
@@ -584,7 +585,7 @@ inline void updateFinalBossLogic() {
             float totalWidth = BOSS_WIDTH + 40.0f;
             if (charX + charWidth - 40 > (smashCenterX - totalWidth/2.0f) && charX + 40 < (smashCenterX + totalWidth/2.0f) &&
                 charY + charHeight > boss4Obj.y && charY < boss4Obj.y + BOSS_HEIGHT) {
-                if (!isInvincible) {
+                if (!isInvincible && charAttackDamagelessTimer <= 0) {
                     lives--;
                     if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                     else { isInvincible = true; invincibilityTimer = 60; }
@@ -710,7 +711,7 @@ inline void updateFinalBossLogic() {
             float totalWidth = BOSS_WIDTH + 40.0f; // Matches boss body more closely
 
             if (charX + 60 > (smashCenterX - totalWidth / 2.0f) && charX < (smashCenterX + totalWidth / 2.0f)) {
-                if (!isInvincible) {
+                if (!isInvincible && charAttackDamagelessTimer <= 0) {
                     lives--;
                     if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                     else { isInvincible = true; invincibilityTimer = 60; }
@@ -818,7 +819,7 @@ inline void updateFinalBossLogic() {
 
             if (charX + 40 > boss4Obj.x && charX < boss4Obj.x + BOSS_WIDTH - 40 &&
                 charY + 120 > boss4Obj.y && charY < boss4Obj.y + BOSS_HEIGHT) {
-                if (!isInvincible) {
+                if (!isInvincible && charAttackDamagelessTimer <= 0) {
                     lives--;
                     if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                     else { isInvincible = true; invincibilityTimer = 60; }
@@ -1115,7 +1116,7 @@ inline void updateFinalBossLogic() {
                         boss4Obj.topObstacles[i].active = true;
                         boss4Obj.topObstacles[i].x = charX + 60.0f + (rand() % 400 - 200);
                         boss4Obj.topObstacles[i].y = 650.0f;
-                        boss4Obj.topObstacles[i].speedY = (float)((rand() % 6) + 14); // Speed: 14-19
+                        boss4Obj.topObstacles[i].speedY = (float)((rand() % 4) + 11); // Speed: 11-14 (Decreased from 14-19)
                         boss4Obj.topObstacles[i].frame = 0;
                         boss4Obj.topObstacles[i].frameTimer = 0;
                         boss4Obj.topObstacles[i].type = rand() % 2; // 0=highobs1, 1=highobs2
@@ -1137,7 +1138,7 @@ inline void updateFinalBossLogic() {
                     
                     if (boss4Obj.topObstacles[i].active && boss4Obj.topObstacles[i].x + 40 > charX && boss4Obj.topObstacles[i].x < charX + 80 &&
                         boss4Obj.topObstacles[i].y + 40 > charY && boss4Obj.topObstacles[i].y < charY + 120) {
-                        if (!isInvincible) {
+                        if (!isInvincible && charAttackDamagelessTimer <= 0) {
                             lives--;
                             if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                             else { isInvincible = true; invincibilityTimer = 60; }
@@ -1198,7 +1199,7 @@ inline void updateFinalBossLogic() {
                 boss4Obj.fbFrameIndex = (boss4Obj.fbFrameIndex + 1) % 10;
                 if (boss4Obj.fbX < -100 || boss4Obj.fbX > 1100 || boss4Obj.fbY < -100 || boss4Obj.fbY > 700) boss4Obj.fbActive = false;
                 if (boss4Obj.fbActive && boss4Obj.fbX + 40 > charX && boss4Obj.fbX < charX + 80 && boss4Obj.fbY + 40 > charY && boss4Obj.fbY < charY + 80) {
-                    if (!isInvincible) {
+                    if (!isInvincible && charAttackDamagelessTimer <= 0) {
                         lives--;
                         if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                         else { isInvincible = true; invincibilityTimer = 60; }
@@ -1393,7 +1394,7 @@ inline void updateFinalBossLogic() {
                 }
 
                 // NPC contact damage to player (Restored with stun guard)
-                if (!isInvincible && !isFallingSequence && boss4Obj.restNpcs[i].active && boss4Obj.restNpcs[i].stunTimer <= 0) {
+                if (!isInvincible && !isFallingSequence && boss4Obj.restNpcs[i].active && boss4Obj.restNpcs[i].stunTimer <= 0 && charAttackDamagelessTimer <= 0) {
                     if (charX + charWidth - 40 > boss4Obj.restNpcs[i].x + 20 &&
                         charX + 40 < boss4Obj.restNpcs[i].x + 130 &&
                         charY + charHeight > boss4Obj.restNpcs[i].y &&
@@ -1418,7 +1419,7 @@ inline void updateFinalBossLogic() {
                         boss4Obj.restFires[i].active = false;
 
                     // Fire collision with player
-                    if (boss4Obj.restFires[i].active && !isInvincible && !isFallingSequence) {
+                    if (boss4Obj.restFires[i].active && !isInvincible && !isFallingSequence && charAttackDamagelessTimer <= 0) {
                         if (charX + charWidth - 40 > boss4Obj.restFires[i].x + 10 &&
                             charX + 40 < boss4Obj.restFires[i].x + 90 &&
                             charY + charHeight - 20 > boss4Obj.restFires[i].y + 10 &&
@@ -1471,7 +1472,7 @@ inline void updateFinalBossLogic() {
                             charX < boss4Obj.restBigNpc.x + 130 &&
                             charY + charHeight > boss4Obj.restBigNpc.y &&
                             charY < boss4Obj.restBigNpc.y + 115) {
-                            if (!isInvincible && !isFallingSequence) {
+                            if (!isInvincible && !isFallingSequence && charAttackDamagelessTimer <= 0) {
                                 lives--;
                                 if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                                 else { isInvincible = true; invincibilityTimer = 60; }
@@ -1508,7 +1509,7 @@ inline void updateFinalBossLogic() {
                 }
 
                 // Big NPC contact damage (Restored with stun guard)
-                if (!isInvincible && !isFallingSequence && boss4Obj.restBigNpc.active && boss4Obj.restBigNpc.stunTimer <= 0) {
+                if (!isInvincible && !isFallingSequence && boss4Obj.restBigNpc.active && boss4Obj.restBigNpc.stunTimer <= 0 && charAttackDamagelessTimer <= 0) {
                     if (charX + charWidth - 40 > boss4Obj.restBigNpc.x + 20 &&
                         charX + 40 < boss4Obj.restBigNpc.x + 100 &&
                         charY + charHeight > boss4Obj.restBigNpc.y &&
@@ -1797,7 +1798,11 @@ inline void drawBoss() {
                              } else {
                                  nImg = npc2Walk[boss4Obj.restNpcs[i].animFrame % 9];
                              }
-                             iShowImage((int)boss4Obj.restNpcs[i].x, (int)boss4Obj.restNpcs[i].y, 100, 120, nImg);
+                             int nw = 100, nh = 100;
+                if (boss4Obj.restNpcs[i].type == 1 && boss4Obj.restNpcs[i].state == 0) {
+                    nw = 85; nh = 85;
+                }
+                iShowImage((int)boss4Obj.restNpcs[i].x, (int)boss4Obj.restNpcs[i].y, nw, nh, nImg);
                          }
                      }
                      // Draw green fire projectiles
@@ -1817,7 +1822,7 @@ inline void drawBoss() {
                          } else {
                              bImg = bigNpcWalkImgs[boss4Obj.restBigNpc.animFrame % 9];
                          }
-                         iShowImage((int)boss4Obj.restBigNpc.x, (int)boss4Obj.restBigNpc.y, 115, 115, bImg);
+                         iShowImage((int)boss4Obj.restBigNpc.x, (int)boss4Obj.restBigNpc.y, 125, 125, bImg);
                      }
                  }
              }

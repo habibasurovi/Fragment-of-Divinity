@@ -241,7 +241,7 @@ inline void updateOwlCollisions() {
     // -- BigNPC --
     if (!hit && boss4Obj.restBigNpc.active) {
       if (owlBulletAABB(owlCompanion.bullets[i], boss4Obj.restBigNpc.x,
-                        boss4Obj.restBigNpc.y, 200.0f, 200.0f)) {
+                        boss4Obj.restBigNpc.y, 125.0f, 125.0f)) {
         owlCompanion.bullets[i].active = false;
         owlCompanion.bigNpcOwlHits++;
         boss4Obj.restBigNpc.hitFlashTimer = 10;
@@ -319,8 +319,8 @@ inline void updateOwlCollisions() {
 
   // BigNPC
   if (boss4Obj.restBigNpc.active) {
-    if (owlBodyAABB(boss4Obj.restBigNpc.x, boss4Obj.restBigNpc.y, 200.0f,
-                    200.0f)) {
+    if (owlBodyAABB(boss4Obj.restBigNpc.x, boss4Obj.restBigNpc.y, 125.0f,
+                    125.0f)) {
       owlTakeHit();
     }
   }
