@@ -394,18 +394,20 @@ inline void loadBossAssets() {
  */
 inline void shuffleBossSkills() {
     for (int i = 0; i < 9; i++) boss4Obj.skillSequence[i] = i;
-    for (int i = 8; i > 0; i--) {
-        int j = rand() % (i + 1);
-        int temp = boss4Obj.skillSequence[i];
-        boss4Obj.skillSequence[i] = boss4Obj.skillSequence[j];
-        boss4Obj.skillSequence[j] = temp;
-    }
-    // Hard Requirement: First attack must NOT be Rest (Index 7)
-    if (boss4Obj.skillSequence[0] == 7) {
-        // Swap with index 1 (which we know isn't 7 because indices are unique)
-        int temp = boss4Obj.skillSequence[0];
-        boss4Obj.skillSequence[0] = boss4Obj.skillSequence[1];
-        boss4Obj.skillSequence[1] = temp;
+    if (boss4Obj.skillsCompleted >= 9) {
+        for (int i = 8; i > 0; i--) {
+            int j = rand() % (i + 1);
+            int temp = boss4Obj.skillSequence[i];
+            boss4Obj.skillSequence[i] = boss4Obj.skillSequence[j];
+            boss4Obj.skillSequence[j] = temp;
+        }
+        // Hard Requirement: First attack must NOT be Rest (Index 7)
+        if (boss4Obj.skillSequence[0] == 7) {
+            // Swap with index 1 (which we know isn't 7 because indices are unique)
+            int temp = boss4Obj.skillSequence[0];
+            boss4Obj.skillSequence[0] = boss4Obj.skillSequence[1];
+            boss4Obj.skillSequence[1] = temp;
+        }
     }
     boss4Obj.sequenceIndex = 0;
 }
@@ -430,7 +432,7 @@ inline void initFinalBoss() {
         boss4Obj.pullParticlesY[i] = (float)(rand() % 500 + 50);
         boss4Obj.pullParticlesSpd[i] = (float)(rand() % 10 + 10);
     }
-    boss4Obj.pullTargetCount = 3 + rand() % 3; 
+    boss4Obj.pullTargetCount = 2 + rand() % 2; 
 
     // Push Attack target count
     boss4Obj.pushTargetCount = 2 + rand() % 2; 
@@ -535,7 +537,7 @@ inline void updateFinalBossLogic() {
                 boss4Obj.safeguardTimer = 0;
 
                 // If we finished the current shuffled sequence, shuffle again
-                if (boss4Obj.sequenceIndex >= 8) {
+                if (boss4Obj.sequenceIndex >= 9) {
                     shuffleBossSkills();
                 }
 
@@ -656,7 +658,7 @@ inline void updateFinalBossLogic() {
         }
         else if (boss4Obj.skillState == 5) { // Return
             boss4Obj.skillTimer++;
-            float returnSpeed = 12.0f;
+            float returnSpeed = 6.0f;
             if (boss4Obj.x < 750) {
                 boss4Obj.x += returnSpeed;
                 boss4Obj.facingLeft = false;
@@ -714,7 +716,7 @@ inline void updateFinalBossLogic() {
         else if (boss4Obj.jumpSkillState == 2) {
             // State 2: Parabolic Jump
             boss4Obj.jumpSkillTimer++;
-            float dur = 40.0f; // Faster jump (was 57)
+            float dur = 50.0f; // Smooth jump
             float t = boss4Obj.jumpSkillTimer / dur;
             
             // Face the character at all times while airborne
@@ -782,7 +784,7 @@ inline void updateFinalBossLogic() {
         else if (boss4Obj.jumpSkillState == 4) {
             // State 4: Return
             boss4Obj.jumpSkillTimer++;
-            float returnSpeed = 10.0f;
+            float returnSpeed = 6.0f;
             if (boss4Obj.x < 750) {
                 boss4Obj.x += returnSpeed;
                 boss4Obj.facingLeft = false;
@@ -879,7 +881,7 @@ inline void updateFinalBossLogic() {
                 
                 if (boss4Obj.pullSkillCount >= boss4Obj.pullTargetCount) {
                     boss4Obj.pullSkillCount = 0;
-                    boss4Obj.pullTargetCount = 3 + rand() % 3;
+                    boss4Obj.pullTargetCount = 2 + rand() % 2;
                     boss4Obj.currentSkill = -1;
                     boss4Obj.skillsCompleted++;
                     boss4Obj.skillGapTimer = 60;
@@ -944,7 +946,7 @@ inline void updateFinalBossLogic() {
             if (boss4Obj.pushSkillTimer % 4 == 0) {
                 boss4Obj.pushFrameIndex = (boss4Obj.pushFrameIndex == 6) ? 7 : 6;
             }
-            boss4Obj.x += boss4Obj.pushDir * 12.0f;
+            boss4Obj.x += boss4Obj.pushDir * 18.0f;
             
             if (charY < boss4Obj.pushStartY + BOSS_HEIGHT - 30) {
                 if (boss4Obj.pushDir == 1) { 
@@ -996,7 +998,7 @@ inline void updateFinalBossLogic() {
         else if (boss4Obj.pushSkillState == 4) {
             // State 4: Return
             boss4Obj.pushSkillTimer++;
-            float returnSpeed = 10.0f;
+            float returnSpeed = 6.0f;
             if (boss4Obj.x < 750) {
                 boss4Obj.x += returnSpeed;
                 boss4Obj.facingLeft = false;
@@ -1081,10 +1083,10 @@ inline void updateFinalBossLogic() {
         // --- STATE LOGIC ---
         if (boss4Obj.enemySkillState == 1) {
             boss4Obj.enemySkillTimer++;
-            if (boss4Obj.enemySkillTimer < 5) boss4Obj.y += 8.0f;
-            else boss4Obj.y -= 8.0f;
+            if (boss4Obj.enemySkillTimer < 10) boss4Obj.y += 4.0f;
+            else boss4Obj.y -= 4.0f;
 
-            if (boss4Obj.enemySkillTimer >= 10) {
+            if (boss4Obj.enemySkillTimer >= 20) {
                 boss4Obj.enemySkillState = 2; // high shake
                 boss4Obj.enemySkillTimer = 0;
                 boss4Obj.y = boss4Obj.enemyStartY;
@@ -1657,7 +1659,7 @@ inline void updateFinalBossLogic() {
                     if (!boss4Obj.bossHoles[i].active) {
                         boss4Obj.bossHoles[i].active = true;
                         boss4Obj.bossHoles[i].x = (float)(charX + (rand() % 400 - 200)); 
-                        boss4Obj.bossHoles[i].y = (float)groundY - 18; // Decreased y axis by 8
+                        boss4Obj.bossHoles[i].y = (float)groundY - 28; // Decreased y axis by 10 more
                         boss4Obj.bossHoles[i].state = 1;      // Appearing
                         boss4Obj.bossHoles[i].frame = 0;      // 0 to 9
                         boss4Obj.bossHoles[i].frameTimer = 0;
@@ -1761,7 +1763,7 @@ inline void updateLevel4Boss() {
     } else if (level4Phase == 2) {
         // Boss walks in
         if (boss4Obj.x > 750) {
-            boss4Obj.x -= 4;
+            boss4Obj.x -= 3;
             updateFinalBossLogic();
         } else {
             boss4Obj.x = 750;
