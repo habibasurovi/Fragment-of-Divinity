@@ -113,6 +113,8 @@ int level2StoryImages[3];
 int level2StoryIndex = 0;
 int level3StoryImages[3];
 int level3StoryIndex = 0;
+int level4StoryImages[3];
+int level4StoryIndex = 0;
 int cave2StoryImages[3];
 int cave2StoryIndex = 0;
 int gunImg;
@@ -271,6 +273,7 @@ Fireball fireballs[MAX_FIREBALLS];
 bool isGunAttacking = false;
 int gunAttackFrameIndex = 0;
 int gunAttackAnimCounter = 0;
+int gunAttackShotsRemaining = 0;
 int arynGun[3];
 int kaeroGun[3];
 int leoraGun[3];
@@ -879,8 +882,16 @@ static void firePendingAction() {
         resetGame();
       }
     } else if (gameState == LEVEL4_INTRO) {
-      currentLevel = 4;
-      resetGame();
+      gameState = LEVEL4_STORY;
+      storyTimerCount = 0;
+      level4StoryIndex = 0;
+    } else if (gameState == LEVEL4_STORY) {
+      level4StoryIndex++;
+      storyTimerCount = 0;
+      if (level4StoryIndex >= 3) {
+        currentLevel = 4;
+        resetGame();
+      }
     } else if (gameState == CAVE2_STORY) {
       cave2StoryIndex++;
       storyTimerCount = 0;
@@ -911,7 +922,7 @@ static void firePendingAction() {
       initCaveState();
       initIQ();
       playMusicTrack(TRACK_CAVE);
-    } else if (gameState == LEVEL4_INTRO) {
+    } else if (gameState == LEVEL4_INTRO || gameState == LEVEL4_STORY) {
       currentLevel = 4;
       resetGame();
       level4Phase = 1;
@@ -956,6 +967,14 @@ static void firePendingAction() {
         storyTimerCount = 0;
       } else {
         gameState = LEVEL3_INTRO;
+        storyTimerCount = 0;
+      }
+    } else if (gameState == LEVEL4_STORY) {
+      if (level4StoryIndex > 0) {
+        level4StoryIndex--;
+        storyTimerCount = 0;
+      } else {
+        gameState = LEVEL4_INTRO;
         storyTimerCount = 0;
       }
     } else if (gameState == CAVE2_STORY) {
@@ -1680,6 +1699,26 @@ void updateShiftInput() {
 //  iGraphics limit
 void masterGameLoop() {
   updateShiftInput();
+  
+  static bool prevShiftKey = false;
+  bool currentShiftKey = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+  if (currentShiftKey && !prevShiftKey) {
+    if (gameState == GAME && (currentLevel == 3 || currentLevel == 4) && hasClaimedGun) {
+      if (gunBarAvailable && !gunBarEquipped && !isGunAttacking) {
+        gunBarEquipped = true;
+        gunBarAnimTimer = 15;
+        gunBarAvailable = false;
+        
+        isGunAttacking = true;
+        gunAttackFrameIndex = 0;
+        gunAttackAnimCounter = 0;
+        gunAttackShotsRemaining = 5;
+        charAttackDamagelessTimer = 30; // 1-second stun guard
+      }
+    }
+  }
+  prevShiftKey = currentShiftKey;
+
   autoScrollRecursiveWrapper();
   updateLevel4Logic();
   updateObstaclePhysicsWrapper();
@@ -1810,6 +1849,8 @@ void iDraw() {
     drawLevelThreeStory();
   } else if (gameState == LEVEL4_INTRO) {
     drawLevel4Intro();
+  } else if (gameState == LEVEL4_STORY) {
+    drawLevelFourStory();
   } else if (gameState == LEVEL1_STORY) {
     drawLevel1Story();
   } else if (gameState == CAVE2_STORY) {
@@ -2079,7 +2120,14 @@ void iMouse(int button, int state, int mx, int my) {
         }
       }
       if (handleGunBarClick(mx, my)) {
-        // Gun equipped - character usage handled elsewhere
+        if (!isGunAttacking) {
+            isGunAttacking = true;
+            gunAttackFrameIndex = 0;
+            gunAttackAnimCounter = 0;
+            gunAttackShotsRemaining = 5;
+            if (currentLevel == 3 || currentLevel == 4)
+                charAttackDamagelessTimer = 30; // 1-second stun guard
+        }
       }
       int pauseAction = handlePauseMenuMouse(mx, my);
       if (pauseAction != 0) {
@@ -2124,10 +2172,7 @@ void iMouse(int button, int state, int mx, int my) {
 
       playClickSound(); // always play on any settings button click
       if (result != -1) {
-        if (result == MENU)
-          gameState = MENU;
-        else if (result == GAME)
-          gameState = GAME;
+        gameState = (GameState)result;
       }
     } else if (gameState == CUSTOMIZATION) {
       int initialState = customSubState;
@@ -2224,7 +2269,7 @@ void iMouse(int button, int state, int mx, int my) {
         startBtnAnim(2, 21, 21);
       }
     } else if (gameState == LEVEL1_STORY || gameState == LEVEL2_STORY ||
-               gameState == LEVEL3_STORY || gameState == CAVE2_STORY) {
+               gameState == LEVEL3_STORY || gameState == LEVEL4_STORY || gameState == CAVE2_STORY) {
       int action = handleStoryMouse(mx, my);
       if (action == 1) { // Next
         startBtnAnim(2, 20, 20);
@@ -2378,7 +2423,7 @@ void iKeyboard(unsigned char key) {
     if (gameState == INITIAL_STORY || gameState == LEVEL1_INTRO ||
         gameState == LEVEL1_STORY || gameState == LEVEL2_INTRO ||
         gameState == LEVEL2_STORY || gameState == LEVEL3_INTRO ||
-        gameState == LEVEL3_STORY || gameState == CAVE2_STORY ||
+        gameState == LEVEL3_STORY || gameState == LEVEL4_STORY || gameState == CAVE2_STORY ||
         gameState == LEVEL4_INTRO) {
       startBtnAnim(2, 21, 21); // Skip
     }
@@ -2394,17 +2439,7 @@ void iKeyboard(unsigned char key) {
     }
   }
 
-  if (gameState == GAME && (key == 'f' || key == 'F')) {
-    if (currentLevel != 4) { // Disable F key in Level 4
-      if (!isGunAttacking) {
-        isGunAttacking = true;
-        gunAttackFrameIndex = 0;
-        gunAttackAnimCounter = 0;
-        if (currentLevel == 3 || currentLevel == 4)
-            charAttackDamagelessTimer = 30; // 1-second stun guard
-      }
-    }
-  }
+
 
   // Clone Attack: 'C' in Level 4
   if (gameState == GAME && currentLevel == 4 && (key == 'c' || key == 'C')) {
@@ -2449,7 +2484,7 @@ void iSpecialKeyboard(unsigned char key) {
   if (gameState == INITIAL_STORY || gameState == LEVEL1_INTRO ||
       gameState == LEVEL1_STORY || gameState == LEVEL2_INTRO ||
       gameState == LEVEL2_STORY || gameState == LEVEL3_INTRO ||
-      gameState == LEVEL3_STORY || gameState == CAVE2_STORY ||
+      gameState == LEVEL3_STORY || gameState == LEVEL4_STORY || gameState == CAVE2_STORY ||
       gameState == LEVEL4_INTRO) {
     if (isGamePaused) return;
     if (key == GLUT_KEY_RIGHT) {

@@ -42,7 +42,7 @@ inline void initGunBar() {
 
 // ---- Update (call every frame from masterGameLoop) ----
 inline void updateGunBar() {
-  if (currentLevel != 3 || !hasClaimedGun)
+  if (!(currentLevel == 3 || currentLevel == 4) || !hasClaimedGun)
     return;
   if (isGamePaused)
     return;
@@ -68,7 +68,7 @@ inline void updateGunBar() {
 
 // ---- Draw (call from iDraw during GAME state) ----
 inline void drawGunBar() {
-  if (currentLevel != 3 || !hasClaimedGun)
+  if (!(currentLevel == 3 || currentLevel == 4) || !hasClaimedGun)
     return;
 
   int bx = GUN_BAR_X;
@@ -111,7 +111,7 @@ inline void drawGunBar() {
 // ---- Click Handler (call from iMouse GAME block) ----
 // Returns true if the gun was just equipped
 inline bool handleGunBarClick(int mx, int my) {
-  if (currentLevel != 3 || !hasClaimedGun)
+  if (!(currentLevel == 3 || currentLevel == 4) || !hasClaimedGun)
     return false;
   if (!gunBarAvailable || gunBarEquipped)
     return false;
