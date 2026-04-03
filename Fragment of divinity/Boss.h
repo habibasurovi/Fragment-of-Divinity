@@ -89,6 +89,8 @@ struct HoleBird {
     float velX, velY;   // Velocity for dive/fly-away
     int holeIndex;      // Which hole spawned this bird
     float startX;       // Hole center X (spawn origin)
+    int life;           // NEW: Requires 2 hits to die
+    int hitFlashTimer;  // NEW: Blink when hit
 };
 
 struct BossTopObstacle {
@@ -223,6 +225,7 @@ struct BossLevel4 {
     HoleBird holeBirds[4]; // One bird per hole slot
     int birdDiveCooldown;   // Global cooldown (ticks) enforcing 2-sec gap between any two bird dives
     int birdHoverTicks[4];  // Per-bird random hover duration (5-7 sec)
+    int hitgroundWaitTimer; // Timer for the 12 second wait phase
 
     // Skill Scheduler
     int currentSkill;       // -1: Choosing, 0-8: Active
@@ -439,6 +442,10 @@ inline void shuffleBossSkills() {
             boss4Obj.skillSequence[0] = boss4Obj.skillSequence[1];
             boss4Obj.skillSequence[1] = temp;
         }
+    } else {
+        // For the first sequential phase, swap attack 1 (Vanish) with attack 9 (Hitground)
+        boss4Obj.skillSequence[0] = 8;
+        boss4Obj.skillSequence[8] = 0;
     }
     boss4Obj.sequenceIndex = 0;
 }
@@ -1667,6 +1674,7 @@ inline void updateFinalBossLogic() {
                     boss4Obj.hitgroundSkillTimer = 0;
                     boss4Obj.hitgroundHoleCount = 0;
                     boss4Obj.hitgroundHoleTimer = 0;
+                    boss4Obj.hitgroundWaitTimer = 0;
                     boss4Obj.birdDiveCooldown = 0;
                     // Reset all birds
                     for (int i = 0; i < 4; i++) {
@@ -1749,6 +1757,8 @@ inline void updateFinalBossLogic() {
                                             boss4Obj.holeBirds[b].velX = 0;
                                             boss4Obj.holeBirds[b].velY = 0;
                                             boss4Obj.holeBirds[b].holeIndex = i;
+                                            boss4Obj.holeBirds[b].life = 2; 
+                                            boss4Obj.holeBirds[b].hitFlashTimer = 0; 
                                             boss4Obj.bossHoles[i].birdSpawned = true;
                                             break;
                                         }
@@ -1807,6 +1817,7 @@ inline void updateFinalBossLogic() {
                     boss4Obj.holeBirds[b].frameTimer = 0;
                     boss4Obj.holeBirds[b].frame = (boss4Obj.holeBirds[b].frame + 1) % 6;
                 }
+                if (boss4Obj.holeBirds[b].hitFlashTimer > 0) boss4Obj.holeBirds[b].hitFlashTimer--;
 
                 if (boss4Obj.holeBirds[b].state == 0) {
                     // --- RISING: grow from tiny to full size ---
@@ -1894,10 +1905,8 @@ inline void updateFinalBossLogic() {
                             if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
                             else { isInvincible = true; invincibilityTimer = 60; }
                         }
-                        // Bird flies OUT upward after hitting character
-                        boss4Obj.holeBirds[b].state = 4; // fleeing upward
-                        boss4Obj.holeBirds[b].velX = (rand() % 10 - 5) * 1.0f;
-                        boss4Obj.holeBirds[b].velY = 14.0f;
+                        // Swoop back up to ceiling instead of vanishing
+                        boss4Obj.holeBirds[b].state = 5;
                     }
 
                     // If bird flies below character or misses, swoop back up smoothly
@@ -1909,7 +1918,8 @@ inline void updateFinalBossLogic() {
 
                 } else if (boss4Obj.holeBirds[b].state == 3) {
                     // --- DYING: tumble-fall downward (drawn upside-down in render) ---
-                    boss4Obj.holeBirds[b].velY -= 1.2f; // gravity
+                    boss4Obj.holeBirds[b].velY -= 0.3f; // slow motion gravity
+                    if (boss4Obj.holeBirds[b].velY < -4.0f) boss4Obj.holeBirds[b].velY = -4.0f; // terminal velocity
                     boss4Obj.holeBirds[b].velX *= 0.96f;
                     boss4Obj.holeBirds[b].x += boss4Obj.holeBirds[b].velX;
                     boss4Obj.holeBirds[b].y += boss4Obj.holeBirds[b].velY;
@@ -1962,36 +1972,54 @@ inline void updateFinalBossLogic() {
                         float birdCY = boss4Obj.holeBirds[b].y;
                         if (birdCX > reachMin && birdCX < reachMax &&
                             birdCY > (float)charY - 80 && birdCY < (float)(charY + charHeight) + 80) {
-                            // Bird hit by player – begins death fall
-                            boss4Obj.holeBirds[b].state = 3;
-                            boss4Obj.holeBirds[b].velX = (rand() % 10 - 4) * 1.2f;
-                            boss4Obj.holeBirds[b].velY = 8.0f; // toss up first
+                            boss4Obj.holeBirds[b].life--;
                             npcSlashDone = true;
+                            if (boss4Obj.holeBirds[b].life <= 0) {
+                                // Bird hit by player – begins death fall
+                                boss4Obj.holeBirds[b].state = 3;
+                                boss4Obj.holeBirds[b].velX = (rand() % 10 - 4) * 1.2f;
+                                boss4Obj.holeBirds[b].velY = 4.0f; // smaller toss up for slow motion
+                            } else {
+                                boss4Obj.holeBirds[b].hitFlashTimer = 10;
+                            }
                         }
                     }
                 }
             }
 
-            // Skill ends ONLY when all 4 holes have been spawned AND no bird is
-            // alive any more (player must kill all birds to proceed)
             bool anyHoleActive = false;
             for (int i = 0; i < 4; i++) {
                 if (boss4Obj.bossHoles[i].active) { anyHoleActive = true; break; }
             }
-            bool skillDone = (boss4Obj.hitgroundHoleCount >= 4)
-                          && !anyHoleActive
-                          && !anyBirdAlive;
 
-            if (skillDone) {
-                for (int i = 0; i < 4; i++) {
-                    boss4Obj.bossHoles[i].active = false;
-                    boss4Obj.holeBirds[i].active = false;
+            if (boss4Obj.hitgroundHoleCount >= 4 && !anyHoleActive) {
+                // 12-second wait phase (12 * 33 fps = 396 frames roughly)
+                boss4Obj.hitgroundWaitTimer++;
+                boss4Obj.birdDiveCooldown = 9999; // Prevent diving entirely during wait phase
+                
+                if (boss4Obj.hitgroundWaitTimer == 396) {
+                    // Time up: Scatter the birds
+                    for (int b = 0; b < 4; b++) {
+                        if (boss4Obj.holeBirds[b].active && boss4Obj.holeBirds[b].state != 3 && boss4Obj.holeBirds[b].state != 4) {
+                            boss4Obj.holeBirds[b].state = 4; // Fleeing
+                            boss4Obj.holeBirds[b].velX = (b % 2 == 0) ? -12.0f : 12.0f;
+                            boss4Obj.holeBirds[b].velY = 12.0f + (rand() % 5);
+                        }
+                    }
                 }
-                boss4Obj.hitgroundSkillState = 0;
-                boss4Obj.currentSkill = -1;
-                boss4Obj.skillsCompleted++;
-                boss4Obj.skillGapTimer = 60;
-                boss4Obj.safeguardTimer = 0;
+                
+                // Skill ends when wait phase completes and no birds are flying around on screen
+                if (boss4Obj.hitgroundWaitTimer > 396 && !anyBirdAlive) {
+                    for (int i = 0; i < 4; i++) {
+                        boss4Obj.bossHoles[i].active = false;
+                        boss4Obj.holeBirds[i].active = false;
+                    }
+                    boss4Obj.hitgroundSkillState = 0;
+                    boss4Obj.currentSkill = -1;
+                    boss4Obj.skillsCompleted++;
+                    boss4Obj.skillGapTimer = 60;
+                    boss4Obj.safeguardTimer = 0;
+                }
             }
         }
     }
@@ -2061,7 +2089,10 @@ inline void handleBossHit() {
     if (boss4Obj.currentSkill == 0 && (boss4Obj.skillState >= 1 && boss4Obj.skillState <= 3)) return;
 
     // Boss is invulnerable while any bird from Skill 8 is alive (not dying/fleeing)
+    // AND during the 12-second sat phase
     if (boss4Obj.currentSkill == 8) {
+        if (boss4Obj.hitgroundWaitTimer > 0 && boss4Obj.hitgroundWaitTimer <= 396) return;
+        
         for (int b = 0; b < 4; b++) {
             if (boss4Obj.holeBirds[b].active &&
                 boss4Obj.holeBirds[b].state != 3 &&
@@ -2304,6 +2335,10 @@ inline void drawBoss() {
                  for (int b = 0; b < 4; b++) {
                      if (!boss4Obj.holeBirds[b].active) continue;
 
+                     if (boss4Obj.holeBirds[b].hitFlashTimer > 0 && (boss4Obj.holeBirds[b].hitFlashTimer / 2) % 2 == 0) {
+                         continue; // Blink effect
+                     }
+
                      int bW = (int)(100 * boss4Obj.holeBirds[b].scale);
                      int bH = (int)(80  * boss4Obj.holeBirds[b].scale);
                      int bX = (int)boss4Obj.holeBirds[b].x - bW / 2;
@@ -2312,25 +2347,29 @@ inline void drawBoss() {
                      int* birdFrames = (boss4Obj.holeBirds[b].type == 0) ? artikunoImgs : volplexImgs;
                      int frameIdx = boss4Obj.holeBirds[b].frame;
 
+                     bool flipHorizontally = false;
+                     // flip logic based on movement direction (velX)
+                     if (boss4Obj.holeBirds[b].type == 0) { 
+                         // Artikuno natively faces RIGHT (flip if moving left)
+                         if (boss4Obj.holeBirds[b].velX < -0.1f) flipHorizontally = true;
+                     } else { 
+                         // Volplex natively faces LEFT (flip if moving right)
+                         if (boss4Obj.holeBirds[b].velX > 0.1f) flipHorizontally = true;
+                     }
+
                      if (boss4Obj.holeBirds[b].state == 3) {
                          // DYING: draw upside-down (vertical flip) to show death tumble
-                         // iShowImageVFlip draws the image mirrored on Y axis
-                         if (charX > (int)boss4Obj.holeBirds[b].x) {
-                             // face right + flip V = use both flips
+                         if (flipHorizontally) {
                              iShowImageHVFlip(bX, bY, bW, bH, birdFrames[frameIdx]);
                          } else {
                              iShowImageVFlip(bX, bY, bW, bH, birdFrames[frameIdx]);
                          }
-                     } else if (boss4Obj.holeBirds[b].state >= 1) {
-                         // Living / patrolling / diving: flip horizontally to face character
-                         if (charX > (int)boss4Obj.holeBirds[b].x) {
+                     } else {
+                         if (flipHorizontally) {
                              iShowImageHFlip(bX, bY, bW, bH, birdFrames[frameIdx]);
                          } else {
                              iShowImage(bX, bY, bW, bH, birdFrames[frameIdx]);
                          }
-                     } else {
-                         // Rising state
-                         iShowImage(bX, bY, bW, bH, birdFrames[frameIdx]);
                      }
                  }
              }
