@@ -11,6 +11,7 @@ extern int level2IntroImage, level3IntroImage, level4IntroImage;
 extern int level1StoryImages[3];
 extern int level2StoryImages[3];
 extern int level3StoryImages[3];
+extern int level4StoryImages[3];
 extern int cave2StoryImages[3];
 extern int levelSelectionBG;
 extern int level1BtnImg, level2BtnImg, level3BtnImg, level4BtnImg;
@@ -26,6 +27,7 @@ extern int initialStoryIndex;
 extern int level1StoryIndex;
 extern int level2StoryIndex;
 extern int level3StoryIndex;
+extern int level4StoryIndex;
 extern int cave2StoryIndex;
 extern int storyTimerCount;
 
@@ -119,6 +121,12 @@ inline void loadStoryAssets() {
   for (int i = 0; i < 3; i++) {
     sprintf_s(path, sizeof(path), "story\\level 3\\%d.png", i + 14);
     level3StoryImages[i] = iLoadImage(path);
+  }
+
+  // Level 4 Story
+  for (int i = 0; i < 3; i++) {
+    sprintf_s(path, sizeof(path), "story\\level 4\\%d.png", i + 18);
+    level4StoryImages[i] = iLoadImage(path);
   }
 
   // Cave 2 Story
@@ -259,6 +267,15 @@ inline void drawLevelTwoStory() {
 inline void drawLevelThreeStory() {
   if (level3StoryIndex < 3) {
     iShowImage(0, 0, 1000, 600, level3StoryImages[level3StoryIndex]);
+    DRAW_STORY_BTN(nextBtnX, nextBtnY, btnStoryW, btnStoryH, nextBtnImg, 20);
+    DRAW_STORY_BTN(prevBtnX, prevBtnY, btnStoryW, btnStoryH, prevBtnImg, 22);
+    DRAW_STORY_BTN(skipBtnX, skipBtnY, btnStoryW, btnStoryH, skipBtnImg, 21);
+  }
+}
+
+inline void drawLevelFourStory() {
+  if (level4StoryIndex < 3) {
+    iShowImage(0, 0, 1000, 600, level4StoryImages[level4StoryIndex]);
     DRAW_STORY_BTN(nextBtnX, nextBtnY, btnStoryW, btnStoryH, nextBtnImg, 20);
     DRAW_STORY_BTN(prevBtnX, prevBtnY, btnStoryW, btnStoryH, prevBtnImg, 22);
     DRAW_STORY_BTN(skipBtnX, skipBtnY, btnStoryW, btnStoryH, skipBtnImg, 21);

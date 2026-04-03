@@ -33,6 +33,7 @@ extern Fireball fireballs[MAX_FIREBALLS];
 extern bool isGunAttacking;
 extern int gunAttackFrameIndex;
 extern int gunAttackAnimCounter;
+extern int gunAttackShotsRemaining;
 
 extern int arynGun[3];
 extern int kaeroGun[3];
@@ -154,8 +155,11 @@ inline void updateGunAttackAnimation() {
         // When reaching the last frame, spawn fireball and end attack
         if (gunAttackFrameIndex >= maxFrames) {
             spawnFireball();
-            isGunAttacking = false;
             gunAttackFrameIndex = 0;
+            gunAttackShotsRemaining--;
+            if (gunAttackShotsRemaining <= 0) {
+                isGunAttacking = false;
+            }
         }
     }
 }
