@@ -266,6 +266,45 @@ inline void iShowImageHFlip(int x, int y, int width, int height,
   glDisable(GL_TEXTURE_2D);
 }
 
+// Vertical flip (upside-down)
+inline void iShowImageVFlip(int x, int y, int width, int height,
+                            unsigned int texture) {
+  glEnable(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+  glBegin(GL_QUADS);
+  // Swap top/bottom tex coords to flip vertically
+  glTexCoord2f(0, -1); glVertex2f(x, y);
+  glTexCoord2f(1, -1); glVertex2f(x + width, y);
+  glTexCoord2f(1,  0); glVertex2f(x + width, y + height);
+  glTexCoord2f(0,  0); glVertex2f(x, y + height);
+  glEnd();
+  glDisable(GL_TEXTURE_2D);
+}
+
+// Horizontal + Vertical flip (mirrored and upside-down)
+inline void iShowImageHVFlip(int x, int y, int width, int height,
+                             unsigned int texture) {
+  glEnable(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+  glBegin(GL_QUADS);
+  glTexCoord2f(1, -1); glVertex2f(x, y);
+  glTexCoord2f(0, -1); glVertex2f(x + width, y);
+  glTexCoord2f(0,  0); glVertex2f(x + width, y + height);
+  glTexCoord2f(1,  0); glVertex2f(x, y + height);
+  glEnd();
+  glDisable(GL_TEXTURE_2D);
+}
+
 inline void iGetPixelColor(int cursorX, int cursorY, int rgb[]) {
   GLubyte pixel[3];
   glReadPixels(cursorX, cursorY, 1, 1, GL_RGB, GL_UNSIGNED_BYTE, (void *)pixel);

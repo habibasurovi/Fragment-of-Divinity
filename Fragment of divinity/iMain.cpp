@@ -1608,7 +1608,7 @@ void updateShiftInput() {
       // ** DOUBLE TAP detected ** -> KILL any on-screen shark
       doubleSpaceActiveTimer = 15;
       spaceDoubleTimer = 0;
-      singleSpaceActiveTimer = 0; // Cancel single tap effect if it just started
+      singleSpaceActiveTimer = 0; // Cancel single tap effect if it just started  
 
       if ((currentLevel == 2 || currentLevel == 3) && gameState == GAME) {
         for (int i = 0; i < 2; i++) {
