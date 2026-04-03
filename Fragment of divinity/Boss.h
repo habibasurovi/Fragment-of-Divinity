@@ -501,7 +501,7 @@ inline void updateFinalBossLogic() {
     boss4Obj.animCounter++;
     
     int animLimit = 10;
-    if (level4Phase == 2) animLimit = 5; // Faster walk anim
+    if (level4Phase == 2) animLimit = 3; // Faster walk anim
 
     if (boss4Obj.animCounter >= animLimit) {
         boss4Obj.animCounter = 0;
@@ -1864,12 +1864,12 @@ inline void updateFinalBossLogic() {
                     // Try to dive when hover time reached AND global cooldown is clear
                     if (boss4Obj.holeBirds[b].stateTimer >= boss4Obj.birdHoverTicks[b]
                         && boss4Obj.birdDiveCooldown <= 0) {
-                        // Lock onto character and dive
-                        float dx = (float)charX + 40.0f - boss4Obj.holeBirds[b].x;
-                        float dy = (float)charY + 60.0f - boss4Obj.holeBirds[b].y;
+                        // Lock onto character middle and dive
+                        float dx = (float)charX + (float)charWidth/2.0f - boss4Obj.holeBirds[b].x;
+                        float dy = (float)charY + (float)charHeight/2.0f - boss4Obj.holeBirds[b].y;
                         float mag = (float)sqrt((double)(dx*dx + dy*dy));
                         if (mag < 1.0f) mag = 1.0f;
-                        float speed = 20.0f;
+                        float speed = 15.0f;
                         boss4Obj.holeBirds[b].velX = (dx / mag) * speed;
                         boss4Obj.holeBirds[b].velY = (dy / mag) * speed;
                         boss4Obj.holeBirds[b].state = 2; // diving
@@ -1900,16 +1900,11 @@ inline void updateFinalBossLogic() {
                         boss4Obj.holeBirds[b].velY = 14.0f;
                     }
 
-                    // If bird flies off-screen while diving, bring it back to patrol
-                    if (boss4Obj.holeBirds[b].y < 0 || boss4Obj.holeBirds[b].y > 750 ||
+                    // If bird flies below character or misses, swoop back up smoothly
+                    if (boss4Obj.holeBirds[b].y < (float)charY + 10.0f || boss4Obj.holeBirds[b].y > 750 ||
                         boss4Obj.holeBirds[b].x < -100 || boss4Obj.holeBirds[b].x > 1100) {
-                        // Return to ceiling patrol - bird is still alive
-                        boss4Obj.holeBirds[b].x = boss4Obj.holeBirds[b].startX;
-                        boss4Obj.holeBirds[b].y = (float)BIRD_CEIL_Y;
-                        boss4Obj.holeBirds[b].state = 1;
-                        boss4Obj.holeBirds[b].stateTimer = 0;
-                        boss4Obj.birdHoverTicks[b] = 150 + rand() % 60; // new 5-7s wait
-                        boss4Obj.holeBirds[b].velX = (rand() % 2 == 0) ? BIRD_PATROL_SPEED : -BIRD_PATROL_SPEED;
+                        // Start smooth swoop back to patrol
+                        boss4Obj.holeBirds[b].state = 5;
                     }
 
                 } else if (boss4Obj.holeBirds[b].state == 3) {
@@ -1929,13 +1924,34 @@ inline void updateFinalBossLogic() {
                     if (boss4Obj.holeBirds[b].y > 750) {
                         boss4Obj.holeBirds[b].active = false;
                     }
+                } else if (boss4Obj.holeBirds[b].state == 5) {
+                    // --- SWOOPING BACK TO CEILING (Smooth Return) ---
+                    float dx = boss4Obj.holeBirds[b].startX - boss4Obj.holeBirds[b].x;
+                    float dy = (float)BIRD_CEIL_Y - boss4Obj.holeBirds[b].y;
+                    float mag = (float)sqrt((double)(dx*dx + dy*dy));
+                    if (mag < 1.0f) mag = 1.0f;
+                    float speed = 15.0f; // Smooth swoop speed
+                    boss4Obj.holeBirds[b].velX = (dx / mag) * speed;
+                    boss4Obj.holeBirds[b].velY = (dy / mag) * speed;
+                    
+                    boss4Obj.holeBirds[b].x += boss4Obj.holeBirds[b].velX;
+                    boss4Obj.holeBirds[b].y += boss4Obj.holeBirds[b].velY;
+                    
+                    if (boss4Obj.holeBirds[b].y >= BIRD_CEIL_Y - 15.0f) {
+                        boss4Obj.holeBirds[b].y = (float)BIRD_CEIL_Y;
+                        boss4Obj.holeBirds[b].state = 1; // back to patrol
+                        boss4Obj.holeBirds[b].stateTimer = 0;
+                        boss4Obj.birdHoverTicks[b] = 150 + rand() % 60; 
+                        boss4Obj.holeBirds[b].velX = (rand() % 2 == 0) ? BIRD_PATROL_SPEED : -BIRD_PATROL_SPEED;
+                    }
                 }
 
                 // ---- Check if player weapon kills the bird ----
                 if (boss4Obj.holeBirds[b].active &&
                     (boss4Obj.holeBirds[b].state == 0 ||
                      boss4Obj.holeBirds[b].state == 1 ||
-                     boss4Obj.holeBirds[b].state == 2)) {
+                     boss4Obj.holeBirds[b].state == 2 ||
+                     boss4Obj.holeBirds[b].state == 5)) {
                     if (isAttacking && attackFrameIndex == 3 && !npcSlashDone) {
                         bool facingBack = isLeftArrowPressed || (specialKeyPressed[GLUT_KEY_LEFT] != 0);
                         float reachMin, reachMax;
@@ -2017,7 +2033,7 @@ inline void updateLevel4Boss() {
     } else if (level4Phase == 2) {
         // Boss walks in
         if (boss4Obj.x > 750) {
-            boss4Obj.x -= 3;
+            boss4Obj.x -= 6;
             updateFinalBossLogic();
         } else {
             boss4Obj.x = 750;
