@@ -2172,10 +2172,7 @@ void iMouse(int button, int state, int mx, int my) {
 
       playClickSound(); // always play on any settings button click
       if (result != -1) {
-        if (result == MENU)
-          gameState = MENU;
-        else if (result == GAME)
-          gameState = GAME;
+        gameState = (GameState)result;
       }
     } else if (gameState == CUSTOMIZATION) {
       int initialState = customSubState;
