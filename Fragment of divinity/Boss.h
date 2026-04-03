@@ -55,6 +55,7 @@ SELECTANY int bossLifeFrameImg;
 SELECTANY int spiderImgs[4];
 SELECTANY int worm11, worm12, worm13, worm14;
 SELECTANY int worm21, worm22, worm23, worm24;
+SELECTANY int walkNpcHitAccumulator = 0; // 3 walking-NPC hits = 1 life lost
 SELECTANY int highobs1Imgs[4];
 SELECTANY int highobs2Imgs[4];
 
@@ -1443,9 +1444,16 @@ inline void updateFinalBossLogic() {
                             charX < boss4Obj.restNpcs[i].x + 30 &&
                             charY + charHeight > groundY && charY < groundY + 100) {
                             if (!isInvincible && !isFallingSequence) {
-                                lives--;
-                                if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
-                                else { isInvincible = true; invincibilityTimer = 60; }
+                                // 3 walking-NPC hits = 1 life lost
+                                walkNpcHitAccumulator++;
+                                isInvincible = true;
+                                invincibilityTimer = 30; // ~1s gap between counted hits
+                                if (walkNpcHitAccumulator >= 3) {
+                                    walkNpcHitAccumulator = 0;
+                                    lives--;
+                                    if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                                    else { invincibilityTimer = 60; }
+                                }
                             }
                         }
                         boss4Obj.restNpcs[i].hasAttacked = true;
@@ -1471,7 +1479,7 @@ inline void updateFinalBossLogic() {
                     if (npcCenterX > reachMin && npcCenterX < reachMax &&
                         charY < boss4Obj.restNpcs[i].y + 120 && charY + charHeight > boss4Obj.restNpcs[i].y) {
                         boss4Obj.restNpcs[i].life--;
-                        boss4Obj.restNpcs[i].stunTimer = 30; // 1-second stun
+                        boss4Obj.restNpcs[i].stunTimer = 22; // 0.75-second stun
                         npcSlashDone = true;
                         if (boss4Obj.restNpcs[i].life <= 0) {
                             boss4Obj.restNpcs[i].active = false;
@@ -1481,15 +1489,21 @@ inline void updateFinalBossLogic() {
                     }
                 }
 
-                // NPC contact damage to player (Restored with stun guard)
-                if (!isInvincible && !isFallingSequence && boss4Obj.restNpcs[i].active && boss4Obj.restNpcs[i].stunTimer <= 0 && charAttackDamagelessTimer <= 0) {
+                // NPC contact damage to player - 3 hits = 1 life
+                if (!isInvincible && !isFallingSequence && boss4Obj.restNpcs[i].active && boss4Obj.restNpcs[i].stunTimer <= 0) {
                     if (charX + charWidth - 40 > boss4Obj.restNpcs[i].x + 20 &&
                         charX + 40 < boss4Obj.restNpcs[i].x + 130 &&
                         charY + charHeight > boss4Obj.restNpcs[i].y &&
                         charY < boss4Obj.restNpcs[i].y + 120) {
-                        lives--;
-                        if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
-                        else { isInvincible = true; invincibilityTimer = 60; }
+                        walkNpcHitAccumulator++;
+                        isInvincible = true;
+                        invincibilityTimer = 30; // ~1s gap between counted hits
+                        if (walkNpcHitAccumulator >= 3) {
+                            walkNpcHitAccumulator = 0;
+                            lives--;
+                            if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
+                            else { invincibilityTimer = 60; }
+                        }
                     }
                 }
             }
@@ -1506,12 +1520,12 @@ inline void updateFinalBossLogic() {
                     if (boss4Obj.restFires[i].x < -100)
                         boss4Obj.restFires[i].active = false;
 
-                    // Fire collision with player
-                    if (boss4Obj.restFires[i].active && !isInvincible && !isFallingSequence && charAttackDamagelessTimer <= 0) {
-                        if (charX + charWidth - 40 > boss4Obj.restFires[i].x + 10 &&
-                            charX + 40 < boss4Obj.restFires[i].x + 90 &&
-                            charY + charHeight - 20 > boss4Obj.restFires[i].y + 10 &&
-                            charY + 20 < boss4Obj.restFires[i].y + 90) {
+                    // Fire collision with player — always active regardless of invincibility
+                    if (boss4Obj.restFires[i].active) {
+                        if (charX + charWidth - 20 > boss4Obj.restFires[i].x &&
+                            charX + 20 < boss4Obj.restFires[i].x + 100 &&
+                            charY + charHeight - 10 > boss4Obj.restFires[i].y &&
+                            charY + 10 < boss4Obj.restFires[i].y + 100) {
                             boss4Obj.restFires[i].active = false;
                             lives--;
                             if (lives <= 0) { lives = 0; gameState = GAME_OVER; }
@@ -1586,7 +1600,7 @@ inline void updateFinalBossLogic() {
                     if (bigCenterX > reachMin && bigCenterX < reachMax &&
                         charY < boss4Obj.restBigNpc.y + 115 && charY + charHeight > boss4Obj.restBigNpc.y) {
                         boss4Obj.restBigNpc.life--;
-                        boss4Obj.restBigNpc.stunTimer = 30; // 1-second stun
+                        boss4Obj.restBigNpc.stunTimer = 22; // 0.75-second stun
                         npcSlashDone = true;
                         if (boss4Obj.restBigNpc.life <= 0) {
                             boss4Obj.restBigNpc.active = false;
@@ -1619,6 +1633,7 @@ inline void updateFinalBossLogic() {
                 }
                 boss4Obj.restBigNpc.active = false;
                 boss4Obj.restBigNpcSpawned = false;
+                walkNpcHitAccumulator = 0; // Reset hit counter on skill end
 
                 boss4Obj.restSkillState = 0;
                 boss4Obj.restSkillTimer = 0;

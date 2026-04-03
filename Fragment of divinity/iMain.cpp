@@ -47,6 +47,7 @@ float globalScreenShakeY = 0.0f;
 #include "GunBarHandler.h"
 #include "HighScoreHandler.h"
 #include "IQ.h"
+#include "GameOverHandler.h"
 #include "LevelCompleteHandler.h"
 #include "LifeHandler.h"
 #include "MainMenu.h"
@@ -184,6 +185,14 @@ int imgNextLevel, imgRestartLevel, imgHomeLevel; // New button images
 ButtonRect btnNextLevel, btnRestartLevel, btnHomeLevel;
 ButtonRect btnNextIQ;        // For the button on the IQ screen
 ButtonRect btnNextIQ_Level2; // Next level button for IQ screen
+
+// Game Over Variables
+int imgGameOverBG;
+int imgSettingsBtn;
+
+ButtonRect btnRestartGO;
+ButtonRect btnHomeGO;
+ButtonRect btnSettingsGO;
 
 // Cave Logic Variables
 int caveSceneBg;
@@ -1952,12 +1961,7 @@ void iDraw() {
       drawPauseMenu();
       drawGunBar(); // Gun bar (Level 3 only, if gun was earned)
     } else if (gameState == GAME_OVER) {
-      iSetColor(255, 0, 0);
-      iText(screenWidth / 2.0 - 50.0, screenHeight / 2.0, (char *)"GAME OVER",
-            (void *)GLUT_BITMAP_TIMES_ROMAN_24);
-      iSetColor(255, 255, 255);
-      iText(screenWidth / 2.0 - 80.0, screenHeight / 2.0 - 30.0,
-            (char *)"Press 'R' to Retry", (void *)GLUT_BITMAP_HELVETICA_18);
+      drawGameOverMenu();
     } else if (gameState == LEVEL_COMPLETE) {
       drawLevelComplete();
     }
@@ -2226,7 +2230,21 @@ void iMouse(int button, int state, int mx, int my) {
       } else if (action == 2) { // Skip
         startBtnAnim(2, 21, 21);
       } else if (action == 3) { // Previous
+      } else if (action == 3) { // Previous
         startBtnAnim(2, 22, 22);
+      }
+    } else if (gameState == GAME_OVER) {
+      int action = handleGameOverMouse(mx, my);
+      if (action != 0)
+        playClickSound();
+      if (action == 1) { // Restart
+        resetGame();
+      } else if (action == 2) { // Home
+        gameState = MENU;
+        playMusicTrack(TRACK_INTRO);
+      } else if (action == 3) { // Settings
+        previousState = (int)gameState;
+        gameState = SETTINGS;
       }
     } else if (gameState == LEVEL_COMPLETE) {
       int action = handleLevelCompleteMouse(mx, my);
@@ -2357,9 +2375,6 @@ void iKeyboard(unsigned char key) {
       gameState = (GameState)previousState;
     else
       gameState = MENU;
-  }
-  if (gameState == GAME_OVER && (key == 'r' || key == 'R')) {
-    resetGame();
   }
   if (gameState == HIGHSCORES && (key == 'b' || key == 'B')) {
     gameState = MENU;
@@ -2540,6 +2555,7 @@ int main() {
   caveImg = iLoadImage((char *)"background img\\cave.bmp");
   caveImgL2 = iLoadImage((char *)"background img\\cave2.png");
   loadLevelCompleteAssets();
+  loadGameOverAssets();
   loadCaveAssets();
   caveSceneBgL2 = iLoadImage((char *)"Wizard\\cave22.png");
   wizardL2Img = iLoadImage((char *)"Wizard\\wizard2.0.png");
