@@ -10,6 +10,7 @@
 //  Version: 4.0
 //
 
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #pragma comment(lib, "glut32.lib")
@@ -18,7 +19,6 @@
 #include "glut.h"
 #include <math.h>
 #include <time.h>
-#include <windows.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"

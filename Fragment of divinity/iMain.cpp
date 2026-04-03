@@ -1,9 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
 #include <mmsystem.h>
-#include <math.h>
 #include <stdio.h>
 #include <time.h>
+#include <math.h>
 
 // iGraphics.h variables
 unsigned int keyPressed[512];
@@ -54,6 +54,7 @@ float globalScreenShakeY = 0.0f;
 #include "PauseMenu.h"
 #include "SettingsMenu.h"
 #include "ShardHandler.h"
+#include "SoundHandler.h"
 #include "StoryHandler.h"
 #include "WeatherHandler.h"
 #include "attack.h"
@@ -65,7 +66,6 @@ float globalScreenShakeY = 0.0f;
 #include "gunattack.h"
 #include "iGraphics.h"
 #include "owl.h"
-
 
 #pragma comment(lib, "winmm.lib")
 
@@ -404,9 +404,7 @@ int mainMenuBG;
 int btnStart, btnSettings, btnCustomization, btnExit, btnHighscore;
 Button bStart, bSettings, bCustomization, bExit, bHighscore;
 
-// Button Click Animation globals
-bool isMusicOn = true;
-bool isSoundOn = true;
+// Button Click Animation globals (isMusicOn/SoundOn moved to SoundHandler.h)
 int settingsBG, settingsFrame, crossImage;
 int btnMusic, btnSound, btnExitSettings;
 int sFrameW = 600;
@@ -608,59 +606,6 @@ void spawnScorePopup(int amount) {
 }
 
 /* -------------------- LOGIC FUNCTIONS -------------------- */
-enum MusicTrack {
-  TRACK_NONE,
-  TRACK_INTRO,
-  TRACK_STORY,
-  TRACK_LEVEL1,
-  TRACK_LEVEL2,
-  TRACK_LEVEL3,
-  TRACK_CAVE
-};
-
-MusicTrack currentTrack = TRACK_NONE;
-
-void playMusicTrack(MusicTrack track) {
-  if (!isMusicOn) {
-    PlaySound(NULL, 0, 0);
-    currentTrack = track; // Preserve requested track state
-    return;
-  }
-
-  if (currentTrack == track && currentTrack != TRACK_NONE)
-    return; // Already playing this track
-
-  currentTrack = track;
-  switch (track) {
-  case TRACK_NONE:
-    PlaySound(NULL, 0, 0);
-    break;
-  case TRACK_INTRO:
-    PlaySound((char *)"sound\\intro.wav", NULL,
-              SND_FILENAME | SND_ASYNC | SND_LOOP);
-    break;
-  case TRACK_STORY:
-    PlaySound((char *)"sound\\story.wav", NULL,
-              SND_FILENAME | SND_ASYNC | SND_LOOP);
-    break;
-  case TRACK_LEVEL1:
-    PlaySound((char *)"sound\\level1.wav", NULL,
-              SND_FILENAME | SND_ASYNC | SND_LOOP);
-    break;
-  case TRACK_LEVEL2:
-    PlaySound((char *)"sound\\level2.wav", NULL,
-              SND_FILENAME | SND_ASYNC | SND_LOOP);
-    break;
-  case TRACK_LEVEL3:
-    PlaySound((char *)"sound\\level3.wav", NULL,
-              SND_FILENAME | SND_ASYNC | SND_LOOP);
-    break;
-  case TRACK_CAVE:
-    PlaySound((char *)"sound\\cave.wav", NULL,
-              SND_FILENAME | SND_ASYNC | SND_LOOP);
-    break;
-  }
-}
 
 void resetGame() {
   if (currentLevel == 2 || currentLevel == 3 || currentLevel == 4) {
@@ -716,6 +661,8 @@ void resetGame() {
     playMusicTrack(TRACK_LEVEL2);
   else if (currentLevel == 3)
     playMusicTrack(TRACK_LEVEL3);
+  else if (currentLevel == 4)
+    playMusicTrack(TRACK_LEVEL4);
 
   applesCollected = 0; // Fix: Reset score per-level for correct high scores
   level3StoryIndex = 0;
@@ -776,7 +723,8 @@ void updateCavePhysics() {
     // Move cave onto screen first
     if (caveX > 700) {
       caveX -= 5;
-      // Basic character animation while waiting for cave (optional but looks better)
+      // Basic character animation while waiting for cave (optional but looks
+      // better)
       charAnimCounter++;
       if (charAnimCounter >= charAnimSpeed) {
         charAnimCounter = 0;
@@ -1034,14 +982,7 @@ static void firePendingAction() {
 }
 
 // Play click sound (respects isSoundOn toggle)
-static void playClickSound() {
-  if (isSoundOn) {
-    mciSendStringA("close click", NULL, 0, NULL);
-    mciSendStringA("open \"sound\\click.wav\" type waveaudio alias click", NULL,
-                   0, NULL);
-    mciSendStringA("play click", NULL, 0, NULL);
-  }
-}
+// playClickSound() -> see SoundHandler.h
 
 // Helper: start grow animation for a button, register the pending action
 static void startBtnAnim(int context, int code, int action) {
@@ -1296,7 +1237,7 @@ void checkCollision() {
                 charY < npcTop && charY + charHeight > npcBottom) {
               npcList[i].life--;
               npcList[i].stunTimer = 30; // 1-second stun
-              npcSlashDone = true; // prevent double-hit in same frame
+              npcSlashDone = true;       // prevent double-hit in same frame
               if (npcList[i].life <= 0) {
                 npcList[i].active = false;
 
@@ -1306,6 +1247,7 @@ void checkCollision() {
                 int totalGained = 20 + bonusPts;
                 applesCollected += totalGained;
                 spawnScorePopup(totalGained);
+                playBonusScoreSound();
 
                 spawnPopupText(npcList[i].x, npcList[i].y + 50);
               } else {
@@ -1315,7 +1257,8 @@ void checkCollision() {
           }
 
           // NPC contact damage
-          if (!isInvincible && !isFallingSequence && npcList[i].stunTimer <= 0 && charAttackDamagelessTimer <= 0) {
+          if (!isInvincible && !isFallingSequence &&
+              npcList[i].stunTimer <= 0 && charAttackDamagelessTimer <= 0) {
             if (charX + charWidth - 40 > npcList[i].x + 20 &&
                 charX + 40 < npcList[i].x + 130 &&
                 charY + charHeight > npcList[i].y &&
@@ -1337,7 +1280,8 @@ void checkCollision() {
       // 2. Green Fire vs Player
       for (int i = 0; i < MAX_FIRES; i++) {
         if (fireList[i].active) {
-          if (!isInvincible && !isFallingSequence && charAttackDamagelessTimer <= 0) {
+          if (!isInvincible && !isFallingSequence &&
+              charAttackDamagelessTimer <= 0) {
             // green-fire-burning frame size approx 100x100
             if (charX + charWidth - 40 > fireList[i].x + 10 &&
                 charX + 40 < fireList[i].x + 90 &&
@@ -1382,12 +1326,14 @@ void checkCollision() {
               comboDisplayTimer = 60;
               applesCollected += 10;
               spawnScorePopup(10);
+              playBonusScoreSound();
               continue;
             }
           }
 
           // Skull touching player
-          if (!isInvincible && !isFallingSequence && charAttackDamagelessTimer <= 0) {
+          if (!isInvincible && !isFallingSequence &&
+              charAttackDamagelessTimer <= 0) {
             float charCx = charX + charWidth / 2.0f;
             float charCy = charY + charHeight / 2.0f;
             float sCx = skulls[i].x + 30.0f;
@@ -1655,6 +1601,7 @@ void updateShiftInput() {
             int totalGained = scoreGain + bonusPts;
             applesCollected += totalGained;
             spawnScorePopup(totalGained);
+            playBonusScoreSound();
           }
         }
       }
@@ -1699,16 +1646,17 @@ void updateShiftInput() {
 //  iGraphics limit
 void masterGameLoop() {
   updateShiftInput();
-  
+
   static bool prevShiftKey = false;
   bool currentShiftKey = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
   if (currentShiftKey && !prevShiftKey) {
-    if (gameState == GAME && (currentLevel == 3 || currentLevel == 4) && hasClaimedGun) {
+    if (gameState == GAME && (currentLevel == 3 || currentLevel == 4) &&
+        hasClaimedGun) {
       if (gunBarAvailable && !gunBarEquipped && !isGunAttacking) {
         gunBarEquipped = true;
         gunBarAnimTimer = 15;
         gunBarAvailable = false;
-        
+
         isGunAttacking = true;
         gunAttackFrameIndex = 0;
         gunAttackAnimCounter = 0;
@@ -1731,7 +1679,8 @@ void masterGameLoop() {
   updateCavePhysics();
   updateWizardWrapper();
   updateRunAnimation();
-  if (charAttackDamagelessTimer > 0) charAttackDamagelessTimer--;
+  if (charAttackDamagelessTimer > 0)
+    charAttackDamagelessTimer--;
   updateDragonPhysics();
   if (currentLevel == 3 && gameState == GAME && !isGamePaused) {
     updateCinderPhysics();
@@ -1821,8 +1770,8 @@ void iDraw() {
 
   bool shaking = (globalScreenShakeX != 0.0f || globalScreenShakeY != 0.0f);
   if (shaking) {
-      glPushMatrix();
-      glTranslatef(globalScreenShakeX, globalScreenShakeY, 0.0f);
+    glPushMatrix();
+    glTranslatef(globalScreenShakeX, globalScreenShakeY, 0.0f);
   }
 
   if (gameState == INTRO) {
@@ -2095,7 +2044,7 @@ void iDraw() {
   }
 
   if (shaking) {
-      glPopMatrix();
+    glPopMatrix();
   }
 }
 
@@ -2121,12 +2070,12 @@ void iMouse(int button, int state, int mx, int my) {
       }
       if (handleGunBarClick(mx, my)) {
         if (!isGunAttacking) {
-            isGunAttacking = true;
-            gunAttackFrameIndex = 0;
-            gunAttackAnimCounter = 0;
-            gunAttackShotsRemaining = 5;
-            if (currentLevel == 3 || currentLevel == 4)
-                charAttackDamagelessTimer = 30; // 1-second stun guard
+          isGunAttacking = true;
+          gunAttackFrameIndex = 0;
+          gunAttackAnimCounter = 0;
+          gunAttackShotsRemaining = 5;
+          if (currentLevel == 3 || currentLevel == 4)
+            charAttackDamagelessTimer = 30; // 1-second stun guard
         }
       }
       int pauseAction = handlePauseMenuMouse(mx, my);
@@ -2269,7 +2218,8 @@ void iMouse(int button, int state, int mx, int my) {
         startBtnAnim(2, 21, 21);
       }
     } else if (gameState == LEVEL1_STORY || gameState == LEVEL2_STORY ||
-               gameState == LEVEL3_STORY || gameState == LEVEL4_STORY || gameState == CAVE2_STORY) {
+               gameState == LEVEL3_STORY || gameState == LEVEL4_STORY ||
+               gameState == CAVE2_STORY) {
       int action = handleStoryMouse(mx, my);
       if (action == 1) { // Next
         startBtnAnim(2, 20, 20);
@@ -2423,8 +2373,8 @@ void iKeyboard(unsigned char key) {
     if (gameState == INITIAL_STORY || gameState == LEVEL1_INTRO ||
         gameState == LEVEL1_STORY || gameState == LEVEL2_INTRO ||
         gameState == LEVEL2_STORY || gameState == LEVEL3_INTRO ||
-        gameState == LEVEL3_STORY || gameState == LEVEL4_STORY || gameState == CAVE2_STORY ||
-        gameState == LEVEL4_INTRO) {
+        gameState == LEVEL3_STORY || gameState == LEVEL4_STORY ||
+        gameState == CAVE2_STORY || gameState == LEVEL4_INTRO) {
       startBtnAnim(2, 21, 21); // Skip
     }
   }
@@ -2434,12 +2384,10 @@ void iKeyboard(unsigned char key) {
       isAttacking = true;
       attackFrameIndex = 0;
       attackAnimCounter = 0;
-      if (currentLevel == 3 || currentLevel == 4) 
-          charAttackDamagelessTimer = 30; // 1-second stun guard
+      if (currentLevel == 3 || currentLevel == 4)
+        charAttackDamagelessTimer = 30; // 1-second stun guard
     }
   }
-
-
 
   // Clone Attack: 'C' in Level 4
   if (gameState == GAME && currentLevel == 4 && (key == 'c' || key == 'C')) {
@@ -2484,9 +2432,10 @@ void iSpecialKeyboard(unsigned char key) {
   if (gameState == INITIAL_STORY || gameState == LEVEL1_INTRO ||
       gameState == LEVEL1_STORY || gameState == LEVEL2_INTRO ||
       gameState == LEVEL2_STORY || gameState == LEVEL3_INTRO ||
-      gameState == LEVEL3_STORY || gameState == LEVEL4_STORY || gameState == CAVE2_STORY ||
-      gameState == LEVEL4_INTRO) {
-    if (isGamePaused) return;
+      gameState == LEVEL3_STORY || gameState == LEVEL4_STORY ||
+      gameState == CAVE2_STORY || gameState == LEVEL4_INTRO) {
+    if (isGamePaused)
+      return;
     if (key == GLUT_KEY_RIGHT) {
       startBtnAnim(2, 20, 20); // Next
     } else if (key == GLUT_KEY_LEFT) {
@@ -2601,11 +2550,13 @@ int main() {
   owlBulletImg = iLoadImage((char *)"level4\\owl\\bullet.png");
   char owlFramePath[50];
   for (int i = 0; i < 9; i++) {
-    sprintf_s(owlFramePath, sizeof(owlFramePath), "level4\\owl\\frame_%03d.png", i);
+    sprintf_s(owlFramePath, sizeof(owlFramePath), "level4\\owl\\frame_%03d.png",
+              i);
     owlFrames[i] = iLoadImage(owlFramePath);
   }
   for (int i = 0; i < 4; i++) {
-    sprintf_s(owlFramePath, sizeof(owlFramePath), "level4\\owl\\standing\\frame_%03d.png", i);
+    sprintf_s(owlFramePath, sizeof(owlFramePath),
+              "level4\\owl\\standing\\frame_%03d.png", i);
     owlStandingFrames[i] = iLoadImage(owlFramePath);
   }
   loadCharacter2Assets();
