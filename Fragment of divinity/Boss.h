@@ -47,6 +47,7 @@ SELECTANY int bossHoleImgs[10];
 // Bird images for Skill 8 (Hitground) bird attack
 SELECTANY int artikunoImgs[6];
 SELECTANY int volplexImgs[6];
+SELECTANY int bossBackImgs[10];
 
 SELECTANY int bigNpcWalkImgs[9];
 SELECTANY int bigNpcAttackImgs[9];
@@ -133,6 +134,12 @@ struct BossLevel4 {
   int dieFrameIndex;
   int dieAnimCounter;
   int victoryDelay; // Delay before showing victory screen after death
+  int previousLife;
+  int consecutiveHits;
+  int knockbackState;
+  int knockbackTimer;
+  int knockbackFrameIndex;
+  float bossInitialX;
 
   // Vanish Skill State
   int skillState; // 0: Idle, 1: Vanishing, 2: Hidden (Wait 2s), 3: Appearing
@@ -433,6 +440,11 @@ inline void loadBossAssets() {
     sprintf_s(path, sizeof(path), "vol&arti\\volplex (%d).png", i + 1);
     volplexImgs[i] = iLoadImage((char *)path);
   }
+
+  for (int i = 0; i < 10; i++) {
+    sprintf_s(path, sizeof(path), "Boss\\back (%d).png", i + 1);
+    bossBackImgs[i] = iLoadImage((char *)path);
+  }
 }
 
 /**
@@ -478,6 +490,9 @@ inline void initFinalBoss() {
   boss4Obj.facingLeft = true;
   boss4Obj.largeFlameScale = 0.0f;
   boss4Obj.largeFlamePhase = 0;
+  boss4Obj.previousLife = 170;
+  boss4Obj.consecutiveHits = 0;
+  boss4Obj.knockbackState = 0;
   // Pull Attack Initialized to avoid 0 speed junk
   for (int i = 0; i < 15; i++) {
     boss4Obj.pullParticlesX[i] = (float)(rand() % 1000);
@@ -517,6 +532,33 @@ inline void initFinalBoss() {
 inline void updateFinalBossLogic() {
   if (!boss4Obj.active)
     return;
+
+  // Knockback State Interceptor (Overrides Boss Updates)
+  if (boss4Obj.life < boss4Obj.previousLife) {
+    boss4Obj.x += 5.0f; // Boss goes back 5 axis statically
+    boss4Obj.consecutiveHits++;
+    if (boss4Obj.consecutiveHits >= 3) {
+      boss4Obj.knockbackState = 1;
+      boss4Obj.knockbackTimer = 0;
+      boss4Obj.knockbackFrameIndex = 0;
+      boss4Obj.consecutiveHits = 0; // reset
+    }
+  }
+  boss4Obj.previousLife = boss4Obj.life;
+
+  if (boss4Obj.knockbackState == 1) {
+    boss4Obj.knockbackTimer++;
+    boss4Obj.x += 0.5f; // Pull boss backward an additional 30 axis over 60 ticks
+    
+    // Smooth 10 frame animation covering 60 ticks (2 seconds)
+    boss4Obj.knockbackFrameIndex = boss4Obj.knockbackTimer / 6;
+    if (boss4Obj.knockbackFrameIndex > 9) boss4Obj.knockbackFrameIndex = 9;
+
+    if (boss4Obj.knockbackTimer >= 60) {
+      boss4Obj.knockbackState = 0;
+    }
+  }
+
   extern int level4Phase;
 
   // Boss breathing/resting animation speed
@@ -579,7 +621,7 @@ inline void updateFinalBossLogic() {
     if (boss4Obj.currentSkill != -1) {
       boss4Obj.safeguardTimer++;
       // If any skill takes more than 35 seconds, FORCE it to stop
-      if (boss4Obj.safeguardTimer > 1150) {
+      if (boss4Obj.safeguardTimer > 1150 && boss4Obj.currentSkill != 8) {
         boss4Obj.currentSkill = -1;
         boss4Obj.skillGapTimer = 30;
         boss4Obj.safeguardTimer = 0;
@@ -1999,12 +2041,9 @@ inline void updateFinalBossLogic() {
 
       bool anyBirdAlive = false;
       for (int b = 0; b < 4; b++) {
-        if (!boss4Obj.holeBirds[b].active)
-          continue;
-        // Only count birds that are still alive (not dying/fleeing)
-        if (boss4Obj.holeBirds[b].state != 3 &&
-            boss4Obj.holeBirds[b].state != 4)
+        if (boss4Obj.holeBirds[b].active) {
           anyBirdAlive = true;
+        }
 
         // Animate frames (6 frames cycling)
         boss4Obj.holeBirds[b].frameTimer++;
@@ -2045,16 +2084,19 @@ inline void updateFinalBossLogic() {
             // Give initial patrol velocity so each bird moves differently
             boss4Obj.holeBirds[b].velX =
                 (b % 2 == 0) ? BIRD_PATROL_SPEED : -BIRD_PATROL_SPEED;
+            boss4Obj.holeBirds[b].velY = -(2.0f + (rand() % 3)); // Smooth vertical movement
           }
 
         } else if (boss4Obj.holeBirds[b].state == 1) {
           // --- PATROLLING at ceiling: fast movement, 100px gap from char ---
+          // Smoothly patrols randomly across half screen up to ceiling
           boss4Obj.holeBirds[b].stateTimer++;
 
           // Move with patrol velocity
           boss4Obj.holeBirds[b].x += boss4Obj.holeBirds[b].velX;
+          boss4Obj.holeBirds[b].y += boss4Obj.holeBirds[b].velY;
 
-          // Bounce off screen edges
+          // Bounce off screen edges horizontally
           if (boss4Obj.holeBirds[b].x < 20) {
             boss4Obj.holeBirds[b].x = 20;
             boss4Obj.holeBirds[b].velX = BIRD_PATROL_SPEED;
@@ -2064,14 +2106,22 @@ inline void updateFinalBossLogic() {
             boss4Obj.holeBirds[b].velX = -BIRD_PATROL_SPEED;
           }
 
+          // Bounce smoothly on Y between half screen (300) and ceiling (BIRD_CEIL_Y)
+          if (boss4Obj.holeBirds[b].y < 300) {
+            boss4Obj.holeBirds[b].y = 300;
+            boss4Obj.holeBirds[b].velY = 2.0f + (rand() % 3);
+          }
+          if (boss4Obj.holeBirds[b].y > BIRD_CEIL_Y) {
+            boss4Obj.holeBirds[b].y = (float)BIRD_CEIL_Y;
+            boss4Obj.holeBirds[b].velY = -(2.0f + (rand() % 3));
+          }
+
           // Maintain at least 100 px horizontal distance from character
           float dist = boss4Obj.holeBirds[b].x - (float)charX;
           if (dist >= 0 && dist < 100.0f) {
-            boss4Obj.holeBirds[b].x = (float)charX + 100.0f;
-            boss4Obj.holeBirds[b].velX = BIRD_PATROL_SPEED; // move away
+            boss4Obj.holeBirds[b].velX = BIRD_PATROL_SPEED * 0.4f; // move away slowly
           } else if (dist < 0 && dist > -100.0f) {
-            boss4Obj.holeBirds[b].x = (float)charX - 100.0f;
-            boss4Obj.holeBirds[b].velX = -BIRD_PATROL_SPEED; // move away
+            boss4Obj.holeBirds[b].velX = -BIRD_PATROL_SPEED * 0.4f; // move away slowly
           }
 
           // Try to dive when hover time reached AND global cooldown is clear
@@ -2106,14 +2156,17 @@ inline void updateFinalBossLogic() {
           // Hit character
           if (bX + bW > charX + 20 && bX < charX + charWidth - 20 &&
               bY + bH > charY + 10 && bY < charY + charHeight - 10) {
-            if (!isInvincible && charAttackDamagelessTimer <= 0) {
-              lives--;
-              if (lives <= 0) {
-                lives = 0;
-                gameState = GAME_OVER;
-              } else {
-                isInvincible = true;
-                invincibilityTimer = 60;
+            extern bool isAttacking;
+            if (!isAttacking) {
+              if (!isInvincible && charAttackDamagelessTimer <= 0) {
+                lives--;
+                if (lives <= 0) {
+                  lives = 0;
+                  gameState = GAME_OVER;
+                } else {
+                  isInvincible = true;
+                  invincibilityTimer = 60;
+                }
               }
             }
             // Swoop back up to ceiling instead of vanishing
@@ -2168,6 +2221,7 @@ inline void updateFinalBossLogic() {
             boss4Obj.birdHoverTicks[b] = 150 + rand() % 60;
             boss4Obj.holeBirds[b].velX =
                 (rand() % 2 == 0) ? BIRD_PATROL_SPEED : -BIRD_PATROL_SPEED;
+            boss4Obj.holeBirds[b].velY = -(2.0f + (rand() % 3));
           }
         }
 
@@ -2219,27 +2273,8 @@ inline void updateFinalBossLogic() {
       }
 
       if (boss4Obj.hitgroundHoleCount >= 4 && !anyHoleActive) {
-        // 12-second wait phase (12 * 33 fps = 396 frames roughly)
-        boss4Obj.hitgroundWaitTimer++;
-        boss4Obj.birdDiveCooldown =
-            9999; // Prevent diving entirely during wait phase
-
-        if (boss4Obj.hitgroundWaitTimer == 396) {
-          // Time up: Scatter the birds
-          for (int b = 0; b < 4; b++) {
-            if (boss4Obj.holeBirds[b].active &&
-                boss4Obj.holeBirds[b].state != 3 &&
-                boss4Obj.holeBirds[b].state != 4) {
-              boss4Obj.holeBirds[b].state = 4; // Fleeing
-              boss4Obj.holeBirds[b].velX = (b % 2 == 0) ? -12.0f : 12.0f;
-              boss4Obj.holeBirds[b].velY = 12.0f + (rand() % 5);
-            }
-          }
-        }
-
-        // Skill ends when wait phase completes and no birds are flying around
-        // on screen
-        if (boss4Obj.hitgroundWaitTimer > 396 && !anyBirdAlive) {
+        // Boss 4 waits for all birds to be killed by the player
+        if (!anyBirdAlive) {
           for (int i = 0; i < 4; i++) {
             boss4Obj.bossHoles[i].active = false;
             boss4Obj.holeBirds[i].active = false;
@@ -2377,6 +2412,17 @@ inline void handleBossHit() {
 
 // Custom wrapper for flipping based on state
 inline void iDrawBossImage(int x, int y, int w, int h, int img) {
+  if (boss4Obj.knockbackState == 1) {
+    // Only override if the image being drawn isn't a flame segment
+    bool isFlame = false;
+    for (int i = 0; i < 11; i++) {
+       if (img == bossFlameImgs[i]) { isFlame = true; break; }
+    }
+    if (!isFlame) {
+        img = bossBackImgs[boss4Obj.knockbackFrameIndex];
+    }
+  }
+
   if (boss4Obj.facingLeft) {
     // Assuming images face LEFT by default
     iShowImage(x, y, w, h, img);
@@ -2667,6 +2713,51 @@ inline void drawBoss() {
             } else {
               iShowImageVFlip(bX, bY, bW, bH, birdFrames[frameIdx]);
             }
+
+            // Draw particle effects specifically around dying birds
+            if (boss4Obj.holeBirds[b].type == 0) {
+              // Snowflakes (Artikuno)
+              for (int p = 0; p < 12; p++) {
+                int col = rand() % 4;
+                if (col == 0) iSetColor(255, 255, 255); // White
+                else if (col == 1) iSetColor(230, 240, 255); // Light Blue
+                else if (col == 2) iSetColor(200, 230, 255); // Cyany Blue
+                else iSetColor(255, 250, 250); // Snow
+                int px = bX - 10 + (rand() % (bW + 20));
+                int py = bY - 10 + (rand() % (bH + 20));
+                
+                double xs[4], ys[4];
+                for (int k = 0; k < 4; k++) {
+                  double angle = 1.5708 * k + ((rand() % 10) * 0.05); // random tilt
+                  double r = 1.0 + (rand() % 15) * 0.1; // tiny erratic radius (1.0 to 2.5) // size small
+                  xs[k] = (double)px + r * cos(angle);
+                  ys[k] = (double)py + r * sin(angle);
+                }
+                iFilledPolygon(xs, ys, 4); // topsy turvy shard!
+              }
+            } else {
+              // Fire shards (Volplex)
+              for (int p = 0; p < 12; p++) { // synced to 12 exactly like Artikuno
+                int col = rand() % 5;
+                if (col == 0) iSetColor(255, 69, 0); // Orange Red
+                else if (col == 1) iSetColor(255, 140, 0); // Dark Orange
+                else if (col == 2) iSetColor(255, 0, 0); // Red
+                else if (col == 3) iSetColor(255, 215, 0); // Gold Yellow
+                else iSetColor(255, 255, 200); // White core fire
+                int px = bX - 10 + (rand() % (bW + 20));
+                int py = bY - 10 + (rand() % (bH + 20));
+
+                double xs[4], ys[4];
+                for (int k = 0; k < 4; k++) {
+                  double angle = 1.5708 * k + ((rand() % 10) * 0.05); // random tilt
+                  double r = 1.0 + (rand() % 15) * 0.1; // tiny erratic radius (1.0 to 2.5) // size small
+                  xs[k] = (double)px + r * cos(angle);
+                  ys[k] = (double)py + r * sin(angle);
+                }
+                iFilledPolygon(xs, ys, 4); // topsy turvy shard!
+              }
+            }
+            iSetColor(255, 255, 255); // Reset color
           } else {
             if (flipHorizontally) {
               iShowImageHFlip(bX, bY, bW, bH, birdFrames[frameIdx]);
