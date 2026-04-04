@@ -190,9 +190,12 @@ inline void drawCave() {
     } else if (transitionPhase == 2) {
       // Explain image centered in the middle of the screen
       int imgW = 700;
+      if (currentLevel == 2 || currentLevel == 3) {
+        imgW = 600; // Decreased a bit as requested
+      }
       int imgH = 350;
-      int imgX = (1000 - imgW) / 2; // 250
-      int imgY = (600 - imgH) / 2;  // 125
+      int imgX = (1000 - imgW) / 2; 
+      int imgY = (600 - imgH) / 2;  
       iSetColor(255, 255, 255);
       if (currentLevel == 2) {
         iShowImage(imgX, imgY, imgW, imgH, gunExplainImg);

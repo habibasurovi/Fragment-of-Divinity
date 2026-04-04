@@ -118,6 +118,10 @@ int level4StoryImages[3];
 int level4StoryIndex = 0;
 int cave2StoryImages[3];
 int cave2StoryIndex = 0;
+int finalVictoryImages[2];
+int finalVictoryIndex = 0;
+int finalStoryImages[11];
+int finalStoryIndex = 0;
 int gunImg;
 int gunExplainImg;
 
@@ -842,6 +846,7 @@ static void firePendingAction() {
       gameState = LEVEL4_STORY;
       storyTimerCount = 0;
       level4StoryIndex = 0;
+      playMusicTrack(TRACK_LEVEL4);
     } else if (gameState == LEVEL4_STORY) {
       level4StoryIndex++;
       storyTimerCount = 0;
@@ -857,6 +862,20 @@ static void firePendingAction() {
         initCaveState();
         initIQ();
         playMusicTrack(TRACK_CAVE);
+      }
+    } else if (gameState == FINAL_VICTORY) {
+      finalVictoryIndex++;
+      if (finalVictoryIndex >= 2) {
+        finalStoryIndex = 0;
+        gameState = FINAL_STORY;
+        playMusicTrack(TRACK_GAME_WON_STORY);
+      }
+    } else if (gameState == FINAL_STORY) {
+      finalStoryIndex++;
+      storyTimerCount = 0;
+      if (finalStoryIndex >= 11) {
+        gameState = MENU;
+        playMusicTrack(TRACK_INTRO);
       }
     }
     break;
@@ -885,6 +904,9 @@ static void firePendingAction() {
       level4Phase = 1;
       bGX = 0;
       level4ScrollCount = 0;
+    } else if (gameState == FINAL_STORY) {
+      gameState = MENU;
+      playMusicTrack(TRACK_INTRO);
     }
     break;
   case 22: // Previous
@@ -940,6 +962,11 @@ static void firePendingAction() {
         storyTimerCount = 0;
       } else {
         gameState = LEVEL_COMPLETE;
+        storyTimerCount = 0;
+      }
+    } else if (gameState == FINAL_STORY) {
+      if (finalStoryIndex > 0) {
+        finalStoryIndex--;
         storyTimerCount = 0;
       }
     }
@@ -1678,6 +1705,12 @@ void masterGameLoop() {
 
   autoScrollRecursiveWrapper();
   updateLevel4Logic();
+  // Trigger FINAL_VICTORY when boss death sequence completes
+  if (currentLevel == 4 && gameState == GAME && level4Phase == 5) {
+    finalVictoryIndex = 0;
+    gameState = FINAL_VICTORY;
+    playMusicTrack(TRACK_FINAL_VICTORY);
+  }
   updateObstaclePhysicsWrapper();
   checkCollision();
   updateCharacterMovementWrapper();
@@ -1708,6 +1741,7 @@ void masterGameLoop() {
   // Save high score when game ends (GAME_OVER)
   static bool gameOverScoreSaved = false;
   if (gameState == GAME_OVER && !gameOverScoreSaved) {
+    playMusicTrack(TRACK_GAMEOVER);
     updateHighScore(currentLevel, applesCollected);
     gameOverScoreSaved = true;
   }
@@ -1813,6 +1847,10 @@ void iDraw() {
     drawLevel1Story();
   } else if (gameState == CAVE2_STORY) {
     drawCaveTwoStory();
+  } else if (gameState == FINAL_VICTORY) {
+    drawFinalVictory();
+  } else if (gameState == FINAL_STORY) {
+    drawFinalStory();
   } else if (gameState == GAME || gameState == LEVEL_COMPLETE ||
              gameState == GAME_OVER) {
     drawBackground();
@@ -1874,26 +1912,6 @@ void iDraw() {
         iSetColor(255, 220, 0);
         iText(64, 62, (char *)cdStr, (void *)GLUT_BITMAP_TIMES_ROMAN_24);
       }
-    }
-
-    if (currentLevel == 4 && level4Phase == 5) {
-      // Victory Screen - Polished Ultra Bold centered text
-      iSetColor(255, 100, 0);
-      // Clean high-impact bold (5x5 grid)
-      for (float ox = -2.0f; ox <= 2.0f; ox += 1.0f) {
-        for (float oy = -2.0f; oy <= 2.0f; oy += 1.0f) {
-          iText(340 + ox, 350 + oy, (char *)"CONGRATULATIONS!",
-                (void *)GLUT_BITMAP_TIMES_ROMAN_24);
-          iText(430 + ox, 300 + oy, (char *)"VICTORY",
-                (void *)GLUT_BITMAP_TIMES_ROMAN_24);
-        }
-      }
-      iSetColor(255, 255, 255);
-      iText(340, 350, (char *)"CONGRATULATIONS!",
-            (void *)GLUT_BITMAP_TIMES_ROMAN_24);
-      iText(430, 300, (char *)"VICTORY", (void *)GLUT_BITMAP_TIMES_ROMAN_24);
-      return; // Ensure no other UI elements (Shards, Timer, etc.) are drawn
-              // over victory
     }
 
     // Draw Combo Text
@@ -2358,6 +2376,20 @@ void iMouse(int button, int state, int mx, int my) {
         // Do NOT switch to LEVEL2_INTRO yet for correct answer. Wait for
         // transitions.
       }
+    } else if (gameState == FINAL_VICTORY) {
+      // Animated Next button — uses same grow anim as story buttons (code 20)
+      if (handleFinalVictoryClick(mx, my)) {
+        startBtnAnim(2, 20, 20);
+      }
+    } else if (gameState == FINAL_STORY) {
+      int action = handleStoryMouse(mx, my);
+      if (action == 1) {
+        startBtnAnim(2, 20, 20); // Next
+      } else if (action == 2) {
+        startBtnAnim(2, 21, 21); // Skip
+      } else if (action == 3) {
+        startBtnAnim(2, 22, 22); // Previous
+      }
     }
   }
 }
@@ -2389,7 +2421,8 @@ void iKeyboard(unsigned char key) {
         gameState == LEVEL1_STORY || gameState == LEVEL2_INTRO ||
         gameState == LEVEL2_STORY || gameState == LEVEL3_INTRO ||
         gameState == LEVEL3_STORY || gameState == LEVEL4_STORY ||
-        gameState == CAVE2_STORY || gameState == LEVEL4_INTRO) {
+        gameState == CAVE2_STORY || gameState == LEVEL4_INTRO ||
+        gameState == FINAL_STORY) {
       startBtnAnim(2, 21, 21); // Skip
     }
   }
@@ -2448,7 +2481,8 @@ void iSpecialKeyboard(unsigned char key) {
       gameState == LEVEL1_STORY || gameState == LEVEL2_INTRO ||
       gameState == LEVEL2_STORY || gameState == LEVEL3_INTRO ||
       gameState == LEVEL3_STORY || gameState == LEVEL4_STORY ||
-      gameState == CAVE2_STORY || gameState == LEVEL4_INTRO) {
+      gameState == CAVE2_STORY || gameState == LEVEL4_INTRO ||
+      gameState == FINAL_STORY) {
     if (isGamePaused)
       return;
     if (key == GLUT_KEY_RIGHT) {
@@ -2456,6 +2490,11 @@ void iSpecialKeyboard(unsigned char key) {
     } else if (key == GLUT_KEY_LEFT) {
       startBtnAnim(2, 22, 22); // Previous
     }
+  }
+
+  // FINAL_VICTORY: right arrow advances to next frame (animated)
+  if (gameState == FINAL_VICTORY && !btnAnimActive && key == GLUT_KEY_RIGHT) {
+    startBtnAnim(2, 20, 20);
   }
 
   // Level Complete and Cave next button shortcuts

@@ -28,7 +28,10 @@ enum MusicTrack {
   TRACK_LEVEL2,
   TRACK_LEVEL3,
   TRACK_LEVEL4,
-  TRACK_CAVE
+  TRACK_CAVE,
+  TRACK_GAMEOVER,
+  TRACK_FINAL_VICTORY,
+  TRACK_GAME_WON_STORY
 };
 
 SND_SELECTANY MusicTrack currentTrack = TRACK_NONE;
@@ -75,6 +78,18 @@ inline void playMusicTrack(MusicTrack track) {
     break;
   case TRACK_CAVE:
     PlaySound((char *)"sound\\cave.wav", NULL,
+              SND_FILENAME | SND_ASYNC | SND_LOOP);
+    break;
+  case TRACK_GAMEOVER:
+    PlaySound((char *)"sound\\gameover.wav", NULL,
+              SND_FILENAME | SND_ASYNC); // Play ONCE for game over
+    break;
+  case TRACK_FINAL_VICTORY:
+    PlaySound((char *)"sound\\final victory.wav", NULL,
+              SND_FILENAME | SND_ASYNC | SND_LOOP);
+    break;
+  case TRACK_GAME_WON_STORY:
+    PlaySound((char *)"sound\\game won story.wav", NULL,
               SND_FILENAME | SND_ASYNC | SND_LOOP);
     break;
   }
