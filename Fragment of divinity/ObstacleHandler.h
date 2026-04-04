@@ -573,7 +573,35 @@ inline void updateObstaclePhysics() {
       int choice = rand() % 2; // Choice 0: Shark, 1: Bridge
       if (choice == 0) {
         // Spawn Shark
-// ...
+        for (int i = 0; i < 2; i++) {
+          if (!sharks[i].active) {
+            sharks[i].active = true;
+            sharks[i].x = (float)SCREEN_W + 50;
+            sharks[i].y = -10;
+            sharks[i].type = (rand() % 2) + 1;
+            sharks[i].jumpState = 0;
+            sharks[i].velocityY = 0;
+            sharks[i].isDying = false;
+            sharks[i].isRetreating = false;
+            level2SpawnDist = 0;
+            break;
+          }
+        }
+      } else {
+        // Spawn Bridge
+        for (int j = 0; j < 2; j++) {
+          if (!bridges[j].active) {
+            bridges[j].active = true;
+            bridges[j].x = (float)SCREEN_W + 50;
+            bridges[j].y = 90;
+            bridges[j].isBroken = false;
+            bridges[j].leverActivated = false;
+            bridges[j].isRLL = (rand() % 2 == 0);
+            bridges[j].damaged = false;
+            level2SpawnDist = 0;
+            break;
+          }
+        }
       }
     }
 
@@ -809,11 +837,7 @@ inline void updateObstaclePhysics() {
 
     // Spawning Level 3
     level2SpawnDist += SCROLL_SPD;
-<<<<<<< HEAD
-    if (level2SpawnDist > 800) { // general spawns slightly faster
-=======
     if (level2SpawnDist > 1000 && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) {
->>>>>>> bc2634fe84d699201f58c27523d18fc5a932d5bf
       int choice = rand() % 2;
       if (choice == 0) {
         // Worm

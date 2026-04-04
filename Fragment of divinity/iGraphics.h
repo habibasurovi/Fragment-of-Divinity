@@ -15,6 +15,9 @@
 #include <stdlib.h>
 #pragma comment(lib, "glut32.lib")
 #pragma comment(lib, "glaux.lib")
+#pragma comment(lib, "opengl32.lib")
+#pragma comment(lib, "glu32.lib")
+#pragma comment(lib, "glui32.lib")
 #include "glaux.h"
 #include "glut.h"
 #include <math.h>
