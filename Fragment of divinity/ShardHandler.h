@@ -113,6 +113,37 @@ inline void updateShardLogic() {
             }
         }
 
+        // --- LEVEL 3 SPECIFIC DESTRUCTION ---
+        if (currentLevel == 3) {
+            // e. Level 3 Walking NPCs
+            for (int i = 0; i < 3; i++) {
+                if (npcList[i].active) {
+                    if (charX + charWidth > npcList[i].x && charX < npcList[i].x + 120 &&
+                        charY + charHeight > npcList[i].y && charY < npcList[i].y + 120) {
+                        npcList[i].active = false;
+                    }
+                }
+            }
+            // f. Level 3 Green Fires
+            for (int i = 0; i < 3; i++) {
+                if (fireList[i].active) {
+                    if (charX + charWidth > fireList[i].x && charX < fireList[i].x + 80 &&
+                        charY + charHeight > fireList[i].y && charY < fireList[i].y + 80) {
+                        fireList[i].active = false;
+                    }
+                }
+            }
+            // g. Level 3 Skulls
+            for (int i = 0; i < 3; i++) {
+                if (skulls[i].active) {
+                    if (charX + charWidth > skulls[i].x && charX < skulls[i].x + 80 &&
+                        charY + charHeight > skulls[i].y && charY < skulls[i].y + 80) {
+                        skulls[i].active = false;
+                    }
+                }
+            }
+        }
+
         if (haloTimer <= 0) {
             isHaloActive = false;
             isInvincible = false;

@@ -2236,18 +2236,18 @@ inline void updateFinalBossLogic() {
                 isLeftArrowPressed || (specialKeyPressed[GLUT_KEY_LEFT] != 0);
             float reachMin, reachMax;
             if (facingBack) {
-              reachMin = (float)charX - 180;
-              reachMax = (float)charX;
+              reachMin = (float)charX - 200;
+              reachMax = (float)charX + 80; // Significant overlap allowed
             } else {
-              reachMin = (float)(charX + charWidth);
-              reachMax = (float)(charX + charWidth + 180);
+              reachMin = (float)charX + charWidth - 80; // Significant overlap allowed
+              reachMax = (float)charX + charWidth + 200;
             }
 
             float birdCX = boss4Obj.holeBirds[b].x;
             float birdCY = boss4Obj.holeBirds[b].y;
             if (birdCX > reachMin && birdCX < reachMax &&
-                birdCY > (float)charY - 80 &&
-                birdCY < (float)(charY + charHeight) + 80) {
+                birdCY > (float)charY - 120 &&
+                birdCY < (float)(charY + charHeight) + 120) {
               boss4Obj.holeBirds[b].life--;
               npcSlashDone = true;
               if (boss4Obj.holeBirds[b].life <= 0) {
