@@ -100,7 +100,7 @@ inline void owlFireBullet() {
     if (!owlCompanion.bullets[i].active) {
       owlCompanion.bullets[i].active = true;
       owlCompanion.bullets[i].x = owlCompanion.x + 55.0f; // Approx gunpoint
-      owlCompanion.bullets[i].y = owlCompanion.y + 18.0f; // Align to gun
+      owlCompanion.bullets[i].y = owlCompanion.y + 35.0f; // Align to gun (increased from 18.0f)
       owlCompanion.bulletsRemaining--;
       break;
     }

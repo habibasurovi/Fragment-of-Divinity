@@ -13,6 +13,8 @@ extern int level2StoryImages[3];
 extern int level3StoryImages[3];
 extern int level4StoryImages[3];
 extern int cave2StoryImages[3];
+extern int finalVictoryImages[2];
+extern int finalStoryImages[11];
 extern int levelSelectionBG;
 extern int level1BtnImg, level2BtnImg, level3BtnImg, level4BtnImg;
 extern int nextBtnImg, skipBtnImg, homeBtnImg, prevBtnImg, btnLvlCustomImg;
@@ -29,6 +31,8 @@ extern int level2StoryIndex;
 extern int level3StoryIndex;
 extern int level4StoryIndex;
 extern int cave2StoryIndex;
+extern int finalVictoryIndex;
+extern int finalStoryIndex;
 extern int storyTimerCount;
 
 // Animation globals (defined in iMain.cpp)
@@ -133,6 +137,18 @@ inline void loadStoryAssets() {
   for (int i = 0; i < 3; i++) {
     sprintf_s(path, sizeof(path), "story\\cave2story\\%d.png", i + 11);
     cave2StoryImages[i] = iLoadImage(path);
+  }
+
+  // Final Victory Frames (level4\final victory\1.png, 2.png)
+  for (int i = 0; i < 2; i++) {
+    sprintf_s(path, sizeof(path), "level4\\final victory\\%d.png", i + 1);
+    finalVictoryImages[i] = iLoadImage(path);
+  }
+
+  // Final Story Pages (story\final story\1.png .. 11.png)
+  for (int i = 0; i < 11; i++) {
+    sprintf_s(path, sizeof(path), "story\\final story\\%d.png", i + 1);
+    finalStoryImages[i] = iLoadImage(path);
   }
 
   // Level Selection Assets
@@ -348,6 +364,47 @@ inline int handleHomeButtonMouse(int mx, int my) {
     return 1;
   }
   return 0;
+}
+
+// ---- FINAL VICTORY: next button hitbox (cave-style: 750,50,220,70) ----
+inline int handleFinalVictoryClick(int mx, int my) {
+  if (mx >= 750 && mx <= 970 && my >= 50 && my <= 120)
+    return 1;
+  return 0;
+}
+
+// Draw final victory frame (level4 bg + victory image centered + animated next btn)
+// Requires bg41/bg42 to be valid (loaded via loadBossAssets)
+inline void drawFinalVictory() {
+  extern int bg41, bg42, bGX;
+  // Draw the frozen level-4 background at its current scroll position
+  iShowImage(bGX,        0, 1000, 600, bg41);
+  iShowImage(bGX + 1000, 0, 1000, 600, bg42);
+  iShowImage(bGX + 2000, 0, 1000, 600, bg42);
+  iShowImage(bGX + 3000, 0, 1000, 600, bg42);
+  // Victory frame centered (700x450) on top of background
+  if (finalVictoryIndex >= 0 && finalVictoryIndex < 2) {
+    iSetColor(255, 255, 255);
+    iShowImage(150, 75, 700, 450, finalVictoryImages[finalVictoryIndex]);
+  }
+  // Animated story-style Next button at bottom-right (code 20 for grow anim)
+  extern int imgNextLevel;
+  iSetColor(255, 255, 255);
+  DRAW_STORY_BTN(750, 50, 220, 70, imgNextLevel, 20);
+}
+
+// Draw final story page with prev/next/skip buttons
+inline void drawFinalStory() {
+  if (finalStoryIndex >= 0 && finalStoryIndex < 11) {
+    iSetColor(255, 255, 255);
+    iShowImage(0, 0, 1000, 600, finalStoryImages[finalStoryIndex]);
+    DRAW_STORY_BTN(nextBtnX, nextBtnY, btnStoryW, btnStoryH, nextBtnImg, 20);
+    DRAW_STORY_BTN(prevBtnX, prevBtnY, btnStoryW, btnStoryH, prevBtnImg, 22);
+    // On last page, no skip (next goes to main menu)
+    if (finalStoryIndex < 10) {
+      DRAW_STORY_BTN(skipBtnX, skipBtnY, btnStoryW, btnStoryH, skipBtnImg, 21);
+    }
+  }
 }
 
 #endif
