@@ -24,6 +24,10 @@ extern bool isShiftPressed; // From iMain.cpp
 extern bool npcSlashDone; // From iMain.cpp
 extern int gameRunTimeSeconds; // From iMain.cpp
 extern int currentLevel;     // From iMain.cpp
+extern int applesCollected;
+extern void spawnScorePopup(int amount);
+extern void playBonusScoreSound();
+
 
 #ifdef _MSC_VER
 #define SELECTANY __declspec(selectany)
@@ -233,6 +237,9 @@ inline void checkCinderHit() {
             
             cinderEnemy.hitCount++;
             if (cinderEnemy.hitCount >= 2) {
+                applesCollected += 20;
+                spawnScorePopup(20);
+                playBonusScoreSound();
                 // Disappears immediately
                 cinderEnemy.isVanishing = true;
                 cinderEnemy.blinkTimer = 30; // Quick blink off screen

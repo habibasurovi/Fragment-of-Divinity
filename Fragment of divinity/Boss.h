@@ -60,6 +60,18 @@ SELECTANY int worm21, worm22, worm23, worm24;
 SELECTANY int walkNpcHitAccumulator = 0; // 3 walking-NPC hits = 1 life lost
 SELECTANY int highobs1Imgs[4];
 SELECTANY int highobs2Imgs[4];
+SELECTANY int batImgs[6];
+
+struct BatNPC {
+  float x, y;
+  float velX, velY;
+  bool active;
+  int frame;
+  int frameTimer;
+  int life;
+  int hitFlashTimer;
+  bool facingLeft;
+};
 
 struct BossEnemyObj {
   float x, y;
@@ -209,6 +221,8 @@ struct BossLevel4 {
   int enemySpawnTimer;
   float enemyStartY;
   BossEnemyObj bossEnemies[5];
+  BatNPC bats[10];
+  int batSpawnTimer;
 
   // Top Attack Skill State
   int topSkillState; // 0: Idle, 1: High motion, 2: Thunder motion (15s)
@@ -410,6 +424,12 @@ inline void loadBossAssets() {
     highobs2Imgs[i] = iLoadImage((char *)path);
   }
 
+  // Level 4 Bats
+  for (int i = 0; i < 6; i++) {
+    sprintf_s(path, sizeof(path), "level4\\bat\\frame_00%d.png", i);
+    batImgs[i] = iLoadImage((char *)path);
+  }
+
   // Skill 7 (Hitground) Assets
   for (int i = 0; i < 11; i++) {
     sprintf_s(path, sizeof(path), "Boss\\shout (%d).png", i + 1);
@@ -470,7 +490,8 @@ inline void shuffleBossSkills() {
     }
   } else {
     // Default sequential phase: Attack 1 to 9 (Index 0 to 8)
-    for (int i = 0; i < 9; i++) boss4Obj.skillSequence[i] = i;
+    for (int i = 0; i < 9; i++)
+      boss4Obj.skillSequence[i] = i;
   }
   boss4Obj.sequenceIndex = 0;
 }
@@ -484,7 +505,7 @@ inline void initFinalBoss() {
   boss4Obj.active = false;
   boss4Obj.x = 600.0f; // Positioned on the right side
   boss4Obj.bossInitialX = 600.0f;
-  boss4Obj.y = 83.0f;  // Anchored to Level 4 ground
+  boss4Obj.y = 83.0f; // Anchored to Level 4 ground
   boss4Obj.life = 170;
   boss4Obj.maxLife = 170;
   boss4Obj.facingLeft = true;
@@ -523,6 +544,12 @@ inline void initFinalBoss() {
   boss4Obj.restBigNpc.hitFlashTimer = 0;
   boss4Obj.restNpcSpawnTimer = 0;
   boss4Obj.restBigNpcSpawned = false;
+
+  // Initialize Bats
+  boss4Obj.batSpawnTimer = 0;
+  for (int i = 0; i < 10; i++) {
+    boss4Obj.bats[i].active = false;
+  }
 }
 
 /**
@@ -541,7 +568,8 @@ inline void updateFinalBossLogic() {
     float charCenterX = (float)charX + (charWidth / 2.0f);
     boss4Obj.recoilDir = (charCenterX < bossCenterX) ? 1 : -1;
 
-    boss4Obj.x += 5.0f * boss4Obj.recoilDir; // Boss goes back 5 axis dynamic direction
+    boss4Obj.x +=
+        5.0f * boss4Obj.recoilDir; // Boss goes back 5 axis dynamic direction
     boss4Obj.consecutiveHits++;
     if (boss4Obj.consecutiveHits >= 3) {
       boss4Obj.knockbackState = 1;
@@ -554,11 +582,13 @@ inline void updateFinalBossLogic() {
 
   if (boss4Obj.knockbackState == 1) {
     boss4Obj.knockbackTimer++;
-    boss4Obj.x += 0.5f * boss4Obj.recoilDir; // Pull boss backward an additional 30 axis over 60 ticks
-    
+    boss4Obj.x += 0.5f * boss4Obj.recoilDir; // Pull boss backward an additional
+                                             // 30 axis over 60 ticks
+
     // Smooth 10 frame animation covering 60 ticks (2 seconds)
     boss4Obj.knockbackFrameIndex = boss4Obj.knockbackTimer / 6;
-    if (boss4Obj.knockbackFrameIndex > 9) boss4Obj.knockbackFrameIndex = 9;
+    if (boss4Obj.knockbackFrameIndex > 9)
+      boss4Obj.knockbackFrameIndex = 9;
 
     if (boss4Obj.knockbackTimer >= 60) {
       boss4Obj.knockbackState = 0;
@@ -1204,11 +1234,12 @@ inline void updateFinalBossLogic() {
 
   // --- SKILL 4: ENEMY ATTACK SKILL LOGIC ---
   if (level4Phase == 3 && boss4Obj.currentSkill == 4) {
-    extern int charX, charY, lives;
-    extern bool isInvincible;
-    extern int invincibilityTimer;
+    extern int charX, charY, lives, charWidth, charHeight, attackFrameIndex;
+    extern bool isInvincible, isAttacking, npcSlashDone;
+    extern int invincibilityTimer, charAttackDamagelessTimer;
     extern GameState gameState;
-    extern bool isAttacking;
+    extern bool isLeftArrowPressed;
+    extern unsigned int specialKeyPressed[512];
 
     // --- SHARED ENEMY SPAWN/UPDATE LOGIC ---
     // Spawn starts immediately when the skill starts (States 1-4)
@@ -1228,9 +1259,39 @@ inline void updateFinalBossLogic() {
           }
         }
       }
+
+      // Bat Spawn
+      boss4Obj.batSpawnTimer++;
+      if (boss4Obj.batSpawnTimer > 40) {
+        boss4Obj.batSpawnTimer = 0;
+        for (int i = 0; i < 10; i++) {
+          if (!boss4Obj.bats[i].active) {
+            boss4Obj.bats[i].active = true;
+            boss4Obj.bats[i].life = 2;
+            boss4Obj.bats[i].hitFlashTimer = 0;
+            boss4Obj.bats[i].frame = 0;
+            boss4Obj.bats[i].frameTimer = 0;
+            boss4Obj.bats[i].hitFlashTimer = 0;
+
+            int side = rand() % 3; // 0: Left, 1: Right, 2: Top
+            if (side == 0) {
+              boss4Obj.bats[i].x = -100;
+              boss4Obj.bats[i].y = (float)(rand() % 400 + 150);
+            } else if (side == 1) {
+              boss4Obj.bats[i].x = 1100;
+              boss4Obj.bats[i].y = (float)(rand() % 400 + 150);
+            } else {
+              boss4Obj.bats[i].x = (float)(rand() % 1000);
+              boss4Obj.bats[i].y = 700;
+            }
+            break;
+          }
+        }
+      }
     }
 
     bool anyEnemyActive = false;
+    // Update Spiders
     for (int i = 0; i < 5; i++) {
       if (boss4Obj.bossEnemies[i].active) {
         anyEnemyActive = true;
@@ -1261,6 +1322,87 @@ inline void updateFinalBossLogic() {
               invincibilityTimer = 60;
             }
             boss4Obj.bossEnemies[i].active = false;
+          }
+        }
+      }
+    }
+
+    // Update Bats
+    for (int i = 0; i < 10; i++) {
+      if (boss4Obj.bats[i].active) {
+        anyEnemyActive = true;
+
+        // Animation
+        boss4Obj.bats[i].frameTimer++;
+        if (boss4Obj.bats[i].frameTimer >= 4) {
+          boss4Obj.bats[i].frameTimer = 0;
+          boss4Obj.bats[i].frame = (boss4Obj.bats[i].frame + 1) % 6;
+        }
+
+        // Fly towards character (homing)
+        float dx = (float)charX + 40.0f - boss4Obj.bats[i].x;
+        float dy = (float)charY + 60.0f - boss4Obj.bats[i].y;
+        float dist = (float)sqrt(dx * dx + dy * dy);
+        float speed = 6.5f;
+        if (dist > 1.0f) {
+          boss4Obj.bats[i].velX = (dx / dist) * speed;
+          boss4Obj.bats[i].velY = (dy / dist) * speed;
+        }
+        boss4Obj.bats[i].x += boss4Obj.bats[i].velX;
+        boss4Obj.bats[i].y += boss4Obj.bats[i].velY;
+        boss4Obj.bats[i].facingLeft = (boss4Obj.bats[i].velX < 0);
+
+        // Bounds check
+        if (boss4Obj.bats[i].x < -300 || boss4Obj.bats[i].x > 1300 ||
+            boss4Obj.bats[i].y < -300 || boss4Obj.bats[i].y > 900) {
+          boss4Obj.bats[i].active = false;
+        }
+
+        if (boss4Obj.bats[i].hitFlashTimer > 0)
+          boss4Obj.bats[i].hitFlashTimer--;
+
+        // Damage character
+        if (boss4Obj.bats[i].active && boss4Obj.bats[i].x + 60 > charX &&
+            boss4Obj.bats[i].x < charX + 80 && boss4Obj.bats[i].y + 60 > charY &&
+            boss4Obj.bats[i].y < charY + 120) {
+          if (!isInvincible && charAttackDamagelessTimer <= 0) {
+            lives--;
+            if (lives <= 0) {
+              lives = 0;
+              gameState = GAME_OVER;
+            } else {
+              isInvincible = true;
+              invincibilityTimer = 60;
+            }
+            boss4Obj.bats[i].active = false;
+          }
+        }
+
+        // Destroyed by player attack
+        if (boss4Obj.bats[i].active && isAttacking && attackFrameIndex >= 1 &&
+            attackFrameIndex <= 4 && !npcSlashDone) {
+          float batCX = boss4Obj.bats[i].x;
+          float batCY = boss4Obj.bats[i].y;
+          bool facingBack =
+              isLeftArrowPressed || (specialKeyPressed[GLUT_KEY_LEFT] != 0);
+          float reachMin, reachMax;
+          if (facingBack) {
+            reachMin = (float)charX - 160;
+            reachMax = (float)charX + 40;
+          } else {
+            reachMin = (float)charX + charWidth - 40;
+            reachMax = (float)charX + charWidth + 160;
+          }
+
+          // Broadened hit vertical check (charY - 100 to charY + 250)
+          if (batCX > reachMin && batCX < reachMax && batCY > charY - 100 &&
+              batCY < charY + 250) {
+            boss4Obj.bats[i].life--;
+            boss4Obj.bats[i].hitFlashTimer = 15;
+            if (boss4Obj.bats[i].life <= 0) {
+              boss4Obj.bats[i].active = false;
+            }
+            npcSlashDone = true;
           }
         }
       }
@@ -2099,7 +2241,8 @@ inline void updateFinalBossLogic() {
             // Give initial patrol velocity so each bird moves differently
             boss4Obj.holeBirds[b].velX =
                 (b % 2 == 0) ? BIRD_PATROL_SPEED : -BIRD_PATROL_SPEED;
-            boss4Obj.holeBirds[b].velY = -(2.0f + (rand() % 3)); // Smooth vertical movement
+            boss4Obj.holeBirds[b].velY =
+                -(2.0f + (rand() % 3)); // Smooth vertical movement
           }
 
         } else if (boss4Obj.holeBirds[b].state == 1) {
@@ -2121,7 +2264,8 @@ inline void updateFinalBossLogic() {
             boss4Obj.holeBirds[b].velX = -BIRD_PATROL_SPEED;
           }
 
-          // Bounce smoothly on Y between half screen (300) and ceiling (BIRD_CEIL_Y)
+          // Bounce smoothly on Y between half screen (300) and ceiling
+          // (BIRD_CEIL_Y)
           if (boss4Obj.holeBirds[b].y < 300) {
             boss4Obj.holeBirds[b].y = 300;
             boss4Obj.holeBirds[b].velY = 2.0f + (rand() % 3);
@@ -2134,9 +2278,11 @@ inline void updateFinalBossLogic() {
           // Maintain at least 100 px horizontal distance from character
           float dist = boss4Obj.holeBirds[b].x - (float)charX;
           if (dist >= 0 && dist < 100.0f) {
-            boss4Obj.holeBirds[b].velX = BIRD_PATROL_SPEED * 0.4f; // move away slowly
+            boss4Obj.holeBirds[b].velX =
+                BIRD_PATROL_SPEED * 0.4f; // move away slowly
           } else if (dist < 0 && dist > -100.0f) {
-            boss4Obj.holeBirds[b].velX = -BIRD_PATROL_SPEED * 0.4f; // move away slowly
+            boss4Obj.holeBirds[b].velX =
+                -BIRD_PATROL_SPEED * 0.4f; // move away slowly
           }
 
           // Try to dive when hover time reached AND global cooldown is clear
@@ -2254,7 +2400,8 @@ inline void updateFinalBossLogic() {
               reachMin = (float)charX - 200;
               reachMax = (float)charX + 80; // Significant overlap allowed
             } else {
-              reachMin = (float)charX + charWidth - 80; // Significant overlap allowed
+              reachMin =
+                  (float)charX + charWidth - 80; // Significant overlap allowed
               reachMax = (float)charX + charWidth + 200;
             }
 
@@ -2432,10 +2579,13 @@ inline void iDrawBossImage(int x, int y, int w, int h, int img) {
     // Only override if the image being drawn isn't a flame segment
     bool isFlame = false;
     for (int i = 0; i < 11; i++) {
-       if (img == bossFlameImgs[i]) { isFlame = true; break; }
+      if (img == bossFlameImgs[i]) {
+        isFlame = true;
+        break;
+      }
     }
     if (!isFlame) {
-        img = bossBackImgs[boss4Obj.knockbackFrameIndex];
+      img = bossBackImgs[boss4Obj.knockbackFrameIndex];
     }
   }
 
@@ -2571,6 +2721,23 @@ inline void drawBoss() {
               int eImg = spiderImgs[boss4Obj.bossEnemies[i].frame];
               iShowImage((int)boss4Obj.bossEnemies[i].x,
                          (int)boss4Obj.bossEnemies[i].y, 100, 40, eImg);
+            }
+          }
+          // Draw Bats
+          for (int i = 0; i < 10; i++) {
+            if (boss4Obj.bats[i].active) {
+              if (boss4Obj.bats[i].hitFlashTimer > 0 &&
+                  (boss4Obj.bats[i].hitFlashTimer / 3) % 2 == 1)
+                continue;
+
+              int bImg = batImgs[boss4Obj.bats[i].frame];
+              if (boss4Obj.bats[i].facingLeft) {
+                iShowImage((int)boss4Obj.bats[i].x, (int)boss4Obj.bats[i].y, 75,
+                           75, bImg);
+              } else {
+                iShowImageHFlip((int)boss4Obj.bats[i].x, (int)boss4Obj.bats[i].y,
+                                75, 75, bImg);
+              }
             }
           }
         }
@@ -2735,17 +2902,25 @@ inline void drawBoss() {
               // Snowflakes (Artikuno)
               for (int p = 0; p < 12; p++) {
                 int col = rand() % 4;
-                if (col == 0) iSetColor(255, 255, 255); // White
-                else if (col == 1) iSetColor(230, 240, 255); // Light Blue
-                else if (col == 2) iSetColor(200, 230, 255); // Cyany Blue
-                else iSetColor(255, 250, 250); // Snow
+                if (col == 0)
+                  iSetColor(255, 255, 255); // White
+                else if (col == 1)
+                  iSetColor(230, 240, 255); // Light Blue
+                else if (col == 2)
+                  iSetColor(200, 230, 255); // Cyany Blue
+                else
+                  iSetColor(255, 250, 250); // Snow
                 int px = bX - 10 + (rand() % (bW + 20));
                 int py = bY - 10 + (rand() % (bH + 20));
-                
+
                 double xs[4], ys[4];
                 for (int k = 0; k < 4; k++) {
-                  double angle = 1.5708 * k + ((rand() % 10) * 0.05); // random tilt
-                  double r = 1.0 + (rand() % 15) * 0.1; // tiny erratic radius (1.0 to 2.5) // size small
+                  double angle =
+                      1.5708 * k + ((rand() % 10) * 0.05); // random tilt
+                  double r =
+                      1.0 +
+                      (rand() % 15) *
+                          0.1; // tiny erratic radius (1.0 to 2.5) // size small
                   xs[k] = (double)px + r * cos(angle);
                   ys[k] = (double)py + r * sin(angle);
                 }
@@ -2753,20 +2928,30 @@ inline void drawBoss() {
               }
             } else {
               // Fire shards (Volplex)
-              for (int p = 0; p < 12; p++) { // synced to 12 exactly like Artikuno
+              for (int p = 0; p < 12;
+                   p++) { // synced to 12 exactly like Artikuno
                 int col = rand() % 5;
-                if (col == 0) iSetColor(255, 69, 0); // Orange Red
-                else if (col == 1) iSetColor(255, 140, 0); // Dark Orange
-                else if (col == 2) iSetColor(255, 0, 0); // Red
-                else if (col == 3) iSetColor(255, 215, 0); // Gold Yellow
-                else iSetColor(255, 255, 200); // White core fire
+                if (col == 0)
+                  iSetColor(255, 69, 0); // Orange Red
+                else if (col == 1)
+                  iSetColor(255, 140, 0); // Dark Orange
+                else if (col == 2)
+                  iSetColor(255, 0, 0); // Red
+                else if (col == 3)
+                  iSetColor(255, 215, 0); // Gold Yellow
+                else
+                  iSetColor(255, 255, 200); // White core fire
                 int px = bX - 10 + (rand() % (bW + 20));
                 int py = bY - 10 + (rand() % (bH + 20));
 
                 double xs[4], ys[4];
                 for (int k = 0; k < 4; k++) {
-                  double angle = 1.5708 * k + ((rand() % 10) * 0.05); // random tilt
-                  double r = 1.0 + (rand() % 15) * 0.1; // tiny erratic radius (1.0 to 2.5) // size small
+                  double angle =
+                      1.5708 * k + ((rand() % 10) * 0.05); // random tilt
+                  double r =
+                      1.0 +
+                      (rand() % 15) *
+                          0.1; // tiny erratic radius (1.0 to 2.5) // size small
                   xs[k] = (double)px + r * cos(angle);
                   ys[k] = (double)py + r * sin(angle);
                 }

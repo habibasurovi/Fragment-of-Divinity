@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <time.h>
 
+
 // iGraphics.h variables
 unsigned int keyPressed[512];
 unsigned int specialKeyPressed[512];
@@ -21,7 +22,7 @@ int previousState = MENU; // Changed to int to match header
 bool isGamePaused = false;
 int lives = 5;
 int charX = 100, charY = 30;
-int charWidth = 165, charHeight = 165; 
+int charWidth = 165, charHeight = 165;
 bool isCaveStopped = false; // New flag for transition stop
 int applesCollected = 0;
 int gameRunTimeSeconds = 0;
@@ -308,7 +309,7 @@ int doubleBendHeight = 80;
 int jumpImageIndex = 0;
 int currentJumpDirection = 0;
 int jumpHorizontalSpeed = 4; // Level 1: 4, Other Levels: 7
-int doubleJumpHorizontalSpeed = 7; 
+int doubleJumpHorizontalSpeed = 7;
 bool isShiftPressed = false;
 bool isDoubleShiftTriggered = false;
 
@@ -433,7 +434,7 @@ bool isFallingShardActive = false;
 int shardSpawnTimer = 0;
 bool isHaloActive = false;
 int haloTimer = 0;
-int haloImg;
+int haloFrames[5];
 bool hasClaimedShard = false;
 bool hasClaimedGun = false;
 bool hasCompanion = false; // Set when Level 3 cave IQ is won correctly
@@ -675,7 +676,7 @@ void resetGame() {
     originalHeight = 165;
     bendHeight = 120;
     doubleBendHeight = 80;
-    jumpHorizontalSpeed = 4; 
+    jumpHorizontalSpeed = 4;
   } else {
     charHeight = 125;
     charWidth = 125;
@@ -769,9 +770,10 @@ void updateCavePhysics() {
       return; // Character continues exactly the same way before stopping
     }
 
-    // After cave reaches stopping coordinate, background scroll stops (handled in autoScrollRecursiveWrapper)
-    // and character walks forward to the middle of the cave.
-    
+    // After cave reaches stopping coordinate, background scroll stops (handled
+    // in autoScrollRecursiveWrapper) and character walks forward to the middle
+    // of the cave.
+
     // Stop user input for autoplay sequence
     isRightArrowPressed = false;
     isLeftArrowPressed = false;
@@ -780,13 +782,15 @@ void updateCavePhysics() {
     isAttacking = false;
     verticalVelocity = 0;
     if (charY > groundY) {
-       charY -= 10;
-       if (charY < groundY) charY = groundY;
+      charY -= 10;
+      if (charY < groundY)
+        charY = groundY;
     } else if (charY < groundY) {
-       charY = groundY;
+      charY = groundY;
     }
 
-    int caveMid = (currentLevel == 3 || currentLevel == 2) ? (caveX + 150) : (caveX + 200);
+    int caveMid = (currentLevel == 3 || currentLevel == 2) ? (caveX + 150)
+                                                           : (caveX + 200);
     if (charX + charWidth / 2 < caveMid) {
       charX += 5;
       // Animation
@@ -794,7 +798,8 @@ void updateCavePhysics() {
       if (charAnimCounter >= charAnimSpeed) {
         charAnimCounter = 0;
         charFrameIndex++;
-        if (charFrameIndex >= 10) charFrameIndex = 1;
+        if (charFrameIndex >= 10)
+          charFrameIndex = 1;
       }
     } else {
       // Reached middle of cave, transition to level complete/IQ
@@ -1173,15 +1178,15 @@ void globalTimerLogic() {
     }
   }
   if (gameState == GAME && !isGamePaused && !levelOneComplete) {
-    int transitionTime = (currentLevel == 3) ? 60 : 45; // 45s for L1/2, 60s for L3
+    int transitionTime =
+        (currentLevel == 3) ? 60 : 45; // 45s for L1/2, 60s for L3
     gameRunTimeSeconds++;
 
     if (currentLevel != 4 && gameRunTimeSeconds >= transitionTime &&
         !isCaveActive) {
       isCaveActive = true;
       caveX = 1000;
-      isCaveStopped = false; 
-
+      isCaveStopped = false;
 
       for (int i = 0; i < 3; i++) {
         // Stop obstacles spawning
@@ -1191,7 +1196,7 @@ void globalTimerLogic() {
         bridges[i].active = false;
       }
       for (int i = 0; i < MAX_NPCS; i++) {
-         // No longer needed, as they walk naturally left
+        // No longer needed, as they walk naturally left
       }
       for (int i = 0; i < MAX_FIRES; i++) {
         // No additional fire retreat here, handled by 26s cutoff
@@ -1764,12 +1769,13 @@ void masterGameLoop() {
         isGunAttacking = true;
         gunAttackFrameIndex = 0;
         gunAttackAnimCounter = 0;
-        gunAttackShotsRemaining = 5;
+        gunAttackShotsRemaining = 2;
         charAttackDamagelessTimer = 30; // 1-second stun guard
       }
     }
   }
   prevShiftKey = currentShiftKey;
+
 
   autoScrollRecursiveWrapper();
   updateLevel4Logic();
@@ -2239,7 +2245,7 @@ void iMouse(int button, int state, int mx, int my) {
           isGunAttacking = true;
           gunAttackFrameIndex = 0;
           gunAttackAnimCounter = 0;
-          gunAttackShotsRemaining = 5;
+          gunAttackShotsRemaining = 2;
           if (currentLevel == 3 || currentLevel == 4)
             charAttackDamagelessTimer = 30; // 1-second stun guard
         }
@@ -2766,7 +2772,11 @@ int main() {
   loadDragonAssets();
   initDragons();
   initShard();
-  haloImg = iLoadImage((char *)"scores and items\\halo.png");
+  for (int i = 0; i < 5; i++) {
+    char hFramePath[100];
+    sprintf_s(hFramePath, sizeof(hFramePath), "scores and items\\halo\\frame_%03d.png", i * 2);
+    haloFrames[i] = iLoadImage(hFramePath);
+  }
   loadGunBarAssets();    // Gun bar image
   loadGunAttackAssets(); // Load Gun Attack and Fireball assets
   loadCinderAssets();
