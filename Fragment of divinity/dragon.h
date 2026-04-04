@@ -16,6 +16,7 @@ extern int charX, charY, charWidth, charHeight;
 extern int currentLevel;
 extern bool isGamePaused;
 extern GameState gameState;
+extern int gameRunTimeSeconds;
 extern unsigned int keyPressed[512];
 
 extern int dragonFlyImgs[3][3];
@@ -114,7 +115,7 @@ inline void updateDragonPhysics() {
       anyActive = true;
   }
 
-  if (!anyActive) {
+  if (!anyActive && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) {
     spawnTicks++;
     if (spawnTicks >= 333) { // 10 seconds
       spawnDragon();

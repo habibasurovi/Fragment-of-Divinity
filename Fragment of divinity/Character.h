@@ -277,7 +277,7 @@ inline void updateCharacterMovement() {
       if (!isJumping) {
         isJumping = true;
         verticalVelocity = 26; // Clears shark2 peak safely
-        jumpHorizontalSpeed = 10;
+        jumpHorizontalSpeed = (currentLevel == 1) ? 4 : 7;
         currentJumpDirection =
             (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) ? -1 : 1;
         jumpPressTimer = 18; // Slightly longer window for upgrade (~500ms)
@@ -322,7 +322,7 @@ inline void updateCharacterMovement() {
         isJumpAttacking = false;
         verticalVelocity = 0;
         currentJumpDirection = 0;
-        jumpHorizontalSpeed = 10;
+        jumpHorizontalSpeed = (currentLevel == 1) ? 4 : 7;
       }
 
       // Jump Attack Animation
@@ -382,13 +382,13 @@ inline void updateCharacterMovement() {
         isJumping = false;
         verticalVelocity = 0;
         currentJumpDirection = 0;
-        jumpHorizontalSpeed = 20; // Original
+        jumpHorizontalSpeed = (currentLevel == 1) ? 4 : 7;
       }
     } else {
       if (isSpecialKeyPressed(GLUT_KEY_UP)) {
         isJumping = true;
         verticalVelocity = jumpSpeed;
-        jumpHorizontalSpeed = 20; // Original
+        jumpHorizontalSpeed = (currentLevel == 1) ? 4 : 7;
         currentJumpDirection =
             (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) ? -1 : 1;
         if (isBending) {

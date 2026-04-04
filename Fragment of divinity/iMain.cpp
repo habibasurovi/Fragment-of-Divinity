@@ -21,7 +21,8 @@ int previousState = MENU; // Changed to int to match header
 bool isGamePaused = false;
 int lives = 5;
 int charX = 100, charY = 30;
-int charWidth = 125, charHeight = 125;
+int charWidth = 165, charHeight = 165; 
+bool isCaveStopped = false; // New flag for transition stop
 int applesCollected = 0;
 int gameRunTimeSeconds = 0;
 int storyTimerCount = 0;
@@ -301,13 +302,13 @@ int highJumpSpeed = 60;
 int gravity = 3;
 int verticalVelocity = 0;
 int groundY = 30;
-int originalHeight = 125;
-int bendHeight = 70;
-int doubleBendHeight = 40;
+int originalHeight = 165; // Increased for Level 1
+int bendHeight = 120;     // Slightly more bigger as requested
+int doubleBendHeight = 80;
 int jumpImageIndex = 0;
 int currentJumpDirection = 0;
-int jumpHorizontalSpeed = 10;
-int doubleJumpHorizontalSpeed = 14;
+int jumpHorizontalSpeed = 4; // Level 1: 4, Other Levels: 7
+int doubleJumpHorizontalSpeed = 7; 
 bool isShiftPressed = false;
 bool isDoubleShiftTriggered = false;
 
@@ -667,8 +668,23 @@ void resetGame() {
 
   charX = 100;
   charY = groundY;
-  charHeight = 125;
-  charWidth = 125;
+  if (currentLevel == 1) {
+    charHeight = 165;
+    charWidth = 165;
+    originalHeight = 165;
+    bendHeight = 120;
+    doubleBendHeight = 80;
+    jumpHorizontalSpeed = 4; 
+  } else {
+    charHeight = 125;
+    charWidth = 125;
+    originalHeight = 125;
+    bendHeight = 70;
+    doubleBendHeight = 40;
+    jumpHorizontalSpeed = 7; // covers 5/7th of original 10 (approx 7)
+  }
+  isCaveActive = false;
+  isCaveStopped = false;
   lives = 5;
   isInvincible = false;
   invincibilityTimer = 0;
@@ -741,60 +757,46 @@ void resetGame() {
 
 void updateCavePhysics() {
   if (!isGamePaused && gameState == GAME && isCaveActive) {
-    // Force reset states to ensure character enters the cave by walking motion
+    if (!isCaveStopped) {
+      // Cave moves naturally along with the scrolling background
+      caveX -= SCROLL_SPD;
+      // When it reaches its specific stopping coordinate
+      if (caveX <= 600) {
+        caveX = 600;
+        isCaveStopped = true;
+      }
+      return; // Character continues exactly the same way before stopping
+    }
+
+    // After cave reaches stopping coordinate, background scroll stops (handled in autoScrollRecursiveWrapper)
+    // and character walks forward to the middle of the cave.
+    
+    // Stop user input for autoplay sequence
+    isRightArrowPressed = false;
+    isLeftArrowPressed = false;
     isJumping = false;
     isBending = false;
     isAttacking = false;
-    isFallingSequence = false;
     verticalVelocity = 0;
-    isRightArrowPressed = false;
-    isLeftArrowPressed = false;
     if (charY > groundY) {
-      charY -= 10;
-      if (charY < groundY)
-        charY = groundY;
+       charY -= 10;
+       if (charY < groundY) charY = groundY;
     } else if (charY < groundY) {
-      charY = groundY;
+       charY = groundY;
     }
 
-    int caveMid;
-    if (currentLevel == 3) {
-      caveMid = caveX + 150;
-    } else if (currentLevel == 2) {
-      caveMid = caveX + 150;
-    } else {
-      caveMid = caveX + 200;
-    }
-
-    // Character stops before passing the cave, moves to middle instead.
-    // Move cave onto screen first
-    if (caveX > 700) {
-      caveX -= 5;
-      // Basic character animation while waiting for cave (optional but looks
-      // better)
-      charAnimCounter++;
-      if (charAnimCounter >= charAnimSpeed) {
-        charAnimCounter = 0;
-        charFrameIndex++;
-        if (charFrameIndex >= 9)
-          charFrameIndex = 1;
-      }
-      return;
-    }
-
+    int caveMid = (currentLevel == 3 || currentLevel == 2) ? (caveX + 150) : (caveX + 200);
     if (charX + charWidth / 2 < caveMid) {
       charX += 5;
-
-      // Basic animation while moving automatically
+      // Animation
       charAnimCounter++;
       if (charAnimCounter >= charAnimSpeed) {
         charAnimCounter = 0;
         charFrameIndex++;
-        if (charFrameIndex >= 9) // Loop 1-8 (Images 2-9)
-          charFrameIndex = 1;
+        if (charFrameIndex >= 10) charFrameIndex = 1;
       }
     } else {
-      // Once charX reaches caveMid, show level completion menu
+      // Reached middle of cave, transition to level complete/IQ
       gameState = LEVEL_COMPLETE;
     }
   }
@@ -1170,25 +1172,28 @@ void globalTimerLogic() {
     }
   }
   if (gameState == GAME && !isGamePaused && !levelOneComplete) {
-    int transitionTime = 30; // 30 seconds for game timer
+    int transitionTime = (currentLevel == 3) ? 60 : 45; // 45s for L1/2, 60s for L3
     gameRunTimeSeconds++;
 
     if (currentLevel != 4 && gameRunTimeSeconds >= transitionTime &&
         !isCaveActive) {
       isCaveActive = true;
       caveX = 1000;
+      isCaveStopped = false; 
+
+
       for (int i = 0; i < 3; i++) {
-        obstacles[i].active = false;
-        obstacles[i].x = -200;
+        // Stop obstacles spawning
         bombs[i].active = false;
       }
       for (int i = 0; i < 2; i++) {
-        if (sharks[i].active) {
-          sharks[i].isRetreating = true;
-          sharks[i].jumpState = 0;
-          sharks[i].velocityY = 0;
-        }
         bridges[i].active = false;
+      }
+      for (int i = 0; i < MAX_NPCS; i++) {
+         // No longer needed, as they walk naturally left
+      }
+      for (int i = 0; i < MAX_FIRES; i++) {
+        // No additional fire retreat here, handled by 26s cutoff
       }
       for (int i = 0; i < 5; i++) {
         if (dragons[i].active) {
@@ -1198,9 +1203,6 @@ void globalTimerLogic() {
       }
       for (int i = 0; i < MAX_GHOSTS; i++) {
         ghosts[i].active = false;
-      }
-      for (int i = 0; i < MAX_NPCS; i++) {
-        npcList[i].active = false;
       }
       for (int i = 0; i < 3; i++) {
         skulls[i].active = false;
@@ -1506,7 +1508,7 @@ void checkCollision() {
 
 /* -------------------- WRAPPERS -------------------- */
 void autoScrollRecursiveWrapper() {
-  if (!isGamePaused && gameState == GAME && !isCaveActive) {
+  if (!isGamePaused && gameState == GAME && (!isCaveActive || !isCaveStopped)) {
     bool shouldScroll = false;
     if (currentLevel == 1 && !levelOneComplete)
       shouldScroll = true;
@@ -2704,7 +2706,7 @@ void iSpecialKeyboardUp(unsigned char key) { specialKeyPressed[key] = 0; }
 void drawTimer() {
   if (gameState == GAME && !levelOneComplete && currentLevel != 4) {
     char timeStr[32];
-    int transitionTime = 30;
+    int transitionTime = (currentLevel == 3) ? 60 : 45;
     int remaining = transitionTime - gameRunTimeSeconds;
     if (remaining < 0)
       remaining = 0;
