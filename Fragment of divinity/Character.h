@@ -47,6 +47,7 @@ extern int jumpImageIndex; // 0: Start, 1: Mid, 2: Land
 extern int getCharacterRunImage(int frameIndex, bool isBack);
 extern bool isRightArrowPressed;
 extern bool isLeftArrowPressed;
+extern bool charFacingLeft;
 extern int runFrameIndex;
 extern int currentJumpDirection;
 extern int jumpHorizontalSpeed;
@@ -110,7 +111,7 @@ inline void stopCharMovement() {
 extern bool isHaloActive;
 // Helper to get frame info for drawing character or clones
 inline void getCharacterFrameInfo(int customX, int customY, int &rX, int &rY, int &rW, int &rH, int &frame) {
-  bool isBack = isLeftArrowPressed || isSpecialKeyPressed(GLUT_KEY_LEFT);
+  bool isBack = charFacingLeft;
   rX = customX; rY = customY; rW = charWidth; rH = charHeight;
   frame = -1;
 
@@ -195,6 +196,7 @@ inline void updateCharacterMovement() {
   if (currentLevel == 4 && level4Phase == 1) {
     isRightArrowPressed = true;
     isLeftArrowPressed = false;
+    charFacingLeft = false;
     // Walk Animation for Level 4 Phase 1 Intro
     charAnimCounter++;
     if (charAnimCounter >= charAnimSpeed) {
@@ -278,8 +280,9 @@ inline void updateCharacterMovement() {
         isJumping = true;
         verticalVelocity = 26; // Clears shark2 peak safely
         jumpHorizontalSpeed = (currentLevel == 1) ? 12 : 7;
-        currentJumpDirection =
-            (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) ? -1 : 1;
+        currentJumpDirection = charFacingLeft ? -1 : 1;
+        if (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) currentJumpDirection = -1;
+        else if (isSpecialKeyPressed(GLUT_KEY_RIGHT) || isRightArrowPressed) currentJumpDirection = 1;
         jumpPressTimer = 18; // Slightly longer window for upgrade (~500ms)
         if (isBending) {
           isBending = false;
@@ -389,8 +392,9 @@ inline void updateCharacterMovement() {
         isJumping = true;
         verticalVelocity = jumpSpeed;
         jumpHorizontalSpeed = (currentLevel == 1) ? 12 : 7;
-        currentJumpDirection =
-            (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) ? -1 : 1;
+        currentJumpDirection = charFacingLeft ? -1 : 1;
+        if (isSpecialKeyPressed(GLUT_KEY_LEFT) || isLeftArrowPressed) currentJumpDirection = -1;
+        else if (isSpecialKeyPressed(GLUT_KEY_RIGHT) || isRightArrowPressed) currentJumpDirection = 1;
         if (isBending) {
           isBending = false;
           charHeight = originalHeight;
@@ -415,10 +419,12 @@ inline void updateCharacterMovement() {
   if (isSpecialKeyPressed(GLUT_KEY_RIGHT)) {
     isRightArrowPressed = true;
     isLeftArrowPressed = false;
+    charFacingLeft = false;
     moveCharRight();
   } else if (isSpecialKeyPressed(GLUT_KEY_LEFT)) {
     isRightArrowPressed = false;
     isLeftArrowPressed = true;
+    charFacingLeft = true;
     moveCharLeft();
   } else {
     isRightArrowPressed = false;

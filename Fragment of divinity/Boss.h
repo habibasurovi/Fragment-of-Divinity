@@ -256,6 +256,7 @@ struct BossLevel4 {
   // Smooth Flame Scaling
   float largeFlameScale; // 0.0 to 1.0
   int largeFlamePhase;   // 0: Small, 1: Growing, 2: Large, 3: Shrinking
+  int recoilDir;         // 1: Move right, -1: Move left
 };
 
 SELECTANY BossLevel4 boss4Obj;
@@ -468,10 +469,8 @@ inline void shuffleBossSkills() {
       boss4Obj.skillSequence[1] = temp;
     }
   } else {
-    // For the first sequential phase, swap attack 1 (Vanish) with attack 9
-    // (Hitground)
-    boss4Obj.skillSequence[0] = 8;
-    boss4Obj.skillSequence[8] = 0;
+    // Default sequential phase: Attack 1 to 9 (Index 0 to 8)
+    for (int i = 0; i < 9; i++) boss4Obj.skillSequence[i] = i;
   }
   boss4Obj.sequenceIndex = 0;
 }
@@ -484,6 +483,7 @@ inline void initFinalBoss() {
   memset(&boss4Obj, 0, sizeof(boss4Obj));
   boss4Obj.active = false;
   boss4Obj.x = 600.0f; // Positioned on the right side
+  boss4Obj.bossInitialX = 600.0f;
   boss4Obj.y = 83.0f;  // Anchored to Level 4 ground
   boss4Obj.life = 170;
   boss4Obj.maxLife = 170;
@@ -534,8 +534,14 @@ inline void updateFinalBossLogic() {
     return;
 
   // Knockback State Interceptor (Overrides Boss Updates)
+  extern int charX, charWidth;
   if (boss4Obj.life < boss4Obj.previousLife) {
-    boss4Obj.x += 5.0f; // Boss goes back 5 axis statically
+    // Determine recoil direction based on character position
+    float bossCenterX = boss4Obj.x + (BOSS_WIDTH / 2.0f);
+    float charCenterX = (float)charX + (charWidth / 2.0f);
+    boss4Obj.recoilDir = (charCenterX < bossCenterX) ? 1 : -1;
+
+    boss4Obj.x += 5.0f * boss4Obj.recoilDir; // Boss goes back 5 axis dynamic direction
     boss4Obj.consecutiveHits++;
     if (boss4Obj.consecutiveHits >= 3) {
       boss4Obj.knockbackState = 1;
@@ -548,7 +554,7 @@ inline void updateFinalBossLogic() {
 
   if (boss4Obj.knockbackState == 1) {
     boss4Obj.knockbackTimer++;
-    boss4Obj.x += 0.5f; // Pull boss backward an additional 30 axis over 60 ticks
+    boss4Obj.x += 0.5f * boss4Obj.recoilDir; // Pull boss backward an additional 30 axis over 60 ticks
     
     // Smooth 10 frame animation covering 60 ticks (2 seconds)
     boss4Obj.knockbackFrameIndex = boss4Obj.knockbackTimer / 6;
@@ -556,6 +562,15 @@ inline void updateFinalBossLogic() {
 
     if (boss4Obj.knockbackTimer >= 60) {
       boss4Obj.knockbackState = 0;
+    }
+  }
+
+  // Boss returns to regular place if shifted away
+  if (boss4Obj.active && boss4Obj.knockbackState == 0) {
+    if (boss4Obj.x > boss4Obj.bossInitialX + 5.0f) {
+      boss4Obj.x -= 1.5f; // Gradual return speed left
+    } else if (boss4Obj.x < boss4Obj.bossInitialX - 5.0f) {
+      boss4Obj.x += 1.5f; // Gradual return speed right
     }
   }
 
