@@ -1666,14 +1666,14 @@ inline void updateFinalBossLogic() {
           if (boss4Obj.restFires[i].x < -100)
             boss4Obj.restFires[i].active = false;
 
-          // Fire collision with player — always active regardless of
-          // invincibility
-          if (boss4Obj.restFires[i].active) {
-            if (charX + charWidth - 20 > boss4Obj.restFires[i].x &&
-                charX + 20 < boss4Obj.restFires[i].x + 100 &&
-                charY + charHeight - 10 > boss4Obj.restFires[i].y &&
-                charY + 10 < boss4Obj.restFires[i].y + 100) {
-              boss4Obj.restFires[i].active = false;
+          // Fire collision with player — respects invincibility window
+          if (boss4Obj.restFires[i].active && !isInvincible) {
+            // Generous fire collision box for reliable hits
+            if (charX + charWidth - 15 > boss4Obj.restFires[i].x &&
+                charX + 15 < boss4Obj.restFires[i].x + 100 &&
+                charY + charHeight > boss4Obj.restFires[i].y &&
+                charY < boss4Obj.restFires[i].y + 100) {
+              boss4Obj.restFires[i].active = false; // Vanish on impact
               lives--;
               if (lives <= 0) {
                 lives = 0;
@@ -2361,6 +2361,7 @@ inline void handleBossHit() {
 
     if (dist <= 180.0f) {
       boss4Obj.life -= 5;
+      spawnDamagePopup(5, bossMidX, boss4Obj.y + BOSS_HEIGHT / 2.0f);
       npcSlashDone = true;
       boss4Obj.isHit = true;
       boss4Obj.hitTimer = 15;

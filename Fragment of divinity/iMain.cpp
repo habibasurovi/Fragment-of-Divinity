@@ -1,9 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
+#include <math.h>
 #include <mmsystem.h>
 #include <stdio.h>
 #include <time.h>
-#include <math.h>
 
 // iGraphics.h variables
 unsigned int keyPressed[512];
@@ -14,6 +14,9 @@ unsigned int specialKeyPressed[512];
 // ---- Global Game Variables ----
 int currentLevel = 1;
 GameState gameState = INTRO;
+GameState prevGameStateForFade = INTRO;
+int prevStoryIndexForFade = -1;
+float currentFadeAlpha = 1.0f;
 int previousState = MENU; // Changed to int to match header
 bool isGamePaused = false;
 int lives = 5;
@@ -38,16 +41,43 @@ float globalScreenShakeX = 0.0f;
 float globalScreenShakeY = 0.0f;
 // ------------------------------------
 
+// ---- Damage Popups ----
+struct DamagePopup {
+  float x, y;
+  int amount;
+  int timer;
+  bool active;
+  bool isCrit;
+};
+DamagePopup damagePopups[20];
+
+inline void spawnDamagePopup(int amount, float x, float y,
+                             bool isCrit = false) {
+  for (int i = 0; i < 20; i++) {
+    if (!damagePopups[i].active) {
+      damagePopups[i].active = true;
+      damagePopups[i].amount = amount;
+      damagePopups[i].x =
+          x + (rand() % 30) - 15; // Random little horizontal jiggle
+      damagePopups[i].y = y;
+      damagePopups[i].timer = 45; // 1.5 seconds at 30ups
+      damagePopups[i].isCrit = isCrit;
+      break;
+    }
+  }
+}
+// -----------------------
+
 #include "AppleHandler.h"
 #include "BackgroundHandler.h"
 #include "Boss.h" // Move Boss.h here so it can see Worms and other sprites
 #include "Character.h"
 #include "CharacterCustomization.h"
 #include "CustomizationMenu.h"
+#include "GameOverHandler.h"
 #include "GunBarHandler.h"
 #include "HighScoreHandler.h"
 #include "IQ.h"
-#include "GameOverHandler.h"
 #include "LevelCompleteHandler.h"
 #include "LifeHandler.h"
 #include "MainMenu.h"
@@ -340,6 +370,7 @@ PauseButton bPause, bContinue, bRestart, bSettingsP, bExitP;
 int frameX, frameY, frameW, frameH;
 
 int obstacleSpawnTimer = 0;
+int screenShakeTimer = 0;
 
 // Level 3 Assets
 // Worm assets moved to Boss.h
@@ -348,6 +379,8 @@ int handImgs[4];
 int shortPillerImg, longPillerImg;
 int flameImgs[4];
 int fireImgs[4];
+int l34obsImg;
+int l34HoleImgsAnimated[6];
 
 bool isL3HoleRemoved = false;
 bool flamesHitGround[2];
@@ -364,6 +397,7 @@ int wormFrame = 0;
 Obstacle obstacles[3];
 Shark sharks[2];
 BrokenBridge bridges[2];
+L34Obstacle l34Obstacles[2];
 int sharksSpawnedInLevel = 0;
 
 int skullImgs[4];
@@ -1050,6 +1084,7 @@ void globalTimerLogic() {
       if (initialStoryIndex >= 12) {
         gameState = LEVEL_SELECTION;
         storyTimerCount = 0;
+        playMusicTrack(TRACK_STORY);
       }
     }
   } else if (gameState == LEVEL_SELECTION) {
@@ -1083,6 +1118,36 @@ void globalTimerLogic() {
       level1StoryIndex++;
       if (level1StoryIndex >= 3) {
         resetGame();
+      }
+    }
+  } else if (gameState == LEVEL3_STORY && !btnAnimActive) {
+    storyTimerCount++;
+    if (storyTimerCount >= 5) {
+      storyTimerCount = 0;
+      level3StoryIndex++;
+      if (level3StoryIndex >= 3) {
+        currentLevel = 3;
+        resetGame();
+      }
+    }
+  } else if (gameState == LEVEL4_STORY && !btnAnimActive) {
+    storyTimerCount++;
+    if (storyTimerCount >= 5) {
+      storyTimerCount = 0;
+      level4StoryIndex++;
+      if (level4StoryIndex >= 3) {
+        currentLevel = 4;
+        resetGame();
+      }
+    }
+  } else if (gameState == FINAL_STORY && !btnAnimActive) {
+    storyTimerCount++;
+    if (storyTimerCount >= 5) { // Same speed as initial/other stories
+      storyTimerCount = 0;
+      finalStoryIndex++;
+      if (finalStoryIndex >= 11) {
+        gameState = MENU;
+        playMusicTrack(TRACK_INTRO);
       }
     }
   }
@@ -1318,11 +1383,11 @@ void checkCollision() {
         if (fireList[i].active) {
           if (!isInvincible && !isFallingSequence &&
               charAttackDamagelessTimer <= 0) {
-            // green-fire-burning frame size approx 100x100
-            if (charX + charWidth - 40 > fireList[i].x + 10 &&
-                charX + 40 < fireList[i].x + 90 &&
-                charY + charHeight - 20 > fireList[i].y + 10 &&
-                charY + 20 < fireList[i].y + 90) {
+            // Generous fire collision box for reliable hits
+            if (charX + charWidth - 15 > fireList[i].x &&
+                charX + 15 < fireList[i].x + 100 &&
+                charY + charHeight > fireList[i].y &&
+                charY < fireList[i].y + 100) {
               fireList[i].active = false;
               lives--;
               isInvincible = true;
@@ -1481,7 +1546,7 @@ void updateCharacterMovementWrapper() {
     updateCharacterMovement();
     if (isInvincible) {
       invincibilityTimer--;
-      if (invincibilityTimer <= 0) {
+      if (invincibilityTimer <= 0 && !isHaloActive) {
         isInvincible = false;
       }
     }
@@ -1609,7 +1674,7 @@ void updateShiftInput() {
       // ** DOUBLE TAP detected ** -> KILL any on-screen shark
       doubleSpaceActiveTimer = 15;
       spaceDoubleTimer = 0;
-      singleSpaceActiveTimer = 0; // Cancel single tap effect if it just started  
+      singleSpaceActiveTimer = 0; // Cancel single tap effect if it just started
 
       if ((currentLevel == 2 || currentLevel == 3) && gameState == GAME) {
         for (int i = 0; i < 2; i++) {
@@ -1803,6 +1868,17 @@ void masterGameLoop() {
     }
   }
 
+  // Update Damage Popups (Combat)
+  for (int i = 0; i < 20; i++) {
+    if (damagePopups[i].active) {
+      damagePopups[i].y += 1.0f; // Drift upwards
+      damagePopups[i].timer--;
+      if (damagePopups[i].timer <= 0) {
+        damagePopups[i].active = false;
+      }
+    }
+  }
+
   updateGunBar(); // Gun bar cooldown/equip logic
 }
 
@@ -1953,6 +2029,35 @@ void iDraw() {
       }
     }
 
+    // Draw Damage Popups
+    for (int i = 0; i < 20; i++) {
+      if (damagePopups[i].active) {
+        char dmgStr[20];
+        if (damagePopups[i].isCrit) {
+          sprintf_s(dmgStr, sizeof(dmgStr), "CRIT! -%d",
+                    damagePopups[i].amount);
+        } else {
+          sprintf_s(dmgStr, sizeof(dmgStr), "-%d", damagePopups[i].amount);
+        }
+
+        // Shadow outline for readability
+        iSetColor(0, 0, 0);
+        iText(damagePopups[i].x + 1, damagePopups[i].y - 1, (char *)dmgStr,
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+        iText(damagePopups[i].x - 1, damagePopups[i].y + 1, (char *)dmgStr,
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+
+        // Main color: Red or Bright Orange for crits
+        if (damagePopups[i].isCrit) {
+          iSetColor(255, 140, 0); // Orange
+        } else {
+          iSetColor(255, 50, 50); // Red
+        }
+        iText(damagePopups[i].x, damagePopups[i].y, (char *)dmgStr,
+              (void *)GLUT_BITMAP_TIMES_ROMAN_24);
+      }
+    }
+
     // Draw Popups
     for (int i = 0; i < MAX_POPUPS; i++) {
       if (popups[i].active) {
@@ -2025,12 +2130,12 @@ void iDraw() {
     iLine(screenWidth / 2.0 - 280.0, 440.0, screenWidth / 2.0 + 280.0, 440.0);
 
     // Level entries
-    const char *levelNames[4] = {
-        "Level 1  -  Mistveil Forest", "Level 2  -  Cinder WindPath",
-        "Level 3  -  Nightshade Manor", "Level 4  -  The Doomspire"};
-    int entryY[4] = {390, 330, 270, 210};
+    const char *levelNames[3] = {"Level 1  -  Mistveil Forest",
+                                 "Level 2  -  Cinder WindPath",
+                                 "Level 3  -  Nightshade Manor"};
+    int entryY[3] = {360, 300, 240}; // Shifted down slightly to center 3 rows
     char scoreText[64];
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
       iSetColor(255, 220, 150);
       iText(screenWidth / 2.0 - 240.0, (double)entryY[i], (char *)levelNames[i],
             (void *)GLUT_BITMAP_HELVETICA_18);
@@ -2068,6 +2173,42 @@ void iDraw() {
   if (shaking) {
     glPopMatrix();
   }
+
+  // --- Screen Fade Logic ---
+  int currentStoryIndexForFade = -1;
+  if (gameState == INITIAL_STORY)
+    currentStoryIndexForFade = initialStoryIndex;
+  else if (gameState == LEVEL1_STORY)
+    currentStoryIndexForFade = level1StoryIndex;
+  else if (gameState == LEVEL2_STORY)
+    currentStoryIndexForFade = level2StoryIndex;
+  else if (gameState == LEVEL3_STORY)
+    currentStoryIndexForFade = level3StoryIndex;
+  else if (gameState == LEVEL4_STORY)
+    currentStoryIndexForFade = level4StoryIndex;
+  else if (gameState == CAVE2_STORY)
+    currentStoryIndexForFade = cave2StoryIndex;
+  else if (gameState == FINAL_VICTORY)
+    currentStoryIndexForFade = finalVictoryIndex;
+  else if (gameState == FINAL_STORY)
+    currentStoryIndexForFade = finalStoryIndex;
+
+  if (gameState != prevGameStateForFade ||
+      (currentStoryIndexForFade != -1 &&
+       currentStoryIndexForFade != prevStoryIndexForFade)) {
+    currentFadeAlpha = 1.0f; // Start fully black on transition
+    prevGameStateForFade = gameState;
+    prevStoryIndexForFade = currentStoryIndexForFade;
+  }
+
+  if (currentFadeAlpha > 0.0f) {
+    currentFadeAlpha -= 0.035f; // Fade in over approx 1-second
+    if (currentFadeAlpha < 0.0f) {
+      currentFadeAlpha = 0.0f;
+    }
+  }
+
+  iDrawFadeOverlay(currentFadeAlpha);
 }
 
 /* -------------------- INPUT FUNCTIONS -------------------- */
@@ -2111,6 +2252,7 @@ void iMouse(int button, int state, int mx, int my) {
         gameState = SETTINGS;
       } else if (pauseAction == 4) {
         gameState = LEVEL_SELECTION;
+        playMusicTrack(TRACK_STORY);
       }
       return;
     }
@@ -2304,7 +2446,8 @@ void iMouse(int button, int state, int mx, int my) {
           previousState = (int)gameState;
           gameState = SETTINGS;
         } else if (pauseAction == 4) {
-          gameState = MENU;
+          gameState = LEVEL_SELECTION;
+          playMusicTrack(TRACK_STORY);
         }
         return;
       }
@@ -2315,15 +2458,15 @@ void iMouse(int button, int state, int mx, int my) {
         int result = handleCaveTransitionClick(mx, my);
         if (result == 1) {
           playClickSound();
-          playMusicTrack(TRACK_NONE);
+          playMusicTrack(TRACK_STORY);
           if (currentLevel == 1) {
-            gameState = LEVEL2_INTRO;
+            gameState = LEVEL_SELECTION;
             currentLevel = 2; // Move to Next
           } else if (currentLevel == 2) {
-            gameState = LEVEL3_INTRO;
+            gameState = LEVEL_SELECTION;
             currentLevel = 3; // Move to Next
           } else if (currentLevel == 3) {
-            gameState = LEVEL4_INTRO;
+            gameState = LEVEL_SELECTION;
             currentLevel = 4; // Move to Next
             level4Phase = 1;
             bGX = 0;
@@ -2359,13 +2502,15 @@ void iMouse(int button, int state, int mx, int my) {
           transitionPhase = 2; // Show shard/gun/companion explain screen
         } else {
           // Incorrect answer: Skip Explanation, proceed to next level intro
-          playMusicTrack(TRACK_NONE);
-          if (currentLevel == 1)
-            gameState = LEVEL2_INTRO;
-          else if (currentLevel == 2)
-            gameState = LEVEL3_INTRO;
-          else if (currentLevel == 3) {
-            gameState = LEVEL4_INTRO;
+          playMusicTrack(TRACK_STORY);
+          if (currentLevel == 1) {
+            gameState = LEVEL_SELECTION;
+            currentLevel = 2;
+          } else if (currentLevel == 2) {
+            gameState = LEVEL_SELECTION;
+            currentLevel = 3;
+          } else if (currentLevel == 3) {
+            gameState = LEVEL_SELECTION;
             currentLevel = 4;
             level4Phase = 1;
             bGX = 0;

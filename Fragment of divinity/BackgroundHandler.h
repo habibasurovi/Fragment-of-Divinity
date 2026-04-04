@@ -24,6 +24,7 @@ extern bool isL3Changed;
 extern int bg41, bg42;
 
 extern int bGX; // background X position
+extern int screenShakeTimer;
 
 // Screen dimensions needed for logic (Redefining or assuming these match iMain)
 // Ideally pass these or define in a common header. For now, matching iMain.
@@ -148,10 +149,18 @@ inline void drawBackground() {
     }
   }
 
-  iShowImage(bGX, 0, SCREEN_W, SCREEN_H, img1);
-  iShowImage(bGX + SCREEN_W, 0, SCREEN_W, SCREEN_H, img2);
-  iShowImage(bGX + 2 * SCREEN_W, 0, SCREEN_W, SCREEN_H, img3);
-  iShowImage(bGX + 3 * SCREEN_W, 0, SCREEN_W, SCREEN_H, img4);
+  float shakeX = 0;
+  float shakeY = 0;
+  if (screenShakeTimer > 0) {
+    screenShakeTimer--;
+    shakeX = (float)(rand() % 20 - 10);
+    shakeY = (float)(rand() % 20 - 10);
+  }
+
+  iShowImage((int)(bGX + shakeX), (int)shakeY, SCREEN_W, SCREEN_H, img1);
+  iShowImage((int)(bGX + SCREEN_W + shakeX), (int)shakeY, SCREEN_W, SCREEN_H, img2);
+  iShowImage((int)(bGX + 2 * SCREEN_W + shakeX), (int)shakeY, SCREEN_W, SCREEN_H, img3);
+  iShowImage((int)(bGX + 3 * SCREEN_W + shakeX), (int)shakeY, SCREEN_W, SCREEN_H, img4);
 }
 
 #endif
