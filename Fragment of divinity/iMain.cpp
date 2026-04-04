@@ -545,6 +545,7 @@ int jumpAttackFrameIndex = 0;
 int jumpAttackAnimCounter = 0;
 bool isRightArrowPressed = false;
 bool isLeftArrowPressed = false;
+bool charFacingLeft = false;
 int lastShiftPressTime = 0;
 int runFrameIndex = 0;
 int runAnimCounter = 0;
