@@ -167,6 +167,7 @@ extern int charAttackDamagelessTimer;
 extern bool isInvincible;
 extern int invincibilityTimer;
 extern int groundY;
+extern int gameRunTimeSeconds; // For pre-transition logic
 
 struct BrokenBridge {
   float x, y;
@@ -538,55 +539,17 @@ inline void updateObstaclePhysics() {
     level2SpawnDist += SCROLL_SPD; // Use global scroll speed
 
     if (level2SpawnDist > 800 &&
-        !isCaveActive) { // Reduced distance for testing
-      int choice = rand() % 2; // Choice 0: Shark, 1: Bridge (Standard removed)
+        !isCaveActive && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) {
+      int choice = rand() % 2; // Choice 0: Shark, 1: Bridge
       if (choice == 0) {
         // Spawn Shark
-        for (int i = 0; i < 2; i++) {
-          if (!sharks[i].active) {
-            sharks[i].active = true;
-            sharks[i].x = (float)SCREEN_W + 50;
-            sharks[i].y = -10;
-
-            // Increment shark counter
-            sharksSpawnedInLevel++;
-
-            // Task: Shark #3 must be Shark 1 (small)
-            if (sharksSpawnedInLevel == 3) {
-              sharks[i].type = 1;
-            } else {
-              sharks[i].type = (rand() % 2) + 1;
-            }
-
-            sharks[i].jumpState = 0;
-            sharks[i].velocityY = 0;
-            sharks[i].isDying = false;
-            break;
-          }
-        }
-      } else if (choice == 1) {
-        // Spawn Bridge
-        for (int i = 0; i < 2; i++) {
-          if (!bridges[i].active) {
-            bridges[i].active = true;
-            bridges[i].x = (float)SCREEN_W + 350;
-            bridges[i].y = 90;
-            bridges[i].isBroken = false;
-            bridges[i].leverActivated = false;
-            bridges[i].damaged = false;
-            bridges[i].fallenY = 0;
-            bridges[i].fallenVel = 0;
-            bridges[i].isRLL = (rand() % 2 == 0);
-            level2SpawnDist = 0;
-            break;
-          }
-        }
+// ...
       }
     }
 
     // ---- BOMB SPAWNING ----
     bombSpawnTimer++;
-    if (bombSpawnTimer > 150) {
+    if (bombSpawnTimer > 150 && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) {
       for (int i = 0; i < 3; i++) {
         if (!bombs[i].active) {
           bombs[i].active = true;
@@ -737,7 +700,7 @@ inline void updateObstaclePhysics() {
 
     // Spawning Level 3
     level2SpawnDist += SCROLL_SPD;
-    if (level2SpawnDist > 1000) {
+    if (level2SpawnDist > 1000 && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) {
       int choice = rand() % 2;
       if (choice == 0) {
         // Worm
@@ -872,7 +835,7 @@ inline void updateObstaclePhysics() {
     npcSpawnTimer++;
     // Spawn every 5 to 15 seconds (approx 150 to 450 frames @ 30fps)
     static int nextNpcGap = 150 + (rand() % 300);
-    if (npcSpawnTimer >= nextNpcGap) {
+    if (npcSpawnTimer >= nextNpcGap && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) {
       npcSpawnTimer = 0;
       nextNpcGap = 150 + (rand() % 300);
       for (int i = 0; i < MAX_NPCS; i++) {
@@ -893,7 +856,7 @@ inline void updateObstaclePhysics() {
 
     // ---- LEVEL 3 SKULL LOGIC ----
     skullSpawnTimer++;
-    if (skullSpawnTimer > 300) { // 10 seconds (approx 30 frames * 10)
+    if (skullSpawnTimer > 300 && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) { // 10 seconds (approx 30 frames * 10)
       skullSpawnTimer = 0;
       for (int i = 0; i < 3; i++) {
         if (!skulls[i].active) {
@@ -971,7 +934,7 @@ inline void updateObstaclePhysics() {
   static int distSinceLast_L1 = 0;
   static int nextSpawnGap_L1 = 300;
   distSinceLast_L1 += SCROLL_SPD;
-  if (activeCount < 3) {
+  if (activeCount < 3 && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) {
     if (distSinceLast_L1 > nextSpawnGap_L1) {
       for (int i = 0; i < 3; i++) {
         if (!obstacles[i].active) {

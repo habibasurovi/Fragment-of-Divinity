@@ -22,6 +22,8 @@ extern int invincibilityTimer;
 extern GameState gameState;
 extern bool isShiftPressed; // From iMain.cpp
 extern bool npcSlashDone; // From iMain.cpp
+extern int gameRunTimeSeconds; // From iMain.cpp
+extern int currentLevel;     // From iMain.cpp
 
 #ifdef _MSC_VER
 #define SELECTANY __declspec(selectany)
@@ -95,7 +97,7 @@ inline void initCinder() {
 }
 
 inline void updateCinderPhysics() {
-    if (!cinderEnemy.active && !cinderEnemy.isVanishing) {
+    if (!cinderEnemy.active && !cinderEnemy.isVanishing && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) {
         cinderEnemy.spawnTimer--;
         if (cinderEnemy.spawnTimer <= 0) {
             cinderEnemy.active = true;

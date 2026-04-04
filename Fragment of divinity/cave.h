@@ -35,7 +35,8 @@ extern int currentLevel;
 extern int shardImg;
 extern int gunImg, gunExplainImg;
 extern int l3CompanionImg;
-
+extern int caveX;
+extern bool isCaveStopped;
 // Forward Declaration
 void updateIQLogic();
 
@@ -210,20 +211,24 @@ inline void drawCave() {
     iShowImage(750, 50, 220, 70, imgNextLevel);
     return;
   }
-  if (currentLevel == 3) {
-    iShowImage(0, 0, 1000, 600, caveImgL3);
-  } else if (currentLevel == 2) {
-    iShowImage(0, 0, 1000, 600, caveSceneBgL2);
+
+  // Draw Scene Background
+  if (!isCaveStopped) {
+    // While moving, the main game background is already drawn by iDraw() calling drawBackground()
+    // We only need to draw the cave 'entrance' scrolling in
+    iShowImage(caveX, groundY, 400, 400, levelChange1);
   } else {
-    iShowImage(0, 0, 1000, 600, caveSceneBg);
+    // Once stopped, show the cave interior/scene background
+    if (currentLevel == 3) {
+      iShowImage(0, 0, 1000, 600, caveImgL3);
+    } else if (currentLevel == 2) {
+      iShowImage(0, 0, 1000, 600, caveSceneBgL2);
+    } else {
+      iShowImage(0, 0, 1000, 600, caveSceneBg);
+    }
   }
 
   // Draw Character
-  // We can use the existing drawCharacter() function from Character.h
-  // However, drawCharacter() handles jumping/bending logic which might be
-  // interfering. But since we are just moving x/y, it should be fine as long as
-  // isJumping/isBending are false. Since we set charY = 100, we need to make
-  // sure drawCharacter uses that charY. drawCharacter() uses global charY.
   drawCharacter();
 
   // Draw Shard and Info if correct and Wizard finished sequence
