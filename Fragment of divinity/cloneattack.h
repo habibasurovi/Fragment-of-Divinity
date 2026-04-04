@@ -197,6 +197,7 @@ inline void applyCloneDamage() {
         // Clone hits if its extended reach overlaps with the boss body
         if (cloneRight > bossLeft && cloneLeft < bossRight) {
             boss4Obj.life -= 5;
+            spawnDamagePopup(5, bossLeft + BOSS_WIDTH / 2.0f, boss4Obj.y + BOSS_HEIGHT / 2.0f);
             boss4Obj.isHit   = true;
             boss4Obj.hitTimer = 15;
             if (boss4Obj.life <= 0) {

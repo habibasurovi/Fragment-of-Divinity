@@ -148,6 +148,7 @@ inline void applyTeleportDamage() {
     // Check for character
     if (fabsf((float)charX - bossX) < 200.0f) {
         boss4Obj.life -= 10;
+        spawnDamagePopup(10, bossX + BOSS_WIDTH / 2.0f, boss4Obj.y + BOSS_HEIGHT / 2.0f);
         boss4Obj.isHit = true;
         boss4Obj.hitTimer = 15;
     }
@@ -160,6 +161,7 @@ inline void applyTeleportDamage() {
             int cx = isBack ? charX + offset : charX - offset;
             if (fabsf((float)cx - bossX) < 200.0f) {
                 boss4Obj.life -= 10;
+                spawnDamagePopup(10, bossX + BOSS_WIDTH / 2.0f, boss4Obj.y + BOSS_HEIGHT / 2.0f);
                 boss4Obj.isHit = true;
                 boss4Obj.hitTimer = 15;
             }

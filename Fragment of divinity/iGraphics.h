@@ -632,4 +632,21 @@ inline void iStart() {
   glutMainLoop();
 }
 
+inline void iDrawFadeOverlay(float fadeAlpha) {
+  if (fadeAlpha <= 0.0f) return;
+  if (fadeAlpha > 1.0f) fadeAlpha = 1.0f;
+
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glColor4f(0.0f, 0.0f, 0.0f, fadeAlpha);
+  glBegin(GL_QUADS);
+    glVertex2f(0, 0);
+    glVertex2f(1000, 0);
+    glVertex2f(1000, 600);
+    glVertex2f(0, 600);
+  glEnd();
+  glDisable(GL_BLEND);
+  glColor3f(1.0f, 1.0f, 1.0f);
+}
+
 #endif

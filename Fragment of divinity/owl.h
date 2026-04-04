@@ -221,6 +221,7 @@ inline void updateOwlCollisions() {
                         BOSS_WIDTH, BOSS_HEIGHT)) {
         owlCompanion.bullets[i].active = false;
         boss4Obj.life -= 1; // 1 health unit per bullet
+        spawnDamagePopup(1, boss4Obj.x + BOSS_WIDTH / 2.0f, boss4Obj.y + BOSS_HEIGHT / 2.0f);
         boss4Obj.isHit = true;
         boss4Obj.hitTimer = 12;
         if (boss4Obj.life <= 0) {
@@ -345,6 +346,16 @@ inline void drawOwl() {
   if (!owlCompanion.active)
     return;
 
+  // Health bar beneath the hearts (Player hearts at startX=100, Y=535)
+  // Background
+  iSetColor(40, 40, 40);
+  iFilledRectangle(100, 515, 200, 8);
+  // Current Life
+  iSetColor(80, 220, 80);
+  iFilledRectangle(100, 515, (int)(200.0f * ((float)owlCompanion.life / 12.0f)), 8);
+  iSetColor(255, 255, 255);
+  iRectangle(100, 515, 200, 8);
+
   // Flash red when hit or rapid blink when dying
   if (owlCompanion.dying) {
     if ((owlCompanion.deathTimer / 3) % 2 == 1)
@@ -371,16 +382,6 @@ inline void drawOwl() {
                  60, 20, owlBulletImg);
     }
   }
-
-  // Health bar beneath the hearts (Player hearts at startX=100, Y=535)
-  // Background
-  iSetColor(40, 40, 40);
-  iFilledRectangle(100, 515, 200, 8);
-  // Current Life
-  iSetColor(80, 220, 80);
-  iFilledRectangle(100, 515, (int)(200.0f * (owlCompanion.life / 12.0f)), 8);
-  iSetColor(255, 255, 255);
-  iRectangle(100, 515, 200, 8);
 }
 
 #endif // OWL_COMPANION_H_

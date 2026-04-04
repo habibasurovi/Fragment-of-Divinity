@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <mmsystem.h>
 #include "iGraphics.h"
+#include "GameState.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +49,8 @@ extern int handImgs[4];
 extern int shortPillerImg, longPillerImg;
 extern int flameImgs[4];
 extern int fireImgs[4];
+extern int l34obsImg;
+extern int l34HoleImgsAnimated[6];
 
 // Level 3 NPCs
 extern int npc1Walk[9];
@@ -145,11 +148,24 @@ struct Explosion {
   int timer;
 };
 
+struct L34Obstacle {
+  float x, y;
+  float velY;
+  bool active;
+  bool hitGround;
+  int holeFrame;
+  int holeAnimCounter;
+  bool damaged;
+};
+
 extern Bomb bombs[3];
 extern Explosion explosions[3];
+extern struct L34Obstacle l34Obstacles[2];
 extern bool isCharFrozen;
 extern int freezeTimer;
 extern bool isFallingSequence;
+extern int screenShakeTimer;
+extern GameState gameState;
 extern float fallY;
 extern float fallVel;
 extern int hitBridgeIndex;
@@ -271,6 +287,13 @@ inline void loadObstacleAssets() {
     skullImgs[i] = iLoadImage((char *)path);
   }
 
+  l34obsImg = iLoadImage((char *)"l3images\\l34obs.png");
+  for (int i = 0; i < 6; i++) {
+    char path[100];
+    sprintf_s(path, sizeof(path), "Boss\\hole (%d).png", i + 5);
+    l34HoleImgsAnimated[i] = iLoadImage((char *)path);
+  }
+
   for (int i = 0; i < 9; i++) {
     char path[100];
     sprintf_s(path, sizeof(path), "l3images\\walkingnpc1\\frame_00%d.png", i);
@@ -338,6 +361,13 @@ inline void initObstacles() {
   }
   for (int i = 0; i < MAX_FIRES; i++) {
     fireList[i].active = false;
+  }
+  for (int i = 0; i < 2; i++) {
+    l34Obstacles[i].active = false;
+    l34Obstacles[i].hitGround = false;
+    l34Obstacles[i].holeFrame = 0;
+    l34Obstacles[i].holeAnimCounter = 0;
+    l34Obstacles[i].damaged = false;
   }
   npcSpawnTimer = 0;
   level2SpawnDist = 0;
@@ -698,9 +728,92 @@ inline void updateObstaclePhysics() {
     fireFrame = (fireFrame + 1) % 40;
     wormFrame = (wormFrame + 1) % 40;
 
+    // ---- L34OBSTACLE LOGIC ----
+    for (int i = 0; i < 2; i++) {
+      if (l34Obstacles[i].active) {
+        if (!l34Obstacles[i].hitGround) {
+          l34Obstacles[i].x -= SCROLL_SPD;
+          l34Obstacles[i].y -= 8.0f; // Falling speed
+          
+          if (!isInvincible && charAttackDamagelessTimer <= 0) {
+            // Collision with falling object
+            if (charX + charWidth - 40 > l34Obstacles[i].x + 20 &&
+                charX + 40 < l34Obstacles[i].x + 100 &&
+                charY + charHeight > l34Obstacles[i].y &&
+                charY < l34Obstacles[i].y + 100) {
+              lives--;
+              isInvincible = true;
+              invincibilityTimer = 60;
+              l34Obstacles[i].damaged = true;
+            }
+          }
+          
+          if (l34Obstacles[i].y <= groundY - 30) {
+            l34Obstacles[i].y = (float)groundY - 30;
+            l34Obstacles[i].hitGround = true;
+            screenShakeTimer = 20; // Trigger screen shake
+          }
+        } else {
+          // On Ground (Hole)
+          l34Obstacles[i].x -= SCROLL_SPD;
+          
+          l34Obstacles[i].holeAnimCounter++;
+          if (l34Obstacles[i].holeAnimCounter >= 5) {
+            l34Obstacles[i].holeAnimCounter = 0;
+            if (l34Obstacles[i].holeFrame < 5) {
+              l34Obstacles[i].holeFrame++;
+            }
+          }
+          
+          if (!isFallingSequence && !isInvincible) {
+            if (charX + charWidth - 60 > l34Obstacles[i].x + 20 &&
+                charX + 60 < l34Obstacles[i].x + 160 && 
+                charY <= groundY + 10) {
+                
+              isFallingSequence = true;
+              isCharFrozen = true;
+              fallY = (float)charY;
+              fallVel = -2;
+              hitBridgeIndex = -1;
+              if (charAttackDamagelessTimer <= 0) lives--;
+              isInvincible = true;
+              invincibilityTimer = 120;
+            }
+          }
+          
+          if (l34Obstacles[i].x < -300) {
+            l34Obstacles[i].active = false;
+          }
+        }
+      }
+    }
+
+    // Independent L34obs spawning
+    if (rand() % 120 == 0) { // Approx once every 4 seconds
+        for (int i = 0; i < 2; i++) {
+          if (!l34Obstacles[i].active) {
+            l34Obstacles[i].active = true;
+            l34Obstacles[i].hitGround = false;
+            // Spawn near player so it falls visually on-screen
+            l34Obstacles[i].x = (float)(charX + 50 + rand() % 400);
+            if (l34Obstacles[i].x > SCREEN_W - 80) l34Obstacles[i].x = (float)(SCREEN_W - 80);
+            l34Obstacles[i].y = (float)SCREEN_H + 50;
+            l34Obstacles[i].velY = 0;
+            l34Obstacles[i].holeFrame = 0;
+            l34Obstacles[i].holeAnimCounter = 0;
+            l34Obstacles[i].damaged = false;
+            break;
+          }
+        }
+    }
+
     // Spawning Level 3
     level2SpawnDist += SCROLL_SPD;
+<<<<<<< HEAD
+    if (level2SpawnDist > 800) { // general spawns slightly faster
+=======
     if (level2SpawnDist > 1000 && gameRunTimeSeconds < (currentLevel == 3 ? 56 : 41)) {
+>>>>>>> bc2634fe84d699201f58c27523d18fc5a932d5bf
       int choice = rand() % 2;
       if (choice == 0) {
         // Worm
@@ -750,6 +863,23 @@ inline void updateObstaclePhysics() {
         }
         if (fireList[i].x < -100) {
           fireList[i].active = false;
+        }
+
+        if (!isInvincible && !isFallingSequence && charAttackDamagelessTimer <= 0) {
+          // Generous fire collision box for reliable hits
+          if (charX + charWidth - 15 > fireList[i].x &&
+              charX + 15 < fireList[i].x + 100 &&
+              charY + charHeight > fireList[i].y &&
+              charY < fireList[i].y + 100) {
+            fireList[i].active = false; // Vanish instantly on impact
+            lives--;
+            if (lives <= 0) {
+              gameState = GAME_OVER;
+            } else {
+              isInvincible = true;
+              invincibilityTimer = 60;
+            }
+          }
         }
       }
     }
@@ -1221,6 +1351,22 @@ inline void drawObstacles() {
           // Normal drawing
           iShowImage((int)skulls[i].x, (int)skulls[i].y, 60, 60,
                      skullImgs[skulls[i].animFrame]);
+        }
+      }
+    }
+
+    // Render L34Obstacles
+    for (int i = 0; i < 2; i++) {
+      if (l34Obstacles[i].active) {
+        if (!l34Obstacles[i].hitGround) {
+          // Falling l34obs
+          iShowImage((int)l34Obstacles[i].x, (int)l34Obstacles[i].y, 80, 80,
+                     l34obsImg);
+        } else {
+          // Animated hole on ground
+          // Center it a bit, 180x70
+          iShowImage((int)l34Obstacles[i].x, (int)l34Obstacles[i].y, 180, 70,
+                     l34HoleImgsAnimated[l34Obstacles[i].holeFrame]);
         }
       }
     }

@@ -347,6 +347,7 @@ inline void updateCharacterMovement() {
           if (dist < 100 && (float)fabs(charY - boss4Obj.y) < 150) {
              if (!boss4Obj.isHit) {
                 boss4Obj.life -= 5;
+                spawnDamagePopup(5, bossCenterX, boss4Obj.y + 150.0f);
                 boss4Obj.isHit = true;
                 boss4Obj.hitTimer = 20;
                 // Transition to normal jump after hit
