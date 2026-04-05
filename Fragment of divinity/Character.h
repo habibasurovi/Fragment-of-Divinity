@@ -41,9 +41,6 @@ extern int jumpImageIndex; // 0: Start, 1: Mid, 2: Land
 #include "CharacterCustomization.h"
 #include "character 2.h"
 
-// Helpers defined in CharacterCustomization.h are already included via
-// CharacterCustomization.h
-
 // Helpers and variables defined in character 2.h / iMain.cpp
 extern int getCharacterRunImage(int frameIndex, bool isBack);
 extern bool isRightArrowPressed;
@@ -110,8 +107,6 @@ inline void stopCharMovement() {
   charFrameIndex = 0; // Reset frame to stand/first image
 }
 
-// Draw character
-extern bool isHaloActive;
 // Helper to get frame info for drawing character or clones
 inline void getCharacterFrameInfo(int customX, int customY, int &rX, int &rY, int &rW, int &rH, int &frame) {
   bool isBack = charFacingLeft;
@@ -149,9 +144,12 @@ inline void getCharacterFrameInfo(int customX, int customY, int &rX, int &rY, in
       }
     }
   } else if (isRightArrowPressed || isLeftArrowPressed) {
-    if (currentLevel == 4 && level4Phase == 1) {
+    bool isManualMove = (isSpecialKeyPressed(GLUT_KEY_RIGHT) || isSpecialKeyPressed(GLUT_KEY_LEFT));
+    if ((currentLevel == 4 && level4Phase == 1) || (currentLevel >= 1 && currentLevel <= 3 && !isManualMove)) {
+      // Use walking animation for automatic/fixed-position movement
       frame = getSelectedCharacterImage(charFrameIndex, isBack);
     } else {
+      // Use running animation for manual control
       frame = getCharacterRunImage(runFrameIndex, isBack);
       if (selectedCharacter == 1) { // Kaero specifically needs offsets for run images
         rX = customX - 25;
@@ -194,16 +192,6 @@ inline void drawCharacter() {
   }
 }
 
-extern int jumpPressTimer;
-extern int bendPressTimer;
-extern bool prevUpPressed;
-extern bool prevDownPressed;
-extern int doubleJumpSpeed;
-extern int doubleJumpHorizontalSpeed;
-extern int doubleBendHeight;
-
-extern int currentLevel;
-
 // Update character movement based on key states (called by timer)
 inline void updateCharacterMovement() {
   if (isCharFrozen)
@@ -230,19 +218,15 @@ inline void updateCharacterMovement() {
     if (!isSpecialKeyPressed(GLUT_KEY_LEFT))  isLeftArrowPressed  = false;
   }
 
-  bool isMoving = false;
-  if (isSpecialKeyPressed(GLUT_KEY_RIGHT) ||
-      isSpecialKeyPressed(GLUT_KEY_LEFT)) {
-    isMoving = true;
-  }
-
+  bool isManualMove = (isSpecialKeyPressed(GLUT_KEY_RIGHT) || isSpecialKeyPressed(GLUT_KEY_LEFT));
   int currentAnimSpeed;
   if (currentLevel == 4) {
-    // Idle: slow cycle (14 ticks) so 3-frame static pose looks natural
-    // Moving: keep the same brisk walking pace (4 ticks)
-    currentAnimSpeed = isMoving ? 4 : 14;
+    currentAnimSpeed = isManualMove ? 4 : 14;
+  } else if (currentLevel >= 1 && currentLevel <= 3) {
+    // Manual running is fast (2), automatic walking in place is slower (6)
+    currentAnimSpeed = isManualMove ? 2 : 6;
   } else {
-    currentAnimSpeed = isMoving ? 2 : 6;
+    currentAnimSpeed = isManualMove ? 2 : 6;
   }
 
   if (!isJumping) {
@@ -433,33 +417,30 @@ inline void updateCharacterMovement() {
     }
   }
   // Movement while grounded or jumping
-  if (isSpecialKeyPressed(GLUT_KEY_RIGHT)) {
-    isRightArrowPressed = true;
-    isLeftArrowPressed = false;
-    charFacingLeft = false;
-    moveCharRight();
-  } else if (isSpecialKeyPressed(GLUT_KEY_LEFT)) {
+  if (isSpecialKeyPressed(GLUT_KEY_LEFT)) {
+    // Manual Left override
     isRightArrowPressed = false;
     isLeftArrowPressed = true;
     charFacingLeft = true;
     moveCharLeft();
+  } else if (isSpecialKeyPressed(GLUT_KEY_RIGHT)) {
+    // Manual Right: RUN toward the right side
+    isRightArrowPressed = true;
+    isLeftArrowPressed = false;
+    charFacingLeft = false;
+    moveCharRight();
+  } else if (currentLevel >= 1 && currentLevel <= 3 && !isCharFrozen) {
+    // AUTOMATIC WALKING MOTION (Fixed at current screen position)
+    isRightArrowPressed = true; // Ensure visual walking animation triggers
+    isLeftArrowPressed = false;
+    charFacingLeft = false;
+    // Character stays at its current charX position when keys are released
   } else {
     isRightArrowPressed = false;
     isLeftArrowPressed = false; // FIX: Reset left flag so character stops going left
-
-    // DRFT LOGIC: In Levels 1, 2, and 3, return to default position when no keys are pressed
-    if (currentLevel >= 1 && currentLevel <= 3 && !isCharFrozen) {
-      int targetX = 100; // Default position from resetGame
-      if (charX < targetX) {
-        charX += SCROLL_SPD;
-        if (charX > targetX) charX = targetX;
-      } else if (charX > targetX) {
-        charX -= SCROLL_SPD;
-        if (charX < targetX) charX = targetX;
-      }
-    }
   }
 }
+
 inline void updateCharacterAnimation() {}
 
 #endif
