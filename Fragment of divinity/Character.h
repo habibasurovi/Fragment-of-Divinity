@@ -429,6 +429,18 @@ inline void updateCharacterMovement() {
   } else {
     isRightArrowPressed = false;
     isLeftArrowPressed = false; // FIX: Reset left flag so character stops going left
+
+    // DRFT LOGIC: In Levels 1, 2, and 3, return to default position when no keys are pressed
+    if (currentLevel >= 1 && currentLevel <= 3 && !isCharFrozen) {
+      int targetX = 100; // Default position from resetGame
+      if (charX < targetX) {
+        charX += SCROLL_SPD;
+        if (charX > targetX) charX = targetX;
+      } else if (charX > targetX) {
+        charX -= SCROLL_SPD;
+        if (charX < targetX) charX = targetX;
+      }
+    }
   }
 }
 inline void updateCharacterAnimation() {}

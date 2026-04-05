@@ -49,6 +49,8 @@ SELECTANY int artikunoImgs[6];
 SELECTANY int volplexImgs[6];
 SELECTANY int bossBackImgs[10];
 
+SELECTANY bool level4BossEverCompletedFirstSequence = false;
+
 SELECTANY int bigNpcWalkImgs[9];
 SELECTANY int bigNpcAttackImgs[9];
 SELECTANY int bg41, bg42;
@@ -472,9 +474,14 @@ inline void loadBossAssets() {
  * Shuffles the boss's skill sequence to ensure random but unique cycles.
  */
 inline void shuffleBossSkills() {
+  if (boss4Obj.skillsCompleted >= 9) {
+    level4BossEverCompletedFirstSequence = true;
+  }
+
   for (int i = 0; i < 9; i++)
     boss4Obj.skillSequence[i] = i;
-  if (boss4Obj.skillsCompleted >= 9) {
+
+  if (level4BossEverCompletedFirstSequence || boss4Obj.skillsCompleted >= 9) {
     for (int i = 8; i > 0; i--) {
       int j = rand() % (i + 1);
       int temp = boss4Obj.skillSequence[i];
