@@ -45,6 +45,11 @@ extern int kaeroStaticBack[3];
 extern int leoraStatic[3];
 extern int leoraStaticBack[3];
 
+// Resting motion images
+extern int arynResting[3];
+extern int kaeroResting[3];
+extern int leoraResting[3];
+
 inline void loadCharacterCustomizationAssets() {
   static bool characterAssetsLoaded = false;
   if (characterAssetsLoaded) return;
@@ -149,6 +154,16 @@ inline void loadCharacterCustomizationAssets() {
     sprintf_s(filename, sizeof(filename), "Leora\\leorajumpattack%d.png", i + 1);
     leoraJumpAttack[i] = iLoadImage((char *)filename);
   }
+
+  // Load Resting Motion images
+  for (int i = 0; i < 3; i++) {
+    sprintf_s(filename, sizeof(filename), "aryn\\arynrestingmotion%d.png", i + 1);
+    arynResting[i] = iLoadImage((char *)filename);
+    sprintf_s(filename, sizeof(filename), "Character\\kaerorestingmotion%d.png", i + 1);
+    kaeroResting[i] = iLoadImage((char *)filename);
+    sprintf_s(filename, sizeof(filename), "Leora\\leorarestingmotion%d.png", i + 1);
+    leoraResting[i] = iLoadImage((char *)filename);
+  }
 }
 
 inline int getSelectedCharacterFallImage() {
@@ -227,6 +242,14 @@ inline int getSelectedCharacterStaticImage(int frameIndex, bool isBack) {
     return isBack ? leoraStaticBack[frameIndex % 2] : leoraStatic[frameIndex % 2];
   }
   return isBack ? kaeroStaticBack[frameIndex % 2] : kaeroStatic[frameIndex % 2];
+}
+
+// Returns the resting motion image
+inline int getSelectedCharacterRestingMotionImage(int frameIndex) {
+  if (selectedCharacter == 0) return arynResting[frameIndex % 3];
+  if (selectedCharacter == 1) return kaeroResting[frameIndex % 3];
+  if (selectedCharacter == 2) return leoraResting[frameIndex % 3];
+  return kaeroResting[frameIndex % 3];
 }
 
 #endif

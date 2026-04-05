@@ -511,6 +511,11 @@ int kaeroStaticBack[3];
 int leoraStatic[3];
 int leoraStaticBack[3];
 
+// Resting motion images
+int arynResting[3];
+int kaeroResting[3];
+int leoraResting[3];
+
 // Level 4 Special Attacks
 bool isTeleportAttacking = false;
 int teleportFrameIndex = 0;
