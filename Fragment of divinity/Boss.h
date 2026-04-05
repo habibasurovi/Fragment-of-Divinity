@@ -73,6 +73,7 @@ struct BatNPC {
   int life;
   int hitFlashTimer;
   bool facingLeft;
+  int state; // 0: flying/homing, 3: dying fall
 };
 
 struct BossEnemyObj {
@@ -1274,11 +1275,11 @@ inline void updateFinalBossLogic() {
         for (int i = 0; i < 10; i++) {
           if (!boss4Obj.bats[i].active) {
             boss4Obj.bats[i].active = true;
-            boss4Obj.bats[i].life = 2;
+            boss4Obj.bats[i].life = 2; // Hit twice to die
+            boss4Obj.bats[i].state = 0; // Homing/Active
             boss4Obj.bats[i].hitFlashTimer = 0;
             boss4Obj.bats[i].frame = 0;
             boss4Obj.bats[i].frameTimer = 0;
-            boss4Obj.bats[i].hitFlashTimer = 0;
 
             int side = rand() % 3; // 0: Left, 1: Right, 2: Top
             if (side == 0) {
@@ -1346,72 +1347,93 @@ inline void updateFinalBossLogic() {
           boss4Obj.bats[i].frame = (boss4Obj.bats[i].frame + 1) % 6;
         }
 
-        // Fly towards character (homing)
-        float dx = (float)charX + 40.0f - boss4Obj.bats[i].x;
-        float dy = (float)charY + 60.0f - boss4Obj.bats[i].y;
-        float dist = (float)sqrt(dx * dx + dy * dy);
-        float speed = 6.5f;
-        if (dist > 1.0f) {
-          boss4Obj.bats[i].velX = (dx / dist) * speed;
-          boss4Obj.bats[i].velY = (dy / dist) * speed;
-        }
-        boss4Obj.bats[i].x += boss4Obj.bats[i].velX;
-        boss4Obj.bats[i].y += boss4Obj.bats[i].velY;
-        boss4Obj.bats[i].facingLeft = (boss4Obj.bats[i].velX < 0);
+        if (boss4Obj.bats[i].state == 0) {
+          // --- STATE 0: NORMAL HOMING/FLYING ---
 
-        // Bounds check
-        if (boss4Obj.bats[i].x < -300 || boss4Obj.bats[i].x > 1300 ||
-            boss4Obj.bats[i].y < -300 || boss4Obj.bats[i].y > 900) {
+          // Fly towards character (homing)
+          float dx = (float)charX + 40.0f - boss4Obj.bats[i].x;
+          float dy = (float)charY + 60.0f - boss4Obj.bats[i].y;
+          float dist = (float)sqrt(dx * dx + dy * dy);
+          float speed = 6.5f;
+          if (dist > 1.0f) {
+            boss4Obj.bats[i].velX = (dx / dist) * speed;
+            boss4Obj.bats[i].velY = (dy / dist) * speed;
+          }
+          boss4Obj.bats[i].x += boss4Obj.bats[i].velX;
+          boss4Obj.bats[i].y += boss4Obj.bats[i].velY;
+          boss4Obj.bats[i].facingLeft = (boss4Obj.bats[i].velX < 0);
+
+          // Damage character
+          if (boss4Obj.bats[i].active && boss4Obj.bats[i].x + 60 > charX &&
+              boss4Obj.bats[i].x < charX + 80 &&
+              boss4Obj.bats[i].y + 60 > charY &&
+              boss4Obj.bats[i].y < charY + 120) {
+            if (!isInvincible && charAttackDamagelessTimer <= 0) {
+              lives--;
+              if (lives <= 0) {
+                lives = 0;
+                gameState = GAME_OVER;
+              } else {
+                isInvincible = true;
+                invincibilityTimer = 60;
+              }
+              boss4Obj.bats[i].active = false;
+            }
+          }
+
+          // Destroyed by player attack
+          if (boss4Obj.bats[i].active && isAttacking) {
+            float batCX = boss4Obj.bats[i].x;
+            float batCY = boss4Obj.bats[i].y;
+            bool facingBack =
+                isLeftArrowPressed || (specialKeyPressed[GLUT_KEY_LEFT] != 0);
+            float reachMin, reachMax;
+            
+            // Tighten weapon reach to exactly the sword's swing
+            if (facingBack) {
+              // Left strike: from char's back to weapon tip
+              reachMin = (float)charX - 80;
+              reachMax = (float)charX + 40;
+            } else {
+              // Right strike: from char's front to weapon tip
+              reachMin = (float)charX + charWidth - 40;
+              reachMax = (float)charX + charWidth + 80;
+            }
+
+            // Proper bounding box collision check for the 75x75 bat
+            if (batCX + 75 > reachMin && batCX < reachMax && 
+                batCY + 75 > charY && batCY < charY + charHeight + 40) {
+              // Instant death fall
+              boss4Obj.bats[i].state = 3;
+              boss4Obj.bats[i].velX = (boss4Obj.bats[i].facingLeft ? 4.0f : -4.0f); // Fall away from facing dir
+              boss4Obj.bats[i].velY = 7.0f; // Initial upward arc for smooth fall
+            }
+          }
+        } else if (boss4Obj.bats[i].state == 3) {
+          // --- STATE 3: DYING FALL ---
+          boss4Obj.bats[i].velY -= 0.5f; // Gravity
+          if (boss4Obj.bats[i].velY < -10.0f)
+            boss4Obj.bats[i].velY = -10.0f;
+          boss4Obj.bats[i].velX *= 0.98f;
+
+          boss4Obj.bats[i].x += boss4Obj.bats[i].velX;
+          boss4Obj.bats[i].y += boss4Obj.bats[i].velY;
+
+          if (boss4Obj.bats[i].y < -80 || boss4Obj.bats[i].x < -100 ||
+              boss4Obj.bats[i].x > 1100) {
+            boss4Obj.bats[i].active = false;
+          }
+        }
+
+        // Bounds check for active bats
+        if (boss4Obj.bats[i].state == 0 &&
+            (boss4Obj.bats[i].x < -300 || boss4Obj.bats[i].x > 1300 ||
+             boss4Obj.bats[i].y < -300 || boss4Obj.bats[i].y > 900)) {
           boss4Obj.bats[i].active = false;
         }
 
         if (boss4Obj.bats[i].hitFlashTimer > 0)
           boss4Obj.bats[i].hitFlashTimer--;
-
-        // Damage character
-        if (boss4Obj.bats[i].active && boss4Obj.bats[i].x + 60 > charX &&
-            boss4Obj.bats[i].x < charX + 80 && boss4Obj.bats[i].y + 60 > charY &&
-            boss4Obj.bats[i].y < charY + 120) {
-          if (!isInvincible && charAttackDamagelessTimer <= 0) {
-            lives--;
-            if (lives <= 0) {
-              lives = 0;
-              gameState = GAME_OVER;
-            } else {
-              isInvincible = true;
-              invincibilityTimer = 60;
-            }
-            boss4Obj.bats[i].active = false;
-          }
-        }
-
-        // Destroyed by player attack
-        if (boss4Obj.bats[i].active && isAttacking && attackFrameIndex >= 1 &&
-            attackFrameIndex <= 4 && !npcSlashDone) {
-          float batCX = boss4Obj.bats[i].x;
-          float batCY = boss4Obj.bats[i].y;
-          bool facingBack =
-              isLeftArrowPressed || (specialKeyPressed[GLUT_KEY_LEFT] != 0);
-          float reachMin, reachMax;
-          if (facingBack) {
-            reachMin = (float)charX - 160;
-            reachMax = (float)charX + 40;
-          } else {
-            reachMin = (float)charX + charWidth - 40;
-            reachMax = (float)charX + charWidth + 160;
-          }
-
-          // Broadened hit vertical check (charY - 100 to charY + 250)
-          if (batCX > reachMin && batCX < reachMax && batCY > charY - 100 &&
-              batCY < charY + 250) {
-            boss4Obj.bats[i].life--;
-            boss4Obj.bats[i].hitFlashTimer = 15;
-            if (boss4Obj.bats[i].life <= 0) {
-              boss4Obj.bats[i].active = false;
-            }
-            npcSlashDone = true;
-          }
-        }
       }
     }
 
@@ -2738,12 +2760,24 @@ inline void drawBoss() {
                 continue;
 
               int bImg = batImgs[boss4Obj.bats[i].frame];
-              if (boss4Obj.bats[i].facingLeft) {
-                iShowImage((int)boss4Obj.bats[i].x, (int)boss4Obj.bats[i].y, 75,
-                           75, bImg);
+              if (boss4Obj.bats[i].state == 3) {
+                // DYING: draw upside-down
+                if (boss4Obj.bats[i].facingLeft) {
+                  iShowImageVFlip((int)boss4Obj.bats[i].x, (int)boss4Obj.bats[i].y,
+                                  75, 75, bImg);
+                } else {
+                  iShowImageHVFlip((int)boss4Obj.bats[i].x,
+                                   (int)boss4Obj.bats[i].y, 75, 75, bImg);
+                }
               } else {
-                iShowImageHFlip((int)boss4Obj.bats[i].x, (int)boss4Obj.bats[i].y,
-                                75, 75, bImg);
+                // NORMAL
+                if (boss4Obj.bats[i].facingLeft) {
+                  iShowImage((int)boss4Obj.bats[i].x, (int)boss4Obj.bats[i].y, 75,
+                             75, bImg);
+                } else {
+                  iShowImageHFlip((int)boss4Obj.bats[i].x, (int)boss4Obj.bats[i].y,
+                                  75, 75, bImg);
+                }
               }
             }
           }

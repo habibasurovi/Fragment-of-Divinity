@@ -102,7 +102,7 @@ inline void initCaveState() {
 }
 
 inline void updateWizardLogic() {
-  if (isGamePaused)
+  if (isGamePaused || isLevelTransitioning)
     return;
 
   if (isCharacterEntering) {
