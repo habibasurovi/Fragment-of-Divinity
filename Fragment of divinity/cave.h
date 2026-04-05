@@ -107,7 +107,7 @@ inline void updateWizardLogic() {
 
   if (isCharacterEntering) {
     wizardTimer++;
-    // Character Animation
+    // Character Animation (Walking)
     if (wizardTimer % 5 == 0) {
       charFrameIndex++;
       if (charFrameIndex >= 9) // Loop 1-8
@@ -118,41 +118,51 @@ inline void updateWizardLogic() {
     if (charX >= 150) { // Stop position
       charX = 150;
       isCharacterEntering = false;
-      charFrameIndex = 0;    // Frame 1 (Index 0) - leora1.png
+      charFrameIndex = 0;    // Frame 1 (Index 0) - Resting frame 1
       isWizardMoving = true; // Start wizard
       wizardTimer = 0;
     }
-  } else if (isWizardMoving) {
+  } else {
+    // Resting Motion Animation
     wizardTimer++;
-
-    // Animation logic
-    if (wizardTimer % 5 == 0) {
-      wizardIndex++;
-      if (wizardIndex >= 10)
-        wizardIndex = 0;
+    if (wizardTimer % 10 == 0) { // Resting speed (approx 3 FPS)
+      charFrameIndex++;
+      if (charFrameIndex >= 3)
+        charFrameIndex = 0;
     }
 
-    // Movement logic
-    wizardX -= 5;         // Move left
-    if (wizardX <= 650) { // Specific position to create hole/gap
-      wizardX = 650;
-      isWizardMoving = false;
-      wizardIndex = 0; // Set to first frame (standing)
+    if (isWizardMoving) {
+      // wizardTimer++; // Already incremented above
 
-      // Start Dialogue Sequence
-      isWizardTalking = true;
-      wizardDialogueIndex = 1;
-      wizardDialogueTimer = 0;
-    }
-  } else if (isWizardTalking) {
-    wizardDialogueTimer++;
-    // Display each message for 120 frames (approx 4 seconds)
-    if (wizardDialogueTimer >= 120) {
-      wizardDialogueTimer = 0;
-      wizardDialogueIndex++;
-      if (wizardDialogueIndex > 3) {
-        isWizardTalking = false;
-        // IQ question will appear now (checked in IQ.h)
+      // Animation logic
+      if (wizardTimer % 5 == 0) {
+        wizardIndex++;
+        if (wizardIndex >= 10)
+          wizardIndex = 0;
+      }
+
+      // Movement logic
+      wizardX -= 5;         // Move left
+      if (wizardX <= 650) { // Specific position to create hole/gap
+        wizardX = 650;
+        isWizardMoving = false;
+        wizardIndex = 0; // Set to first frame (standing)
+
+        // Start Dialogue Sequence
+        isWizardTalking = true;
+        wizardDialogueIndex = 1;
+        wizardDialogueTimer = 0;
+      }
+    } else if (isWizardTalking) {
+      wizardDialogueTimer++;
+      // Display each message for 120 frames (approx 4 seconds)
+      if (wizardDialogueTimer >= 120) {
+        wizardDialogueTimer = 0;
+        wizardDialogueIndex++;
+        if (wizardDialogueIndex > 3) {
+          isWizardTalking = false;
+          // IQ question will appear now (checked in IQ.h)
+        }
       }
     }
   }

@@ -3,6 +3,7 @@
 
 #include "iGraphics.h"
 #include "Boss.h"
+#include "GameState.h"
 #include <math.h>
 
 // Character Global Variables
@@ -72,6 +73,8 @@ extern int gunAttackFrameIndex;
 extern bool isJumpAttacking;
 extern int jumpAttackFrameIndex;
 extern int jumpAttackAnimCounter;
+extern bool isCharacterEntering;
+extern GameState gameState;
 int getSelectedCharacterGunImage(int frame, bool isBack);
 int getSelectedCharacterJumpAttackImage(int index);
 int getSelectedCharacterStaticImage(int frameIndex, bool isBack);
@@ -137,6 +140,13 @@ inline void getCharacterFrameInfo(int customX, int customY, int &rX, int &rY, in
         currentJumpImg = 2; // jump3
 
       frame = getSelectedCharacterJumpImage(currentJumpImg, isBack);
+      if (currentLevel == 1 && selectedCharacter == 2 && currentJumpImg == 2) {
+        // Leora's jump3/jumpback3 frame is disproportionately large in Level 1, scale it down to fit
+        rW = charWidth - 30;
+        rH = charHeight - 30;
+        rX = customX + 15;
+        rY = customY; // keep feet grounded/at current Y
+      }
     }
   } else if (isRightArrowPressed || isLeftArrowPressed) {
     if (currentLevel == 4 && level4Phase == 1) {
@@ -154,6 +164,13 @@ inline void getCharacterFrameInfo(int customX, int customY, int &rX, int &rY, in
     // Idle
     if (currentLevel == 4) {
       frame = getSelectedCharacterStaticImage(charFrameIndex, isBack);
+    } else if (gameState == NEXT_LEVEL_IQ && !isCharacterEntering) {
+      frame = getSelectedCharacterRestingMotionImage(charFrameIndex);
+      // All characters' resting motion frames need these offsets to match their walking bodies
+      rX = customX - 25;
+      rY = customY - 20;
+      rW = charWidth + 50;
+      rH = charHeight + 50;
     } else {
       frame = getSelectedCharacterImage(charFrameIndex, isBack);
     }
